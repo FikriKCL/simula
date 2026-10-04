@@ -1,0 +1,32 @@
+from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    database_url: str
+    jwt_secret: str = Field(min_length=32)
+    access_token_minutes: int = Field(default=30, ge=1, le=1440)
+    cors_origins: list[str] = ["http://localhost:3000"]
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def reject_example(cls, value):
+        if value.startswith("replace-"):
+            raise ValueError("Generate a random JWT_SECRET; do not use the example value")
+        return value
+
+    @property
+    def psycopg_url(self):
+        parts = urlsplit(self.database_url)
+        # Prisma's schema parameter is not a libpq connection option.
+        query = dict(parse_qsl(parts.query))
+        schema = query.pop("schema", "public")
+        if schema != "public":
+            raise ValueError("This package uses the public schema")
+        return urlunsplit(parts._replace(query=urlencode(query)))
+
+@lru_cache
+def settings():
+    return Settings()

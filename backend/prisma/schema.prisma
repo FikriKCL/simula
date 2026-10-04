@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model School {
+  id Int @id @default(autoincrement())
+  name String 
+  address String? 
+  User_school_id_items User[] @relation("User_school_id")
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  username String @unique
+  display_name String 
+  password_hash String 
+  role String @default("STUDENT")
+  school_id Int? 
+  active Boolean @default(true)
+  xp Int @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  school_id_ref School? @relation("User_school_id", fields: [school_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  Module_created_by_items Module[] @relation("Module_created_by")
+  Module_reviewed_by_items Module[] @relation("Module_reviewed_by")
+  Progress_user_id_items Progress[] @relation("Progress_user_id")
+  Attempt_user_id_items Attempt[] @relation("Attempt_user_id")
+  UserBadge_user_id_items UserBadge[] @relation("UserBadge_user_id")
+  ChatSession_user_id_items ChatSession[] @relation("ChatSession_user_id")
+  @@index([school_id])
+}
+
+model Module {
+  id Int @id @default(autoincrement())
+  title String 
+  description String 
+  level Int @unique
+  status String @default("DRAFT")
+  review_note String? 
+  reviewed_by Int? 
+  created_by Int 
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  created_by_ref User @relation("Module_created_by", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewed_by_ref User? @relation("Module_reviewed_by", fields: [reviewed_by], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  Lesson_module_id_items Lesson[] @relation("Lesson_module_id")
+  Quiz_module_id_items Quiz[] @relation("Quiz_module_id")
+  Badge_module_id_items Badge[] @relation("Badge_module_id")
+  @@index([created_by])
+  @@index([reviewed_by])
+}
+
+model Lesson {
+  id Int @id @default(autoincrement())
+  module_id Int 
+  title String 
+  body String 
+  image_url String? 
+  video_url String? 
+  position Int 
+  module_id_ref Module @relation("Lesson_module_id", fields: [module_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Progress_lesson_id_items Progress[] @relation("Progress_lesson_id")
+  @@unique([module_id, position])
+  @@index([module_id])
+}
+
+model Progress {
+  id Int @id @default(autoincrement())
+  user_id Int 
+  lesson_id Int 
+  completed_at DateTime @default(now()) @db.Timestamptz(6)
+  user_id_ref User @relation("Progress_user_id", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  lesson_id_ref Lesson @relation("Progress_lesson_id", fields: [lesson_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  @@unique([user_id, lesson_id])
+  @@index([user_id])
+  @@index([lesson_id])
+}
+
+model Quiz {
+  id Int @id @default(autoincrement())
+  module_id Int 
+  title String 
+  kind String 
+  pass_score Int @default(70)
+  module_id_ref Module @relation("Quiz_module_id", fields: [module_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  Question_quiz_id_items Question[] @relation("Question_quiz_id")
+  Attempt_quiz_id_items Attempt[] @relation("Attempt_quiz_id")
+  @@index([module_id])
+}
+
+model Question {
+  id Int @id @default(autoincrement())
+  quiz_id Int 
+  prompt String 
+  options Json 
+  correct_index Int 
+  explanation String 
+  quiz_id_ref Quiz @relation("Question_quiz_id", fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  @@index([quiz_id])
+}
+
+model Attempt {
+  id Int @id @default(autoincrement())
+  user_id Int 
+  quiz_id Int 
+  score Int 
+  passed Boolean 
+  answers Json 
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  user_id_ref User @relation("Attempt_user_id", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  quiz_id_ref Quiz @relation("Attempt_quiz_id", fields: [quiz_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  @@index([user_id])
+  @@index([quiz_id])
+}
+
+model Badge {
+  id Int @id @default(autoincrement())
+  module_id Int @unique
+  name String 
+  description String 
+  module_id_ref Module @relation("Badge_module_id", fields: [module_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  UserBadge_badge_id_items UserBadge[] @relation("UserBadge_badge_id")
+  @@index([module_id])
+}
+
+model UserBadge {
+  id Int @id @default(autoincrement())
+  user_id Int 
+  badge_id Int 
+  earned_at DateTime @default(now()) @db.Timestamptz(6)
+  user_id_ref User @relation("UserBadge_user_id", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  badge_id_ref Badge @relation("UserBadge_badge_id", fields: [badge_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  @@unique([user_id, badge_id])
+  @@index([user_id])
+  @@index([badge_id])
+}
+
+model ChatSession {
+  id Int @id @default(autoincrement())
+  user_id Int 
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  user_id_ref User @relation("ChatSession_user_id", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ChatMessage_session_id_items ChatMessage[] @relation("ChatMessage_session_id")
+  @@index([user_id])
+}
+
+model ChatMessage {
+  id Int @id @default(autoincrement())
+  session_id Int 
+  role String 
+  content String 
+  sources Json 
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  session_id_ref ChatSession @relation("ChatMessage_session_id", fields: [session_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  @@index([session_id])
+}

@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: simula
+      POSTGRES_PASSWORD: simula_dev_password
+      POSTGRES_DB: simula
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - simula_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U simula -d simula"]
+      interval: 3s
+      retries: 20
+  migrate:
+    image: node:22-alpine
+    working_dir: /project
+    volumes:
+      - .:/project
+      - simula_node_modules:/project/node_modules
+    environment:
+      DATABASE_URL: postgresql://simula:simula_dev_password@db:5432/simula?schema=public
+    command: sh -c "npm ci && npm run db:deploy"
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://simula:simula_dev_password@db:5432/simula?schema=public
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  simula_data:
+  simula_node_modules:

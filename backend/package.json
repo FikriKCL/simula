@@ -1,0 +1,16 @@
+{
+  "name": "simula-backend-schema",
+  "private": true,
+  "scripts": {
+    "db:deploy": "prisma migrate deploy",
+    "db:dev": "prisma migrate dev",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate"
+  },
+  "devDependencies": {
+    "prisma": "6.19.0"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0"
+  }
+}
