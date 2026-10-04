@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "SIMULA Backend",
-    "description": "API pembelajaran PMR Mula. Materi harus divalidasi sebelum diterbitkan.",
-    "version": "1.0.0"
+    "description": "API PMR Mula. Router → service → SQLAlchemy ORM → PostgreSQL.",
+    "version": "3.0.0"
   },
   "paths": {
     "/health/live": {
@@ -181,6 +181,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Profile Edit",
+        "operationId": "profile_edit_api_v1_users_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -609,6 +653,110 @@
         }
       }
     },
+    "/api/v1/modules/{mid}/submit-review": {
+      "post": {
+        "tags": [
+          "Validation"
+        ],
+        "summary": "Submit Review",
+        "operationId": "submit_review_api_v1_modules__mid__submit_review_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules/{mid}/review": {
+      "post": {
+        "tags": [
+          "Validation"
+        ],
+        "summary": "Review Module",
+        "operationId": "review_module_api_v1_modules__mid__review_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Review"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/modules/{mid}/lessons": {
       "post": {
         "tags": [
@@ -761,110 +909,6 @@
         }
       }
     },
-    "/api/v1/modules/{mid}/submit-review": {
-      "post": {
-        "tags": [
-          "Validation"
-        ],
-        "summary": "Submit Review",
-        "operationId": "submit_review_api_v1_modules__mid__submit_review_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "mid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Mid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModuleOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/modules/{mid}/review": {
-      "post": {
-        "tags": [
-          "Validation"
-        ],
-        "summary": "Review Module",
-        "operationId": "review_module_api_v1_modules__mid__review_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "mid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Mid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Review"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModuleOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/lessons/{lid}/complete": {
       "post": {
         "tags": [
@@ -940,6 +984,71 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/learning/attempts": {
+      "get": {
+        "tags": [
+          "Quizzes"
+        ],
+        "summary": "Attempts",
+        "operationId": "attempts_api_v1_learning_attempts_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttemptOut"
+                  },
+                  "title": "Response Attempts Api V1 Learning Attempts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/modules/{mid}/quizzes": {
@@ -1086,71 +1195,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SubmissionOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/learning/attempts": {
-      "get": {
-        "tags": [
-          "Quizzes"
-        ],
-        "summary": "Attempts",
-        "operationId": "attempts_api_v1_learning_attempts_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
-              "default": 20,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AttemptOut"
-                  },
-                  "title": "Response Attempts Api V1 Learning Attempts Get"
                 }
               }
             }
@@ -1468,6 +1512,986 @@
           }
         }
       }
+    },
+    "/api/v1/ui/config": {
+      "get": {
+        "tags": [
+          "Frontend"
+        ],
+        "summary": "Ui Config",
+        "operationId": "ui_config_api_v1_ui_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics": {
+      "get": {
+        "tags": [
+          "Frontend"
+        ],
+        "summary": "Topics",
+        "operationId": "topics_api_v1_topics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TopicOut"
+                  },
+                  "type": "array",
+                  "title": "Response Topics Api V1 Topics Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/topics/{tid}": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Topic Edit",
+        "operationId": "topic_edit_api_v1_admin_topics__tid__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/learning/path": {
+      "get": {
+        "tags": [
+          "Learning"
+        ],
+        "summary": "Path",
+        "operationId": "path_api_v1_learning_path_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TopicPath"
+                  },
+                  "type": "array",
+                  "title": "Response Path Api V1 Learning Path Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/materials": {
+      "get": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "Catalogue",
+        "operationId": "catalogue_api_v1_materials_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "PDF",
+                    "VIDEO",
+                    "COMIC"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "topic_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialCatalogue"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/materials/{aid}": {
+      "get": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "Detail",
+        "operationId": "detail_api_v1_materials__aid__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "Material Edit",
+        "operationId": "material_edit_api_v1_materials__aid__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "Material Delete",
+        "operationId": "material_delete_api_v1_materials__aid__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lessons/{lid}/materials": {
+      "post": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "Material Create",
+        "operationId": "material_create_api_v1_lessons__lid__materials_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/materials/{aid}/open": {
+      "post": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "Opened",
+        "operationId": "opened_api_v1_materials__aid__open_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/materials/{aid}/complete": {
+      "post": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "Completed",
+        "operationId": "completed_api_v1_materials__aid__complete_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/summary": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Summary",
+        "operationId": "summary_api_v1_users_me_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileSummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/quizzes/{qid}/questions": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Bank",
+        "operationId": "bank_api_v1_admin_quizzes__qid__questions_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "qid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Qid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BankQuestionOut"
+                  },
+                  "title": "Response Bank Api V1 Admin Quizzes  Qid  Questions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Question Add",
+        "operationId": "question_add_api_v1_admin_quizzes__qid__questions_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "qid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Qid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankQuestionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/quizzes/{qid}/questions/{question_id}": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Question Update",
+        "operationId": "question_update_api_v1_admin_quizzes__qid__questions__question_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "qid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Qid"
+            }
+          },
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankQuestionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/quizzes/{qid}/questions/{question_id}/active": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Question Archive",
+        "operationId": "question_archive_api_v1_admin_quizzes__qid__questions__question_id__active_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "qid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Qid"
+            }
+          },
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankQuestionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quizzes/{qid}/runs": {
+      "post": {
+        "tags": [
+          "Quizzes"
+        ],
+        "summary": "Start Run",
+        "operationId": "start_run_api_v1_quizzes__qid__runs_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "qid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Qid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quizzes/{qid}/runs/{rid}/submit": {
+      "post": {
+        "tags": [
+          "Quizzes"
+        ],
+        "summary": "Submit Run",
+        "operationId": "submit_run_api_v1_quizzes__qid__runs__rid__submit_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "qid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Qid"
+            }
+          },
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Submission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/certificates": {
+      "get": {
+        "tags": [
+          "Certificates"
+        ],
+        "summary": "Certificates",
+        "operationId": "certificates_api_v1_certificates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CertificateOut"
+                  },
+                  "type": "array",
+                  "title": "Response Certificates Api V1 Certificates Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/certificates/{cid}/download": {
+      "get": {
+        "tags": [
+          "Certificates"
+        ],
+        "summary": "Download",
+        "operationId": "download_api_v1_certificates__cid__download_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1569,6 +2593,98 @@
         ],
         "title": "BadgeOut"
       },
+      "BadgeView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "module_id": {
+            "type": "integer",
+            "title": "Module Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "earned": {
+            "type": "boolean",
+            "title": "Earned"
+          },
+          "earned_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earned At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "module_id",
+          "name",
+          "description",
+          "earned",
+          "earned_at"
+        ],
+        "title": "BadgeView"
+      },
+      "BankQuestionOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "quiz_id": {
+            "type": "integer",
+            "title": "Quiz Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "correct_index": {
+            "type": "integer",
+            "title": "Correct Index"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quiz_id",
+          "prompt",
+          "options",
+          "correct_index",
+          "explanation",
+          "active"
+        ],
+        "title": "BankQuestionOut"
+      },
       "Body_swagger_login_api_v1_auth_token_post": {
         "properties": {
           "grant_type": {
@@ -1625,6 +2741,65 @@
           "password"
         ],
         "title": "Body_swagger_login_api_v1_auth_token_post"
+      },
+      "CertificateOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "quiz_id": {
+            "type": "integer",
+            "title": "Quiz Id"
+          },
+          "attempt_id": {
+            "type": "integer",
+            "title": "Attempt Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "module_title": {
+            "type": "string",
+            "title": "Module Title"
+          },
+          "quiz_title": {
+            "type": "string",
+            "title": "Quiz Title"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "issued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Issued At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "quiz_id",
+          "attempt_id",
+          "code",
+          "display_name",
+          "module_title",
+          "quiz_title",
+          "score",
+          "issued_at"
+        ],
+        "title": "CertificateOut"
       },
       "ChatInput": {
         "properties": {
@@ -1687,6 +2862,35 @@
           "mode"
         ],
         "title": "ChatReplyOut"
+      },
+      "ComicPage": {
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Image Url"
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 3,
+            "title": "Alt"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Text",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_url",
+          "alt"
+        ],
+        "title": "ComicPage"
       },
       "CompletionOut": {
         "properties": {
@@ -1822,6 +3026,34 @@
         ],
         "title": "FeedbackOut"
       },
+      "FormatProgress": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "opened": {
+            "type": "integer",
+            "title": "Opened"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "total",
+          "opened",
+          "completed"
+        ],
+        "title": "FormatProgress"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1950,10 +3182,29 @@
       },
       "Login": {
         "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
           "username": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 254,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Username"
           },
           "password": {
@@ -1965,10 +3216,357 @@
         },
         "type": "object",
         "required": [
-          "username",
           "password"
         ],
         "title": "Login"
+      },
+      "MaterialCard": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "lesson_id": {
+            "type": "integer",
+            "title": "Lesson Id"
+          },
+          "module_id": {
+            "type": "integer",
+            "title": "Module Id"
+          },
+          "topic_id": {
+            "type": "integer",
+            "title": "Topic Id"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "VIDEO",
+              "COMIC"
+            ],
+            "title": "Kind"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked"
+          },
+          "opened": {
+            "type": "boolean",
+            "title": "Opened"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "lesson_id",
+          "module_id",
+          "topic_id",
+          "level",
+          "title",
+          "kind",
+          "thumbnail_url",
+          "page_count",
+          "duration_seconds",
+          "locked",
+          "opened",
+          "completed"
+        ],
+        "title": "MaterialCard"
+      },
+      "MaterialCatalogue": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialCard"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "MaterialCatalogue"
+      },
+      "MaterialCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "VIDEO",
+              "COMIC"
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 50000,
+            "minLength": 10,
+            "title": "Body",
+            "description": "Teks/transkrip materi untuk pencarian katalog"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/ComicPage"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Pages"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "position": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Position"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "kind",
+          "body",
+          "position"
+        ],
+        "title": "MaterialCreate"
+      },
+      "MaterialOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "lesson_id": {
+            "type": "integer",
+            "title": "Lesson Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/ComicPage"
+            },
+            "type": "array",
+            "title": "Pages"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "opened": {
+            "type": "boolean",
+            "title": "Opened",
+            "default": false
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed",
+            "default": false
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "lesson_id",
+          "title",
+          "kind",
+          "url",
+          "thumbnail_url",
+          "body",
+          "pages",
+          "page_count",
+          "duration_seconds",
+          "position",
+          "required"
+        ],
+        "title": "MaterialOut"
       },
       "MessageOut": {
         "properties": {
@@ -2014,6 +3612,12 @@
       },
       "ModuleCreate": {
         "properties": {
+          "topic_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Topic Id",
+            "default": 1
+          },
           "title": {
             "type": "string",
             "maxLength": 200,
@@ -2043,6 +3647,11 @@
       },
       "ModuleDetail": {
         "properties": {
+          "topic_id": {
+            "type": "integer",
+            "title": "Topic Id",
+            "default": 1
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -2127,6 +3736,11 @@
       },
       "ModuleOut": {
         "properties": {
+          "topic_id": {
+            "type": "integer",
+            "title": "Topic Id",
+            "default": 1
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -2195,6 +3809,11 @@
       },
       "ModuleSummary": {
         "properties": {
+          "topic_id": {
+            "type": "integer",
+            "title": "Topic Id",
+            "default": 1
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -2237,6 +3856,252 @@
           "review_note"
         ],
         "title": "ModuleSummary"
+      },
+      "PathNode": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "COMPLETED",
+              "AVAILABLE",
+              "LOCKED"
+            ],
+            "title": "Status"
+          },
+          "total_lessons": {
+            "type": "integer",
+            "title": "Total Lessons"
+          },
+          "completed_lessons": {
+            "type": "integer",
+            "title": "Completed Lessons"
+          },
+          "posttests_passed": {
+            "type": "boolean",
+            "title": "Posttests Passed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "level",
+          "status",
+          "total_lessons",
+          "completed_lessons",
+          "posttests_passed"
+        ],
+        "title": "PathNode"
+      },
+      "ProfileEdit": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Display Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "id",
+              "en"
+            ],
+            "title": "Locale",
+            "default": "id"
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark",
+              "system"
+            ],
+            "title": "Theme",
+            "default": "light"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "ProfileEdit"
+      },
+      "ProfileSummary": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/ProfileUser"
+          },
+          "completed_levels": {
+            "type": "integer",
+            "title": "Completed Levels"
+          },
+          "total_levels": {
+            "type": "integer",
+            "title": "Total Levels"
+          },
+          "current_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Level"
+          },
+          "earned_badges": {
+            "type": "integer",
+            "title": "Earned Badges"
+          },
+          "opened_materials": {
+            "type": "integer",
+            "title": "Opened Materials"
+          },
+          "badges": {
+            "items": {
+              "$ref": "#/components/schemas/BadgeView"
+            },
+            "type": "array",
+            "title": "Badges"
+          },
+          "material_progress": {
+            "items": {
+              "$ref": "#/components/schemas/FormatProgress"
+            },
+            "type": "array",
+            "title": "Material Progress"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "completed_levels",
+          "total_levels",
+          "current_level",
+          "earned_badges",
+          "opened_materials",
+          "badges",
+          "material_progress"
+        ],
+        "title": "ProfileSummary"
+      },
+      "ProfileUser": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "theme": {
+            "type": "string",
+            "title": "Theme"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "school_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "School Id"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "xp": {
+            "type": "integer",
+            "title": "Xp"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "email",
+          "avatar_url",
+          "locale",
+          "theme",
+          "role",
+          "school_id",
+          "active",
+          "xp",
+          "created_at"
+        ],
+        "title": "ProfileUser"
       },
       "ProgressOut": {
         "properties": {
@@ -2308,6 +4173,17 @@
           "explanation"
         ],
         "title": "QuestionCreate"
+      },
+      "QuestionEdit": {
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "QuestionEdit"
       },
       "QuestionOut": {
         "properties": {
@@ -2452,6 +4328,18 @@
       },
       "Register": {
         "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
           "username": {
             "type": "string",
             "maxLength": 40,
@@ -2511,6 +4399,43 @@
           "note"
         ],
         "title": "Review"
+      },
+      "RunOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "quiz_id": {
+            "type": "integer",
+            "title": "Quiz Id"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "pass_score": {
+            "type": "integer",
+            "title": "Pass Score"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionOut"
+            },
+            "type": "array",
+            "title": "Questions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quiz_id",
+          "expires_at",
+          "pass_score",
+          "questions"
+        ],
+        "title": "RunOut"
       },
       "SchoolCreate": {
         "properties": {
@@ -2620,6 +4545,18 @@
       },
       "StaffCreate": {
         "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
           "username": {
             "type": "string",
             "maxLength": 40,
@@ -2723,6 +4660,17 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "certificate_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Id"
+          },
           "xp_awarded": {
             "type": "integer",
             "title": "Xp Awarded"
@@ -2772,8 +4720,123 @@
         ],
         "title": "TokenOut"
       },
+      "TopicEdit": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Name"
+          },
+          "position": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Position",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TopicEdit"
+      },
+      "TopicOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Name"
+          },
+          "position": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Position",
+            "default": 1
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "code"
+        ],
+        "title": "TopicOut"
+      },
+      "TopicPath": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/PathNode"
+            },
+            "type": "array",
+            "title": "Levels"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "levels"
+        ],
+        "title": "TopicPath"
+      },
       "UserOut": {
         "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale",
+            "default": "id"
+          },
+          "theme": {
+            "type": "string",
+            "title": "Theme",
+            "default": "light"
+          },
           "id": {
             "type": "integer",
             "title": "Id"

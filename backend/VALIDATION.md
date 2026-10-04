@@ -1,13 +1,21 @@
-# Validasi paket — 4 Oktober 2026
+# Validasi backend v3 — 4 Oktober 2026
 
-- `prisma validate`: skema valid dengan Prisma 6.19.0.
-- Import FastAPI dan pembuatan OpenAPI: berhasil; 26 path, 38 schema input/output.
-- Empat tes unit: lulus (JWT/audience, penolakan secret contoh, validasi kunci kuis, konversi URL Prisma).
-- Empat skenario integrasi API: lulus menggunakan **PGlite**, mesin PostgreSQL tersemat, melalui protokol PostgreSQL dan psycopg. SQL migrasi awal berhasil diterapkan di mesin tersebut.
-- Total: **8 tes lulus**.
+- SQLAlchemy 2.0.44 memetakan 17 tabel; lima tabel baru: Topic, Material, MaterialProgress, QuizRun, Certificate.
+- `prisma validate` lulus dengan Prisma 6.19.0. Migrasi awal dan tambahan dijalankan berurutan melalui SQL pada PGlite.
+- Import dan ekspor OpenAPI berhasil: versi 3.0.0, 43 path, 56 schema. Snapshot diperbarui.
+- Runtime tidak menggunakan query SQL mentah; CRUD, agregasi, penguncian, pencarian memakai ORM/SQLAlchemy expressions. SQL tetap ada dalam migrasi.
+- Ruff import/undefined names (F/I) lulus; kode diformat.
+- Empat tes keamanan/validasi, satu tes rollback ORM dengan SQLite, dan lima skenario integrasi FastAPI + SQLAlchemy + psycopg + PGlite lulus.
+- **Total: 10 tes lulus.** Satu peringatan deprecation Starlette/AnyIO test client.
+- PDF sertifikat berhasil dibuat, dirender, dan diperiksa visual dengan nama/judul panjang; font tertanam, teks terbaca tanpa terpotong.
+- Service/schema chatbot identik dengan versi sebelumnya; tidak ada peningkatan chatbot atau implementasi frontend.
 
-Skenario integrasi mencakup batas peran dan token akun nonaktif, konflik username, materi draft, validasi independen, level terkunci, penilaian server, reward idempotent, lencana, laporan baseline berpasangan, histori dan kepemilikan chat.
+Integrasi lama mencakup batas peran, akun nonaktif, konflik username, draft, validasi independen, level terkunci, nilai server, hadiah idempotent, lencana, laporan baseline berpasangan, dan kepemilikan chat.
 
-Lingkungan uji menggunakan PGlite sebagai pengganti sementara PostgreSQL native: SSL dan prepared statements dimatikan pada harness uji, dan tes konflik username dijalankan terakhir karena keterbatasan pemulihan error protokol adapter PGlite. Konfigurasi produksi dalam paket tetap menggunakan psycopg normal. PGlite dan harness sementara bukan dependency aplikasi.
+Integrasi baru mencakup login email tanpa membedakan huruf besar/kecil, level sama pada topik berbeda, katalog tanpa URL media, prasyarat penyelesaian media, membuka media tanpa duplikasi, snapshot penilaian setelah soal diedit, jawaban invalid, kepemilikan/masa berlaku sesi, penolakan submit berulang, PDF/kepemilikan sertifikat, statistik profil, nama sertifikat tetap setelah edit profil, bank kosong, dan batas 50 soal aktif termasuk aktivasi kembali.
 
-**Belum diverifikasi di lingkungan ini:** migrasi melalui Prisma terhadap PostgreSQL 16 native, runtime Docker Compose, pengujian beban/concurrency, dan integrasi Next.js. Jalankan suite tes yang disertakan terhadap database PostgreSQL terpisah `simula_test` mengikuti README sebelum deployment. Hasil uji PGlite tidak menggantikan uji terhadap PostgreSQL target.
+PGlite merupakan PostgreSQL tersemat untuk validasi lokal, bukan target deployment atau dependency backend. Harness sementara mematikan SSL/prepared statements dan memakai engine yang sama untuk seeding/aplikasi karena batas adapter protokol. Database terpisah bernama `simula_test` digunakan. Rollback transaksi setelah konflik unique telah diuji dengan SQLite.
+
+**Belum diverifikasi di lingkungan ini:** Prisma migrate deploy pada PostgreSQL 16 native, Docker Compose, recovery constraint pada PostgreSQL native, beban/concurrency, dan integrasi Next.js. Jalankan suite terhadap PostgreSQL `simula_test` sesuai README sebelum deployment. Tanpa TEST_DATABASE_URL, lima tes lokal berjalan dan lima integrasi skip.
+
+Materi pendidikan final dan aset media tidak disediakan oleh tes. Validasi teknis tidak menyatakan materi telah disetujui PMI.

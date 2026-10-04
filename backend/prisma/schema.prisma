@@ -14,6 +14,13 @@ model School {
 }
 
 model User {
+  email String? @unique
+  avatar_url String?
+  locale String @default("id")
+  theme String @default("light")
+  material_progress MaterialProgress[]
+  quiz_runs QuizRun[]
+  certificates Certificate[]
   id Int @id @default(autoincrement())
   username String @unique
   display_name String 
@@ -34,10 +41,14 @@ model User {
 }
 
 model Module {
+  topic_id Int @default(1)
+  topic Topic @relation(fields: [topic_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([topic_id, level])
+  @@index([topic_id])
   id Int @id @default(autoincrement())
   title String 
   description String 
-  level Int @unique
+  level Int
   status String @default("DRAFT")
   review_note String? 
   reviewed_by Int? 
@@ -53,6 +64,7 @@ model Module {
 }
 
 model Lesson {
+  materials Material[]
   id Int @id @default(autoincrement())
   module_id Int 
   title String 
@@ -79,6 +91,8 @@ model Progress {
 }
 
 model Quiz {
+  runs QuizRun[]
+  certificates Certificate[]
   id Int @id @default(autoincrement())
   module_id Int 
   title String 
@@ -91,6 +105,7 @@ model Quiz {
 }
 
 model Question {
+  active Boolean @default(true)
   id Int @id @default(autoincrement())
   quiz_id Int 
   prompt String 
@@ -102,6 +117,9 @@ model Question {
 }
 
 model Attempt {
+  question_snapshot Json @default("[]")
+  quiz_run QuizRun?
+  certificates Certificate[]
   id Int @id @default(autoincrement())
   user_id Int 
   quiz_id Int 
@@ -155,4 +173,76 @@ model ChatMessage {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   session_id_ref ChatSession @relation("ChatMessage_session_id", fields: [session_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   @@index([session_id])
+}
+
+model Topic {
+ id Int @id @default(autoincrement())
+ code String @unique
+ name String
+ position Int @default(1)
+ modules Module[]
+}
+model Material {
+ id Int @id @default(autoincrement())
+ lesson_id Int
+ title String
+ kind String
+ url String?
+ thumbnail_url String?
+ body String @default("")
+ pages Json @default("[]")
+ page_count Int?
+ duration_seconds Int?
+ position Int
+ required Boolean @default(true)
+ lesson Lesson @relation(fields: [lesson_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+ progress MaterialProgress[]
+ @@unique([lesson_id, position])
+ @@index([lesson_id])
+}
+model MaterialProgress {
+ id Int @id @default(autoincrement())
+ user_id Int
+ material_id Int
+ opened_at DateTime @default(now()) @db.Timestamptz(6)
+ completed_at DateTime? @db.Timestamptz(6)
+ user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+ material Material @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+ @@unique([user_id, material_id])
+ @@index([user_id])
+ @@index([material_id])
+}
+model QuizRun {
+ id Int @id @default(autoincrement())
+ user_id Int
+ quiz_id Int
+ question_snapshot Json
+ pass_score Int
+ expires_at DateTime @db.Timestamptz(6)
+ submitted_at DateTime? @db.Timestamptz(6)
+ attempt_id Int? @unique
+ user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+ quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+ attempt Attempt? @relation(fields: [attempt_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+ @@index([user_id])
+ @@index([quiz_id])
+}
+model Certificate {
+ id Int @id @default(autoincrement())
+ user_id Int
+ quiz_id Int
+ attempt_id Int
+ code String @unique
+ display_name String
+ module_title String
+ quiz_title String
+ score Int
+ issued_at DateTime @default(now()) @db.Timestamptz(6)
+ user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+ quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+ attempt Attempt @relation(fields: [attempt_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+ @@unique([user_id, quiz_id])
+ @@index([user_id])
+ @@index([quiz_id])
+ @@index([attempt_id])
 }

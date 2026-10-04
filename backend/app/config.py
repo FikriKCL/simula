@@ -1,10 +1,14 @@
 from functools import lru_cache
-from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    contact_email: str | None = None
+    guide_url: str | None = None
     database_url: str
     jwt_secret: str = Field(min_length=32)
     access_token_minutes: int = Field(default=30, ge=1, le=1440)
@@ -14,7 +18,9 @@ class Settings(BaseSettings):
     @classmethod
     def reject_example(cls, value):
         if value.startswith("replace-"):
-            raise ValueError("Generate a random JWT_SECRET; do not use the example value")
+            raise ValueError(
+                "Generate a random JWT_SECRET; do not use the example value"
+            )
         return value
 
     @property
@@ -26,6 +32,7 @@ class Settings(BaseSettings):
         if schema != "public":
             raise ValueError("This package uses the public schema")
         return urlunsplit(parts._replace(query=urlencode(query)))
+
 
 @lru_cache
 def settings():
