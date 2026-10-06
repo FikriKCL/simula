@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(min_length=32)
     access_token_minutes: int = Field(default=30, ge=1, le=1440)
     cors_origins: list[str] = ["http://localhost:3000"]
+    gemini_api_key: str | None = None
 
     @field_validator("jwt_secret")
     @classmethod
