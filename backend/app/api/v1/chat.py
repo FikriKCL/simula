@@ -40,3 +40,12 @@ def chat_message(
     sid: int, data: ChatInput, user=Depends(current_user), db=Depends(get_db)
 ):
     return service.chat_message(sid, data, user, db)
+
+
+@router.post(
+    "/chat/test",
+    tags=["Chatbot"],
+)
+def test_chat(data: ChatInput):
+    from app.services.rag_service import query_rag
+    return query_rag(data.message)

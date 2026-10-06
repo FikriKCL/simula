@@ -24,6 +24,11 @@ async def lifespan(app):
     try:
         with factory() as db:
             db.execute(select(User.id).limit(1))
+    except Exception as e:
+        logging.getLogger("uvicorn.error").warning(
+            "Database connection failed at startup (PostgreSQL offline?): %s", e
+        )
+    try:
         yield
     finally:
         engine.dispose()
