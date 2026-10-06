@@ -1,13 +1,40 @@
 import json
+import logging
 import os
+from pathlib import Path
 from dotenv import load_dotenv
+
+# Suppress SDK warning in terminal
+logging.getLogger("google_genai").setLevel(logging.ERROR)
+
 from google import genai
 from google.genai import types
 
-load_dotenv("backend/.env")
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# Resolve directories dynamically
+CURRENT_DIR = Path(__file__).resolve().parent
+ENV_CANDIDATES = [
+    CURRENT_DIR.parent / "backend" / ".env",
+    CURRENT_DIR / ".env",
+    CURRENT_DIR.parent / ".env",
+]
+for env_file in ENV_CANDIDATES:
+    if env_file.exists():
+        load_dotenv(env_file)
+        break
+else:
+    load_dotenv()
 
-with open("chatbot/processed/knowledge_base.json", "r", encoding="utf-8") as f:
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("GEMINI_API_KEY tidak ditemukan di backend/.env!")
+
+client = genai.Client(api_key=api_key)
+
+KB_PATH = CURRENT_DIR / "processed" / "knowledge_base.json"
+if not KB_PATH.exists():
+    raise FileNotFoundError(f"File knowledge base tidak ditemukan di: {KB_PATH}")
+
+with open(KB_PATH, "r", encoding="utf-8") as f:
     kb = json.load(f)
 
 def cosine_sim(a, b):

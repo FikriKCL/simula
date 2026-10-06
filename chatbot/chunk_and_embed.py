@@ -1,16 +1,39 @@
 import os
 import re
 import json
+import logging
 import time
+from pathlib import Path
 from dotenv import load_dotenv
+
+# Suppress SDK warning in terminal
+logging.getLogger("google_genai").setLevel(logging.ERROR)
 from google import genai
 from google.genai import types
 
-load_dotenv("backend/.env")
+# Resolve .env file dynamically regardless of current working directory
+CURRENT_DIR = Path(__file__).resolve().parent
+ENV_CANDIDATES = [
+    CURRENT_DIR.parent / "backend" / ".env",
+    CURRENT_DIR / ".env",
+    CURRENT_DIR.parent / ".env",
+]
+for env_file in ENV_CANDIDATES:
+    if env_file.exists():
+        load_dotenv(env_file)
+        break
+else:
+    load_dotenv()
+
 api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError(
+        "GEMINI_API_KEY tidak ditemukan! Pastikan Anda telah mengisi GEMINI_API_KEY di file backend/.env"
+    )
+
 client = genai.Client(api_key=api_key)
 
-PROCESSED_DIR = os.path.join(os.path.dirname(__file__), "processed")
+PROCESSED_DIR = os.path.join(CURRENT_DIR, "processed")
 OUTPUT_JSON = os.path.join(PROCESSED_DIR, "knowledge_base.json")
 
 FILES = [
@@ -57,6 +80,19 @@ def split_into_chunks(text: str, max_chars: int = 1000, overlap: int = 150):
     return chunks
 
 def process_documents():
+    # If knowledge_base.json already exists and is complete, load it
+    existing_map = {}
+    if os.path.exists(OUTPUT_JSON):
+        try:
+            with open(OUTPUT_JSON, "r", encoding="utf-8") as f:
+                prev_data = json.load(f)
+            for item in prev_data:
+                if "embedding" in item:
+                    existing_map[item["content"]] = item["embedding"]
+            print(f"Loaded {len(existing_map)} previously cached embeddings.")
+        except Exception:
+            pass
+
     all_items = []
     chunk_id = 1
     
@@ -83,40 +119,48 @@ def process_documents():
             # Split section if it's too long
             sub_chunks = split_into_chunks(sec_strip, max_chars=1200, overlap=150)
             for sub in sub_chunks:
-                all_items.append({
+                item = {
                     "id": chunk_id,
                     "doc_title": doc_info["doc_title"],
                     "section_title": section_title,
                     "content": sub
-                })
+                }
+                if sub in existing_map:
+                    item["embedding"] = existing_map[sub]
+                all_items.append(item)
                 chunk_id += 1
                 
     print(f"Total chunks created: {len(all_items)}")
     
-    # Generate embeddings in batches of 20
-    print("Generating embeddings via Gemini API (dimension: 768)...")
-    config = types.EmbedContentConfig(output_dimensionality=768)
-    
-    batch_size = 20
-    for i in range(0, len(all_items), batch_size):
-        batch = all_items[i:i+batch_size]
-        texts = [f"{item['doc_title']} - {item['section_title']}\n{item['content']}" for item in batch]
+    # Check chunks that still need embedding
+    needed = [item for item in all_items if "embedding" not in item]
+    print(f"Chunks needing embeddings: {len(needed)} / {len(all_items)}")
+
+    if needed:
+        print("Generating embeddings via Gemini API (dimension: 768)...")
+        config = types.EmbedContentConfig(output_dimensionality=768)
+        batch_size = 15
         
-        for attempt in range(3):
-            try:
-                res = client.models.embed_content(
-                    model="gemini-embedding-001",
-                    contents=texts,
-                    config=config
-                )
-                for item, emb in zip(batch, res.embeddings):
-                    item["embedding"] = emb.values
-                print(f"Processed chunks {i+1} to {min(i+batch_size, len(all_items))} / {len(all_items)}")
-                break
-            except Exception as e:
-                print(f"Batch {i//batch_size} attempt {attempt+1} failed: {e}. Retrying...")
-                time.sleep(3)
-        time.sleep(0.5)
+        for i in range(0, len(needed), batch_size):
+            batch = needed[i:i+batch_size]
+            texts = [f"{item['doc_title']} - {item['section_title']}\n{item['content']}" for item in batch]
+            
+            for attempt in range(5):
+                try:
+                    res = client.models.embed_content(
+                        model="gemini-embedding-001",
+                        contents=texts,
+                        config=config
+                    )
+                    for item, emb in zip(batch, res.embeddings):
+                        item["embedding"] = emb.values
+                    print(f"Processed chunks {i+1} to {min(i+batch_size, len(needed))} / {len(needed)}")
+                    break
+                except Exception as e:
+                    wait_time = 15 * (attempt + 1)
+                    print(f"Batch {i//batch_size} attempt {attempt+1} rate-limited: {e}. Waiting {wait_time}s...")
+                    time.sleep(wait_time)
+            time.sleep(1)
         
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(all_items, f, ensure_ascii=False, indent=2)

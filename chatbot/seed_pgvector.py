@@ -2,10 +2,22 @@ import json
 import os
 import re
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from pathlib import Path
 import psycopg
 from dotenv import load_dotenv
 
-load_dotenv("backend/.env")
+CURRENT_DIR = Path(__file__).resolve().parent
+ENV_CANDIDATES = [
+    CURRENT_DIR.parent / "backend" / ".env",
+    CURRENT_DIR / ".env",
+    CURRENT_DIR.parent / ".env",
+]
+for env_file in ENV_CANDIDATES:
+    if env_file.exists():
+        load_dotenv(env_file)
+        break
+else:
+    load_dotenv()
 
 raw_url = os.getenv("DATABASE_URL", "postgresql://simula:simula_dev_password@localhost:5432/simula")
 parts = urlsplit(raw_url)
@@ -13,7 +25,7 @@ query = dict(parse_qsl(parts.query))
 query.pop("schema", None)
 db_url = urlunsplit(parts._replace(query=urlencode(query)))
 
-KB_PATH = os.path.join(os.path.dirname(__file__), "processed", "knowledge_base.json")
+KB_PATH = CURRENT_DIR / "processed" / "knowledge_base.json"
 
 
 def seed():

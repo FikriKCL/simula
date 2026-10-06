@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Tuple
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
+logging.getLogger("google_genai").setLevel(logging.ERROR)
 
 # Locate knowledge base JSON
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
