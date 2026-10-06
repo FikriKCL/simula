@@ -80,21 +80,35 @@ def search_materials(db, message):
 @transactional
 def chat_message(sid, data, user, db):
     owned_session(db, sid, user["id"])
-    rows = search_materials(db, data.message)
-    sources = [
-        {"lesson_id": r.id, "module_id": r.module_id, "title": r.title} for r in rows
-    ]
-    reply = (
-        (
-            "Berikut kutipan materi SIMULA yang telah divalidasi:\n\n"
-            + "\n\n".join(r.title + ": " + r.body[:800] for r in rows)
+    
+    # Try RAG with knowledge base and Gemini
+    from .rag_service import query_rag
+    rag_result = query_rag(data.message)
+    
+    if rag_result.get("mode") in ("rag_verified_module", "rag_filtered_out_of_scope"):
+        reply = rag_result["reply"]
+        sources = rag_result["sources"]
+        mode = rag_result["mode"]
+    else:
+        # Fallback to existing SQL text search if RAG is not active
+        rows = search_materials(db, data.message)
+        sources = [
+            {"lesson_id": r.id, "module_id": r.module_id, "title": r.title} for r in rows
+        ]
+        reply = (
+            (
+                "Berikut kutipan materi SIMULA yang telah divalidasi:\n\n"
+                + "\n\n".join(r.title + ": " + r.body[:800] for r in rows)
+            )
+            if rows
+            else "Aku belum menemukan jawaban dalam materi tervalidasi. Tanyakan kepada pembina PMR atau relawan PMI."
         )
-        if rows
-        else "Aku belum menemukan jawaban dalam materi tervalidasi. Tanyakan kepada pembina PMR atau relawan PMI."
-    )
+        mode = "validated_material_retrieval"
+
     add(db, ChatMessage(session_id=sid, role="user", content=data.message, sources=[]))
     response = add(
         db,
         ChatMessage(session_id=sid, role="assistant", content=reply, sources=sources),
     )
-    return dict(record(response), mode="validated_material_retrieval")
+    return dict(record(response), mode=mode)
+
