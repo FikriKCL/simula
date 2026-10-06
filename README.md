@@ -26,6 +26,7 @@
   - [3. Setup & Menjalankan Frontend (Next.js)](#3-setup--menjalankan-frontend-nextjs)
 - [Opsi Alternatif: Full Docker Compose](#-opsi-alternatif-full-docker-compose)
 - [Konfigurasi Environment Variable (`.env`)](#-konfigurasi-environment-variable-env)
+- [Fitur AI Chatbot (RAG & Guardrail)](#-fitur-ai-chatbot-rag--guardrail)
 - [Alur Akses & Pengujian API](#-alur-akses--pengujian-api)
 - [Menjalankan Automated Tests](#-menjalankan-automated-tests)
 - [Tips & Troubleshooting (Windows)](#-tips--troubleshooting-windows)
@@ -44,6 +45,7 @@ simula/
 │   │   ├── models/           # SQLAlchemy 2.0 ORM Declarative Models (17 tabel)
 │   │   ├── schemas/          # Pydantic Schemas untuk validasi I/O
 │   │   ├── services/         # Business logic layer (transactional)
+│   │   │   └── rag_service.py# Mesin RAG cerdas (vector search & Gemini guardrails)
 │   │   ├── bootstrap.py      # Script pembuat akun initial admin
 │   │   ├── config.py         # Konfigurasi Pydantic Settings & environment
 │   │   └── database.py       # Engine & Session factory SQLAlchemy
@@ -52,16 +54,25 @@ simula/
 │   │   └── migrations/       # Riwayat migrasi SQL
 │   ├── tests/                # Unit test, validasi keamanan, dan integrasi
 │   ├── .env.example          # Template environment variable backend
-│   ├── compose.yaml          # Konfigurasi Docker Compose (db, migrate, api)
+│   ├── compose.yaml          # Konfigurasi Docker Compose (db pgvector, migrate, api)
 │   ├── Dockerfile            # Container definition untuk API
 │   ├── package.json          # Node dependencies untuk Prisma CLI
 │   └── requirements.txt      # Python dependencies utama
 ├── frontend/                 # Web Application (Next.js App Router)
 │   ├── app/                  # Route pages, layouts, dan komponen Next.js
+│   │   ├── api/chat/         # Next.js API Route proxy ke RAG backend
+│   │   ├── page.tsx          # Playground UI Chatbot interaktif bertema Palang Merah
+│   │   └── layout.tsx        # Root layout & styling
 │   ├── public/               # Static assets & SVG icons
 │   ├── package.json          # Node dependencies untuk Next.js & Tailwind CSS
 │   └── tsconfig.json         # Konfigurasi TypeScript
-├── chatbot/                  # (Reserved) Service chatbot terdedikasi
+├── chatbot/                  # Pipeline Data & RAG Engine Kepalangmerahan
+│   ├── data/                 # Modul asli kurikulum PMI (PDF)
+│   ├── processed/            # Hasil ekstraksi Markdown & knowledge_base.json (236 Chunks)
+│   ├── chunk_and_embed.py    # Pipeline pemotongan & embedding teks via Gemini
+│   ├── test_rag.py           # Script pengujian mandiri di terminal
+│   ├── seed_pgvector.py      # Seeding data materi ke PostgreSQL (pgvector)
+│   └── requirements.txt      # Dependensi khusus modul chatbot
 └── README.md                 # Dokumentasi utama proyek
 ```
 
@@ -239,6 +250,46 @@ Konfigurasi backend disimpan di file `backend/.env`. Berikut rincian parameterny
 | `ADMIN_EMAIL` | String | *(Opsional)* | Alamat email terdaftar untuk admin. |
 | `CONTACT_EMAIL` | String | *(Opsional)* | Email dukungan publik untuk aplikasi. |
 | `GUIDE_URL` | String | *(Opsional)* | Tautan dokumen panduan belajar eksternal. |
+| `GEMINI_API_KEY` | String | *(Wajib untuk RAG)* | API Key Google Gemini (didapat gratis di [Google AI Studio](https://aistudio.google.com)). |
+
+---
+
+## 🤖 Fitur AI Chatbot (RAG & Guardrail)
+
+SIMULA dilengkapi dengan fitur **Chatbot AI Berpagar (*Retrieval-Augmented Generation*)** yang dirancang khusus untuk menjawab pertanyaan seputar materi kepalangmerahan PMR/PMI secara akurat dan anti-halusinasi.
+
+### 📚 Modul Materi Pembelajaran Terverifikasi
+Seluruh basis pengetahuan AI diindeks dari **3 dokumen resmi PMI**:
+1. **Pertolongan Pertama (PP Mula)**: Luka, Pendarahan, Patah Tulang, Pingsan, Syok, dll.
+2. **Kesiapsiagaan Bencana (Ayo Siaga Mula)**: Gempa Bumi, Banjir, Tsunami, Longsor, Kebakaran, Evakuasi.
+3. **Pelatihan Remaja Sebaya (PRS PMI)**: Tumbuh Kembang Remaja, Kesehatan Reproduksi, Potensi Diri.
+
+Materi telah diproses menjadi **236 potongan teks (*chunks*)** dan di-embed ke dalam vektor 768-dimensi (`gemini-embedding-001`), tersimpan di `chatbot/processed/knowledge_base.json`.
+
+### 🛡️ 2 Lapis Pengaman (*Strict Guardrails*)
+- **Lapis 1 (Similarity Threshold)**: Jika pertanyaan pengguna tidak mirip dengan materi kepalangmerahan (skor kosinus di bawah batas), bot langsung menolak tanpa memanggil LLM (hemat API & anti-halusinasi).
+- **Lapis 2 (Strict Grounded Instruction)**: Model LLM (`gemini-3.5-flash-lite`) dipandu agar **HANYA** menjawab dari materi yang dilampirkan dan menyertakan rujukan nama modul/bab di akhir jawaban.
+
+### 🧪 Cara Menjalankan & Menguji Fitur Chatbot:
+
+#### 1. Uji Coba Cepat via Terminal (Tanpa Browser):
+```powershell
+# Dari direktori simula (pastikan venv aktif):
+.\backend\.venv\Scripts\Activate.ps1
+python chatbot/test_rag.py
+```
+
+#### 2. Interaksi Langsung via Web UI Playground:
+1. Pastikan backend berjalan: `uvicorn app.main:app --port 8000` (di folder `backend`)
+2. Pastikan frontend berjalan: `npm run dev` (di folder `frontend`)
+3. Buka browser: **`http://localhost:3000`**
+4. Anda dapat langsung mengklik contoh pertanyaan cepat di sidebar (Pertolongan Pertama, Siaga Bencana, Kesehatan Remaja, atau Guardrail Luar Topik) atau mengetik pertanyaan bebas.
+
+#### 3. Sinkronisasi Data ke PostgreSQL (`pgvector`):
+Jika database PostgreSQL aktif di Docker dan Anda ingin mengindeks seluruh 236 materi vektor ke tabel `document_chunks`:
+```powershell
+python chatbot/seed_pgvector.py
+```
 
 ---
 
