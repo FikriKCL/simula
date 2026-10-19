@@ -1,6 +1,6 @@
 from .auth import Login, Register, TokenOut
 from .badge import BadgeCreate, BadgeOut, EarnedBadgeOut
-from .chat import ChatInput, ChatReplyOut, MessageOut, SessionOut, SourceOut
+from .chat import ChatHistoryItem, ChatInput, ChatReplyOut, MessageOut, SessionOut, SourceOut
 from .learning import CompletionOut, ProgressOut
 from .module import (
     LessonCreate,
