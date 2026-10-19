@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 
@@ -132,6 +133,150 @@ def condense_query(query: str, history: List[Dict[str, Any]], client) -> str:
     return query
 
 
+INDONESIAN_STOPWORDS = {
+    "yang", "dan", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah",
+    "sebagai", "dengan", "atau", "juga", "karena", "oleh", "dalam", "bisa", "dapat",
+    "ada", "tidak", "akan", "sudah", "saya", "kamu", "dia", "mereka", "kita",
+    "apa", "bagaimana", "mengapa", "kenapa", "kapan", "siapa", "mana", "cara",
+    "apakah", "tersebut", "tentang", "mengenai", "agar", "supaya"
+}
+
+
+def tokenize_id(text: str) -> List[str]:
+    words = re.findall(r"\w+", text.lower())
+    return [w for w in words if w not in INDONESIAN_STOPWORDS and len(w) > 1]
+
+
+_cached_bm25 = None
+_cached_bm25_mtime: float = 0.0
+
+
+def get_bm25_index(kb: List[Dict[str, Any]], mtime: float):
+    global _cached_bm25, _cached_bm25_mtime
+    if _cached_bm25 is not None and mtime == _cached_bm25_mtime:
+        return _cached_bm25
+    from rank_bm25 import BM25Okapi
+    corpus = [
+        tokenize_id(f"{item.get('doc_title', '')} {item.get('section_title', '')} {item.get('content', '')}")
+        for item in kb
+    ]
+    _cached_bm25 = BM25Okapi(corpus)
+    _cached_bm25_mtime = mtime
+    logger.info("Initialized BM25 index over %d documents", len(corpus))
+    return _cached_bm25
+
+
+_cached_vocab = None
+_cached_vocab_mtime: float = 0.0
+
+
+def get_corpus_vocab(kb: List[Dict[str, Any]], mtime: float):
+    global _cached_vocab, _cached_vocab_mtime
+    if _cached_vocab is not None and mtime == _cached_vocab_mtime:
+        return _cached_vocab
+    vocab = set()
+    for item in kb:
+        text = f"{item.get('doc_title', '')} {item.get('section_title', '')} {item.get('content', '')}"
+        vocab.update(tokenize_id(text))
+    _cached_vocab = vocab
+    _cached_vocab_mtime = mtime
+    return _cached_vocab
+
+
+def hybrid_retrieve(
+    search_query: str,
+    q_emb: List[float],
+    kb: List[Dict[str, Any]],
+    top_k: int = 4,
+    threshold: float = 0.50,
+) -> Tuple[bool, List[str], List[Dict[str, Any]], str]:
+    """
+    Hybrid Search combining:
+    1. Dense Vector Search (Gemini Embedding 768-dim) for semantic matching
+    2. BM25 Lexical Search (Rank-BM25) for exact keyword/acronym matching
+    3. Reciprocal Rank Fusion (RRF) for robust rank-based score blending
+
+    Returns: (is_allowed, context_blocks, sources, mode)
+    """
+    if not kb:
+        return False, [], [], "rag_no_match"
+
+    # 1. Dense Vector Scoring
+    vector_scores: List[Tuple[int, float]] = []
+    for idx, item in enumerate(kb):
+        if "embedding" in item and item["embedding"]:
+            sim = cosine_sim(q_emb, item["embedding"])
+            vector_scores.append((idx, sim))
+
+    vector_scores.sort(key=lambda x: x[1], reverse=True)
+    best_vector = vector_scores[0][1] if vector_scores else 0.0
+
+    # 2. Sparse BM25 Scoring
+    bm25 = get_bm25_index(kb, _cached_kb_mtime)
+    q_tokens = tokenize_id(search_query)
+    bm25_scores: List[Tuple[int, float]] = []
+    if q_tokens:
+        raw_bm25 = bm25.get_scores(q_tokens)
+        for idx, score in enumerate(raw_bm25):
+            if score > 0.0:
+                bm25_scores.append((idx, float(score)))
+        bm25_scores.sort(key=lambda x: x[1], reverse=True)
+
+    best_bm25 = bm25_scores[0][1] if bm25_scores else 0.0
+
+    # 3. Hybrid Vocabulary & Semantic Guardrail Check
+    vocab = get_corpus_vocab(kb, _cached_kb_mtime)
+    matched_tokens = [t for t in q_tokens if t in vocab]
+    token_coverage = len(matched_tokens) / len(q_tokens) if q_tokens else 1.0
+
+    # Filter out if:
+    # a) Vector similarity is low AND token coverage of PMI vocabulary is low (< 0.50)
+    # b) OR vector similarity is strictly below baseline (0.48)
+    if (best_vector < 0.60 and token_coverage < 0.50) or (best_vector < 0.48):
+        logger.info(
+            "Guardrail filtered out-of-scope query '%s' (Best Vector: %.4f, Coverage: %.2f)",
+            search_query, best_vector, token_coverage
+        )
+        return False, [], [], "rag_filtered_out_of_scope"
+
+
+    # 4. Reciprocal Rank Fusion (RRF)
+    RRF_K = 60
+    WEIGHT_VECTOR = 0.55
+    WEIGHT_BM25 = 0.45
+
+    rrf_map: Dict[int, float] = {}
+
+    for rank, (idx, _sim) in enumerate(vector_scores[:30], start=1):
+        rrf_map[idx] = rrf_map.get(idx, 0.0) + (WEIGHT_VECTOR / (RRF_K + rank))
+
+    for rank, (idx, _score) in enumerate(bm25_scores[:30], start=1):
+        rrf_map[idx] = rrf_map.get(idx, 0.0) + (WEIGHT_BM25 / (RRF_K + rank))
+
+    top_candidates = sorted(rrf_map.items(), key=lambda x: x[1], reverse=True)[:top_k]
+
+    if not top_candidates:
+        return False, [], [], "rag_no_match"
+
+    vector_sim_dict = dict(vector_scores[:50])
+    context_blocks = []
+    sources = []
+
+    for idx, _rrf in top_candidates:
+        item = kb[idx]
+        sim = vector_sim_dict.get(idx, best_vector * 0.85)
+        context_blocks.append(
+            f"[{item.get('doc_title', 'Modul')} - {item.get('section_title', '')}]\n{item.get('content', '')}"
+        )
+        sources.append({
+            "doc_title": item.get("doc_title"),
+            "section_title": item.get("section_title"),
+            "similarity": round(sim, 4),
+        })
+
+    return True, context_blocks, sources, "rag_verified_module"
+
+
 def query_rag(
     query: str,
     history: List[Dict[str, Any]] | None = None,
@@ -139,11 +284,11 @@ def query_rag(
     threshold: float = 0.50,
 ) -> Dict[str, Any]:
     """
-    Multi-Turn Conversational RAG pipeline:
+    Multi-Turn Conversational Hybrid RAG pipeline:
     1. Condense ambiguous follow-up query using conversation history
     2. Embed standalone query via gemini-embedding-001 (768-dim)
-    3. Retrieve top-k chunks from 885-chunk knowledge base
-    4. Check threshold guardrail
+    3. Hybrid retrieval (BM25 + Vector Search with Reciprocal Rank Fusion)
+    4. Guardrail threshold check
     5. Prompt Gemini with conversation history + retrieved context
     """
     client = get_gemini_client()
@@ -180,47 +325,26 @@ def query_rag(
             "mode": "rag_error",
         }
 
-    # 3. Similarity search over all knowledge base chunks
-    scored: List[Tuple[float, Dict[str, Any]]] = []
-    for item in kb:
-        if "embedding" in item and item["embedding"]:
-            sim = cosine_sim(q_emb, item["embedding"])
-            scored.append((sim, item))
+    # 3. Hybrid Retrieval (BM25 + Dense Vector Search + RRF)
+    is_ok, context_blocks, sources, mode = hybrid_retrieve(
+        search_query, q_emb, kb, top_k=top_k, threshold=threshold
+    )
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top_items = scored[:top_k]
-
-    if not top_items:
+    if not is_ok:
+        if mode == "rag_filtered_out_of_scope":
+            return {
+                "reply": "Maaf, pertanyaan Anda di luar konteks materi kurikulum kepalangmerahan kami. Saya hanya dapat menjawab pertanyaan seputar materi resmi PMR/PMI (Pertolongan Pertama, Kesiapsiagaan Bencana, 7 Prinsip Palang Merah & Gerakan PMI, Donor Darah Sukarela, Kepemimpinan, Sanitasi/WASH, dan Kesehatan Remaja Sebaya).",
+                "sources": [],
+                "mode": mode,
+            }
         return {
             "reply": "Maaf, materi terkait belum tersedia di kurikulum kami.",
             "sources": [],
-            "mode": "rag_no_match",
+            "mode": mode,
         }
-
-    best_score = top_items[0][0]
-
-    # 4. Guardrail: Similarity Threshold
-    if best_score < threshold:
-        return {
-            "reply": "Maaf, pertanyaan Anda di luar konteks materi kurikulum kepalangmerahan kami. Saya hanya dapat menjawab pertanyaan seputar materi resmi PMR/PMI (Pertolongan Pertama, Kesiapsiagaan Bencana, 7 Prinsip Palang Merah & Gerakan PMI, Donor Darah Sukarela, Kepemimpinan, Sanitasi/WASH, dan Kesehatan Remaja Sebaya).",
-            "sources": [],
-            "mode": "rag_filtered_out_of_scope",
-        }
-
-    # 5. Prepare context and sources
-    context_blocks = []
-    sources = []
-    for score, item in top_items:
-        context_blocks.append(
-            f"[{item.get('doc_title', 'Modul')} - {item.get('section_title', '')}]\n{item.get('content', '')}"
-        )
-        sources.append({
-            "doc_title": item.get("doc_title"),
-            "section_title": item.get("section_title"),
-            "similarity": round(score, 4),
-        })
 
     context_str = "\n\n---\n\n".join(context_blocks)
+
 
     # 6. Format recent conversation history for prompt continuity
     history_str = ""
@@ -331,49 +455,30 @@ def query_rag_stream(
         yield _format_sse({"type": "done"})
         return
 
-    # 3. Similarity search
-    scored: List[Tuple[float, Dict[str, Any]]] = []
-    for item in kb:
-        if "embedding" in item and item["embedding"]:
-            sim = cosine_sim(q_emb, item["embedding"])
-            scored.append((sim, item))
+    # 3. Hybrid Retrieval (BM25 + Dense Vector Search + RRF)
+    is_ok, context_blocks, sources, mode = hybrid_retrieve(
+        search_query, q_emb, kb, top_k=top_k, threshold=threshold
+    )
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top_items = scored[:top_k]
-
-    if not top_items:
-        yield _format_sse({"type": "meta", "mode": "rag_no_match", "sources": []})
-        yield _format_sse({"type": "delta", "text": "Maaf, materi terkait belum tersedia di kurikulum kami."})
-        yield _format_sse({"type": "done"})
-        return
-
-    best_score = top_items[0][0]
-
-    # 4. Guardrail: Similarity Threshold
-    if best_score < threshold:
-        blocked_msg = "Maaf, pertanyaan Anda di luar konteks materi kurikulum kepalangmerahan kami. Saya hanya dapat menjawab pertanyaan seputar materi resmi PMR/PMI (Pertolongan Pertama, Kesiapsiagaan Bencana, 7 Prinsip Palang Merah & Gerakan PMI, Donor Darah Sukarela, Kepemimpinan, Sanitasi/WASH, dan Kesehatan Remaja Sebaya)."
-        yield _format_sse({"type": "meta", "mode": "rag_filtered_out_of_scope", "sources": [], "search_query": search_query})
+    if not is_ok:
+        blocked_msg = (
+            "Maaf, pertanyaan Anda di luar konteks materi kurikulum kepalangmerahan kami. "
+            "Saya hanya dapat menjawab pertanyaan seputar materi resmi PMR/PMI (Pertolongan Pertama, "
+            "Kesiapsiagaan Bencana, 7 Prinsip Palang Merah & Gerakan PMI, Donor Darah Sukarela, "
+            "Kepemimpinan, Sanitasi/WASH, dan Kesehatan Remaja Sebaya)."
+            if mode == "rag_filtered_out_of_scope"
+            else "Maaf, materi terkait belum tersedia di kurikulum kami."
+        )
+        yield _format_sse({"type": "meta", "mode": mode, "sources": [], "search_query": search_query})
         yield _format_sse({"type": "delta", "text": blocked_msg})
         yield _format_sse({"type": "done"})
         return
 
-    # 5. Prepare context and sources
-    context_blocks = []
-    sources = []
-    for score, item in top_items:
-        context_blocks.append(
-            f"[{item.get('doc_title', 'Modul')} - {item.get('section_title', '')}]\n{item.get('content', '')}"
-        )
-        sources.append({
-            "doc_title": item.get("doc_title"),
-            "section_title": item.get("section_title"),
-            "similarity": round(score, 4),
-        })
-
     # Send meta event IMMEDIATELY before streaming text!
-    yield _format_sse({"type": "meta", "mode": "rag_verified_module", "sources": sources, "search_query": search_query})
+    yield _format_sse({"type": "meta", "mode": mode, "sources": sources, "search_query": search_query})
 
     context_str = "\n\n---\n\n".join(context_blocks)
+
 
     # 6. Format recent conversation history
     history_str = ""
