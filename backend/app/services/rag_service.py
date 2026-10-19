@@ -281,3 +281,155 @@ def query_rag(
         "search_query": search_query,
     }
 
+
+def _format_sse(data: Dict[str, Any]) -> str:
+    return f"data: {json.dumps(data)}\n\n"
+
+
+def query_rag_stream(
+    query: str,
+    history: List[Dict[str, Any]] | None = None,
+    top_k: int = 4,
+    threshold: float = 0.50,
+):
+    """
+    Yields Server-Sent Events (SSE) in the format:
+    data: {"type": "meta", "mode": ..., "sources": [...], "search_query": ...}\n\n
+    data: {"type": "delta", "text": "..."}\n\n
+    data: {"type": "done"}\n\n
+    """
+    client = get_gemini_client()
+    kb = load_knowledge_base()
+
+    if not client or not kb:
+        err_msg = "Sistem AI sedang dalam konfigurasi. Silakan periksa GEMINI_API_KEY atau basis materi."
+        yield _format_sse({"type": "meta", "mode": "rag_unavailable", "sources": []})
+        yield _format_sse({"type": "delta", "text": err_msg})
+        yield _format_sse({"type": "done"})
+        return
+
+    from google.genai import types
+
+    # 1. Condense follow-up query if history is provided
+    search_query = query
+    if history:
+        search_query = condense_query(query, history, client)
+
+    # 2. Embed standalone search query
+    try:
+        config = types.EmbedContentConfig(output_dimensionality=768)
+        emb_res = client.models.embed_content(
+            model="gemini-embedding-001",
+            contents=search_query,
+            config=config,
+        )
+        q_emb = emb_res.embeddings[0].values
+    except Exception as e:
+        logger.error("Error generating query embedding: %s", e)
+        yield _format_sse({"type": "meta", "mode": "rag_error", "sources": []})
+        yield _format_sse({"type": "delta", "text": "Maaf, terjadi gangguan saat memproses pencarian materi."})
+        yield _format_sse({"type": "done"})
+        return
+
+    # 3. Similarity search
+    scored: List[Tuple[float, Dict[str, Any]]] = []
+    for item in kb:
+        if "embedding" in item and item["embedding"]:
+            sim = cosine_sim(q_emb, item["embedding"])
+            scored.append((sim, item))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top_items = scored[:top_k]
+
+    if not top_items:
+        yield _format_sse({"type": "meta", "mode": "rag_no_match", "sources": []})
+        yield _format_sse({"type": "delta", "text": "Maaf, materi terkait belum tersedia di kurikulum kami."})
+        yield _format_sse({"type": "done"})
+        return
+
+    best_score = top_items[0][0]
+
+    # 4. Guardrail: Similarity Threshold
+    if best_score < threshold:
+        blocked_msg = "Maaf, pertanyaan Anda di luar konteks materi kurikulum kepalangmerahan kami. Saya hanya dapat menjawab pertanyaan seputar materi resmi PMR/PMI (Pertolongan Pertama, Kesiapsiagaan Bencana, 7 Prinsip Palang Merah & Gerakan PMI, Donor Darah Sukarela, Kepemimpinan, Sanitasi/WASH, dan Kesehatan Remaja Sebaya)."
+        yield _format_sse({"type": "meta", "mode": "rag_filtered_out_of_scope", "sources": [], "search_query": search_query})
+        yield _format_sse({"type": "delta", "text": blocked_msg})
+        yield _format_sse({"type": "done"})
+        return
+
+    # 5. Prepare context and sources
+    context_blocks = []
+    sources = []
+    for score, item in top_items:
+        context_blocks.append(
+            f"[{item.get('doc_title', 'Modul')} - {item.get('section_title', '')}]\n{item.get('content', '')}"
+        )
+        sources.append({
+            "doc_title": item.get("doc_title"),
+            "section_title": item.get("section_title"),
+            "similarity": round(score, 4),
+        })
+
+    # Send meta event IMMEDIATELY before streaming text!
+    yield _format_sse({"type": "meta", "mode": "rag_verified_module", "sources": sources, "search_query": search_query})
+
+    context_str = "\n\n---\n\n".join(context_blocks)
+
+    # 6. Format recent conversation history
+    history_str = ""
+    if history:
+        clean_history = [
+            h for h in history
+            if h.get("text") and not h.get("text", "").startswith("Halo! Saya **Asisten")
+        ]
+        if clean_history:
+            history_lines = []
+            for item in clean_history[-5:]:
+                role = "Pengguna" if item.get("sender") == "user" else "Asisten"
+                snippet = item.get("text", "").strip()[:350]
+                history_lines.append(f"{role}: {snippet}")
+            history_str = "Riwayat Dialog Sebelumnya:\n" + "\n".join(history_lines) + "\n\n"
+
+    system_instruction = (
+        "Anda adalah asisten virtual resmi edukasi Kepalangmerahan (SIMULA PMI). "
+        "Tugas utama Anda adalah menjawab pertanyaan pengguna secara ramah, jelas, terstruktur, dan edukatif "
+        "HANYA berdasarkan potongan materi modul resmi PMI yang disediakan di bawah ini.\n\n"
+        "Aturan Percakapan & Kontinuitas:\n"
+        "1. Pahami riwayat dialog sebelumnya jika pertanyaan pengguna merupakan pertanyaan lanjutan (follow-up). "
+        "Jawablah secara berkesinambungan dan koheren tanpa mengulangi penjelasan yang tidak perlu.\n"
+        "2. Jawab HANYA menggunakan informasi dari materi modul pembelajaran yang disediakan.\n"
+        "3. Jika jawaban tidak tercantum di dalam materi, katakan dengan sopan: "
+        "'Maaf, informasi tersebut tidak ditemukan dalam modul kepalangmerahan kami.'\n"
+        "4. JANGAN menjawab pertanyaan umum di luar topik kepalangmerahan, pertolongan pertama, donor darah, atau bencana.\n"
+        "5. Gunakan format yang rapi (bullet points/nomor jika berupa langkah-langkah atau daftar).\n"
+        "6. Cantumkan rujukan nama modul dan topiknya di akhir jawaban secara singkat."
+    )
+
+    prompt = (
+        f"{history_str}"
+        f"Kumpulan Potongan Materi Modul Resmi PMI:\n{context_str}\n\n"
+        f"Pertanyaan Terbaru Pengguna: {query}\n\n"
+        f"Jawaban Edukatif:"
+    )
+
+    # 7. Generate stream from Gemini
+    try:
+        response_stream = client.models.generate_content_stream(
+            model="gemini-3.5-flash-lite",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.2,
+            ),
+        )
+        for chunk in response_stream:
+            if chunk.text:
+                yield _format_sse({"type": "delta", "text": chunk.text})
+    except Exception as e:
+        logger.error("Error in streaming Gemini reply: %s", e)
+        yield _format_sse({"type": "delta", "text": "\n\n*(Terjadi kendala saat streaming respon)*"})
+
+    yield _format_sse({"type": "done"})
+
+
+

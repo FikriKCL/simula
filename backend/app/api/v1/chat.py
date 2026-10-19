@@ -42,6 +42,8 @@ def chat_message(
     return service.chat_message(sid, data, user, db)
 
 
+from fastapi.responses import StreamingResponse
+
 @router.post(
     "/chat/test",
     tags=["Chatbot"],
@@ -50,3 +52,21 @@ def test_chat(data: ChatInput):
     from app.services.rag_service import query_rag
     history_dicts = [{"sender": h.sender, "text": h.text} for h in data.history] if data.history else []
     return query_rag(data.message, history=history_dicts)
+
+
+@router.post(
+    "/chat/test/stream",
+    tags=["Chatbot"],
+)
+def test_chat_stream(data: ChatInput):
+    from app.services.rag_service import query_rag_stream
+    history_dicts = [{"sender": h.sender, "text": h.text} for h in data.history] if data.history else []
+    return StreamingResponse(
+        query_rag_stream(data.message, history=history_dicts),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

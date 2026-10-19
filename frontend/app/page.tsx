@@ -210,7 +210,7 @@ export default function ChatbotPage() {
   const [hasNewUnseen, setHasNewUnseen] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const latestInteractionIdRef = useRef<string | null>(null);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
 
   const generateId = (prefix: string) => {
     counterRef.current += 1;
@@ -280,7 +280,8 @@ export default function ChatbotPage() {
     if (!textToSend || loading) return;
 
     const userMsgId = generateId("user");
-    latestInteractionIdRef.current = userMsgId;
+    const botMsgId = generateId("bot");
+    setStreamingMsgId(botMsgId);
 
     const userMsg: Message = {
       id: userMsgId,
@@ -289,7 +290,16 @@ export default function ChatbotPage() {
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const initialBotMsg: Message = {
+      id: botMsgId,
+      sender: "bot",
+      text: "",
+      sources: [],
+      mode: "streaming",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setMessages((prev) => [...prev, userMsg, initialBotMsg]);
     setInput("");
     setLoading(true);
 
@@ -312,45 +322,127 @@ export default function ChatbotPage() {
         body: JSON.stringify({
           message: textToSend,
           history: recentHistory,
+          stream: true,
         }),
       });
 
-      const data = await res.json();
-      const botMsgId = generateId("bot");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === botMsgId
+              ? {
+                  ...m,
+                  text:
+                    errData.reply ||
+                    `Gagal menghubungi server backend (Status ${res.status}). Pastikan backend FastAPI sedang berjalan.`,
+                  mode: errData.mode || "network_error",
+                }
+              : m
+          )
+        );
+        return;
+      }
 
-      const botMsg: Message = {
-        id: botMsgId,
-        sender: "bot",
-        text: data.reply || "Tidak ada respons dari sistem.",
-        sources: data.sources || [],
-        mode: data.mode || "unknown",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
+      const contentType = res.headers.get("content-type") || "";
 
-      setMessages((prev) => [...prev, botMsg]);
+      if (contentType.includes("text/event-stream") && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const jsonStr = trimmed.slice(5).trim();
+            if (!jsonStr) continue;
+
+            try {
+              const payload = JSON.parse(jsonStr);
+              if (payload.type === "meta") {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === botMsgId
+                      ? {
+                          ...m,
+                          mode: payload.mode || "rag_verified_module",
+                          sources: payload.sources || [],
+                        }
+                      : m
+                  )
+                );
+              } else if (payload.type === "delta") {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === botMsgId ? { ...m, text: m.text + payload.text } : m
+                  )
+                );
+
+                if (chatContainerRef.current) {
+                  const { scrollTop, scrollHeight, clientHeight } =
+                    chatContainerRef.current;
+                  if (scrollHeight - scrollTop - clientHeight < 280) {
+                    chatContainerRef.current.scrollTo({
+                      top: scrollHeight,
+                      behavior: "smooth",
+                    });
+                  }
+                }
+              } else if (payload.type === "done") {
+                // Done event
+              }
+            } catch {
+              // Ignore partial chunk parse errors
+            }
+          }
+        }
+      } else {
+        const data = await res.json();
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === botMsgId
+              ? {
+                  ...m,
+                  text: data.reply || "Tidak ada respons dari sistem.",
+                  sources: data.sources || [],
+                  mode: data.mode || "unknown",
+                }
+              : m
+          )
+        );
+      }
 
       setTimeout(() => {
         scrollToMessage(userMsgId);
         setHasNewUnseen(true);
       }, 50);
     } catch {
-      const errorMsgId = generateId("error");
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: errorMsgId,
-          sender: "bot",
-          text: "Gagal tersambung ke backend API di port 8000. Pastikan terminal backend FastAPI (`uvicorn app.main:app --port 8000`) sudah berjalan.",
-          sources: [],
-          mode: "network_error",
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === botMsgId
+            ? {
+                ...m,
+                text: "Gagal tersambung ke backend API di port 8000. Pastikan terminal backend FastAPI (`uvicorn app.main:app --port 8000`) sudah berjalan.",
+                sources: [],
+                mode: "network_error",
+              }
+            : m
+        )
+      );
       setTimeout(() => {
         scrollToMessage(userMsgId);
       }, 50);
     } finally {
       setLoading(false);
+      setStreamingMsgId(null);
     }
   };
 
@@ -550,6 +642,8 @@ export default function ChatbotPage() {
                               ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
                               : msg.mode === "rag_filtered_out_of_scope"
                               ? "bg-amber-50 text-amber-700 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-300"
+                              : msg.mode === "streaming"
+                              ? "bg-red-50 text-red-700 ring-1 ring-red-500/20 dark:bg-red-950/60 dark:text-red-300 animate-pulse"
                               : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                           }`}
                         >
@@ -557,6 +651,8 @@ export default function ChatbotPage() {
                             ? "✓ Terverifikasi Modul"
                             : msg.mode === "rag_filtered_out_of_scope"
                             ? "🛡️ Filter: Di Luar Konteks"
+                            : msg.mode === "streaming"
+                            ? "⚡ Menyiapkan Jawaban..."
                             : "Informasi Sistem"}
                         </span>
                       )}
@@ -568,8 +664,21 @@ export default function ChatbotPage() {
                     <p className="whitespace-pre-wrap text-sm leading-relaxed break-words">
                       {msg.text}
                     </p>
+                  ) : msg.text ? (
+                    <div className="relative">
+                      <FormattedMessage text={msg.text} />
+                      {loading && msg.id === streamingMsgId && (
+                        <span className="inline-block h-3.5 w-1.5 ml-1 bg-red-600 animate-pulse rounded-full align-middle shadow-xs" />
+                      )}
+                    </div>
                   ) : (
-                    <FormattedMessage text={msg.text} />
+                    <div className="flex items-center gap-2.5 py-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                      </span>
+                      <span className="animate-pulse">Menghubungkan ke modul pembelajaran PMI & merangkum...</span>
+                    </div>
                   )}
 
                   {/* Sources / Citations Card */}
@@ -652,24 +761,6 @@ export default function ChatbotPage() {
             </div>
           ))}
 
-          {/* Typing Animation Indicator */}
-          {loading && (
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-red-600 to-rose-500 text-white shadow-md shadow-red-500/20 animate-pulse">
-                ✚
-              </div>
-              <div className="flex items-center gap-2.5 rounded-2xl rounded-tl-xs border border-slate-200/80 bg-white px-5 py-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                  Mencari & memvalidasi materi dari modul PMI...
-                </span>
-                <span className="flex gap-1">
-                  <span className="h-2 w-2 rounded-full bg-red-600 animate-bounce"></span>
-                  <span className="h-2 w-2 rounded-full bg-red-600 animate-bounce [animation-delay:0.2s]"></span>
-                  <span className="h-2 w-2 rounded-full bg-red-600 animate-bounce [animation-delay:0.4s]"></span>
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Floating Scroll Navigation Controls */}

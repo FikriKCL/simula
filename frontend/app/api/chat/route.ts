@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const backendUrl = process.env.BACKEND_API_URL || "http://127.0.0.1:8000/api/v1/chat/test";
+    const isStream = body.stream !== false;
+    const backendHost = process.env.BACKEND_URL || "http://127.0.0.1:8000";
+    const endpoint = isStream ? "/api/v1/chat/test/stream" : "/api/v1/chat/test";
+    const backendUrl = `${backendHost}${endpoint}`;
 
     const res = await fetch(backendUrl, {
       method: "POST",
@@ -24,6 +27,17 @@ export async function POST(req: Request) {
       );
     }
 
+    if (isStream && res.body) {
+      return new Response(res.body, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: unknown) {
@@ -39,3 +53,4 @@ export async function POST(req: Request) {
     );
   }
 }
+
