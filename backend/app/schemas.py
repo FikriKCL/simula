@@ -57,8 +57,13 @@ class BadgeCreate(BaseModel):
     name: str = Field(min_length=3, max_length=100)
     description: str = Field(min_length=3, max_length=1000)
 
+class ChatHistoryItem(BaseModel):
+    sender: str
+    text: str
+
 class ChatInput(BaseModel):
-    message: str = Field(min_length=2, max_length=2000)
+    message: str = Field(min_length=1, max_length=2000)
+    history: list[ChatHistoryItem] = Field(default_factory=list)
 
 # Response contracts also appear in Swagger/OpenAPI for TypeScript consumers.
 from datetime import datetime
