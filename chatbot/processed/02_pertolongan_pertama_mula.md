@@ -2,17 +2,8 @@
 
 
 
-<!-- Halaman 1 -->
-Palang Merah Remaja Mula
-
-
-<!-- Halaman 3 -->
-Palang Merah Remaja Mula
-
-
 <!-- Halaman 4 -->
 Pertolongan Pertama
-Palang Merah Remaja Tingkat Mula
 Edisi Pertama : Juni 2008 | ISBN : 978-979-3575-39-1
 Hak Cipta © Palang Merah Indonesia Pusat
 Pengarah :

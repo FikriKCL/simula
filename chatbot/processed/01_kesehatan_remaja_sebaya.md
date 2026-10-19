@@ -740,13 +740,13 @@ Norma sosial  ialah serangkaian peraturan  yang  disepakati  ber­
 sama untuk dipelihara, dijaga, dan ditaati oleh semua anggota 
 suatu masyarakat.
 Norma bisa bersumber dari:
-  agama
+  agama
 
 
-  undang-undang atau peraturan negara
+  undang-undang atau peraturan negara
 
 
-  adat dan kebiasaan serta kesepakatan masyarakat
+  adat dan kebiasaan serta kesepakatan masyarakat
 
 
 APA KEWAJIBAN REMAJA TERHADAP NORMA SOSIAL ?
