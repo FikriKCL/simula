@@ -24,3 +24,51 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Modern visible, wide & easily draggable custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.85);
+  border-radius: 8px;
+}
+
+:is(.dark) .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.85);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.85);
+  border-radius: 8px;
+  border: 2px solid rgba(226, 232, 240, 0.85);
+  transition: background-color 0.15s ease;
+}
+
+:is(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.85);
+  border: 2px solid rgba(30, 41, 59, 0.85);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #dc2626; /* PMI Red accent on hover */
+  border-color: #dc2626;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #b91c1c; /* Darker red when dragging */
+  border-color: #b91c1c;
+}
+
+/* Firefox fallback */
+@supports not selector(::-webkit-scrollbar) {
+  .custom-scrollbar {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(148, 163, 184, 0.85) rgba(226, 232, 240, 0.85);
+  }
+  :is(.dark) .custom-scrollbar {
+    scrollbar-color: rgba(100, 116, 139, 0.85) rgba(30, 41, 59, 0.85);
+  }
+}
