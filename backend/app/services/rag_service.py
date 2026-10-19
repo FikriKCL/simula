@@ -21,22 +21,25 @@ CANDIDATE_PATHS = [
 KB_PATH = next((p for p in CANDIDATE_PATHS if os.path.exists(p)), CANDIDATE_PATHS[0])
 
 _cached_kb: List[Dict[str, Any]] | None = None
+_cached_kb_mtime: float = 0.0
 
 
 def load_knowledge_base() -> List[Dict[str, Any]]:
-    global _cached_kb
-    if _cached_kb is not None:
-        return _cached_kb
+    global _cached_kb, _cached_kb_mtime
     for path in CANDIDATE_PATHS:
         if os.path.exists(path):
             try:
+                mtime = os.path.getmtime(path)
+                if _cached_kb is not None and mtime == _cached_kb_mtime:
+                    return _cached_kb
                 with open(path, "r", encoding="utf-8") as f:
                     _cached_kb = json.load(f)
+                _cached_kb_mtime = mtime
                 logger.info("Loaded %d knowledge base chunks from %s", len(_cached_kb), path)
                 return _cached_kb
             except Exception as e:
                 logger.error("Failed to load knowledge base from %s: %s", path, e)
-    return []
+    return _cached_kb or []
 
 
 def get_gemini_client():
@@ -129,7 +132,7 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
     # 3. Guardrail 1: Similarity Threshold
     if best_score < threshold:
         return {
-            "reply": "Maaf, pertanyaan Anda di luar konteks materi modul kepalangmerahan kami. Saya hanya dapat menjawab pertanyaan seputar Pertolongan Pertama, Kesiapsiagaan Bencana, dan Kesehatan Remaja Sebaya PMR/PMI.",
+            "reply": "Maaf, pertanyaan Anda di luar konteks materi kurikulum kepalangmerahan kami. Saya hanya dapat menjawab pertanyaan seputar materi resmi PMR/PMI (Pertolongan Pertama, Kesiapsiagaan Bencana, 7 Prinsip Palang Merah & Gerakan PMI, Donor Darah Sukarela, Kepemimpinan, Sanitasi/WASH, dan Kesehatan Remaja Sebaya).",
             "sources": [],
             "mode": "rag_filtered_out_of_scope",
         }
@@ -151,14 +154,14 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
 
     system_instruction = (
         "Anda adalah asisten virtual resmi edukasi Kepalangmerahan (SIMULA PMI). "
-        "Tugas utama Anda adalah menjawab pertanyaan pengguna secara ramah, jelas, dan edukatif "
-        "HANYA berdasarkan potongan materi modul yang disediakan di bawah ini.\n\n"
+        "Tugas utama Anda adalah menjawab pertanyaan pengguna secara ramah, jelas, terstruktur, dan edukatif "
+        "HANYA berdasarkan potongan materi modul resmi PMI yang disediakan di bawah ini.\n\n"
         "Aturan Ketat:\n"
         "1. Jawab HANYA menggunakan informasi dari materi pembelajaran yang disediakan.\n"
         "2. Jika jawaban tidak tercantum di dalam materi, katakan dengan sopan: "
         "'Maaf, informasi tersebut tidak ditemukan dalam modul kepalangmerahan kami.'\n"
-        "3. JANGAN menjawab pertanyaan umum di luar topik kepalangmerahan, pertolongan pertama, atau bencana.\n"
-        "4. Gunakan format yang rapi (bullet points/nomor jika berupa langkah-langkah).\n"
+        "3. JANGAN menjawab pertanyaan umum di luar topik kepalangmerahan, pertolongan pertama, donor darah, atau bencana.\n"
+        "4. Gunakan format yang rapi (bullet points/nomor jika berupa langkah-langkah atau daftar).\n"
         "5. Cantumkan rujukan nama modul dan topiknya di akhir jawaban secara singkat."
     )
 

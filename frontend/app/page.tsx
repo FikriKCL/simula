@@ -23,7 +23,7 @@ const CATEGORIES = [
     title: "Pertolongan Pertama",
     desc: "Luka, Pendarahan, Patah Tulang, Pingsan",
     prompt: "Bagaimana langkah pertolongan pertama pada luka bakar melepuh?",
-    badge: "Buku PP Mula",
+    badge: "Buku PP Mula & Wira",
   },
   {
     icon: "🌋",
@@ -33,9 +33,23 @@ const CATEGORIES = [
     badge: "Ayo Siaga Mula",
   },
   {
+    icon: "🌐",
+    title: "Gerakan Palang Merah",
+    desc: "Sejarah, 7 Prinsip Dasar, Lambang PMI",
+    prompt: "Sebutkan dan jelaskan 7 Prinsip Dasar Gerakan Palang Merah!",
+    badge: "Modul Gerakan",
+  },
+  {
+    icon: "🩸",
+    title: "Donor Darah Sukarela",
+    desc: "Syarat, Manfaat, dan Golongan Darah",
+    prompt: "Apa saja syarat-syarat untuk menjadi pendonor darah sukarela?",
+    badge: "Modul DDS",
+  },
+  {
     icon: "🩺",
-    title: "Pendidikan Remaja Sebaya",
-    desc: "Tumbuh Kembang, Kesehatan, Potensi Diri",
+    title: "Kesehatan Remaja Sebaya",
+    desc: "Tumbuh Kembang, Gizi, Potensi Diri",
     prompt: "Bagaimana peran PMR dalam pendidikan kesehatan remaja sebaya?",
     badge: "Modul PRS",
   },
@@ -183,7 +197,7 @@ export default function ChatbotPage() {
     {
       id: "initial-welcome",
       sender: "bot",
-      text: "Halo! Saya **Asisten Virtual Resmi SIMULA (Palang Merah Remaja & PMI)**.\n\nSaya didukung sistem **RAG Berpagar Ketat** yang membaca langsung 3 modul resmi PMI:\n- **Buku Panduan Pertolongan Pertama (PMR Mula)**\n- **Buku Panduan Ayo Siaga Bencana (PMR Mula)**\n- **Modul Pelatihan Remaja Sebaya (Kesehatan & Kesejahteraan Remaja)**\n\nSilakan klik salah satu contoh pertanyaan di sidebar atau ketik pertanyaan Anda sendiri di bawah!",
+      text: "Halo! Saya **Asisten Virtual Resmi SIMULA (Palang Merah Remaja & PMI)**.\n\nSaya didukung sistem **RAG Berpagar Ketat** yang membaca langsung materi kurikulum resmi PMI (885 chunks terverifikasi):\n- **Pertolongan Pertama (Tingkat Mula & Wira)**\n- **Kesiapsiagaan Bencana (Ayo Siaga Bencana)**\n- **Gerakan Palang Merah & 7 Prinsip Dasar PMI**\n- **Donor Darah Sukarela (DDS)**\n- **Kepemimpinan & Dinamika Kelompok PMR**\n- **Pendidikan Remaja Sebaya & Kesehatan Lingkungan (WASH)**\n\nSilakan klik salah satu contoh pertanyaan di sidebar atau ketik pertanyaan Anda sendiri di bawah!",
       sources: [],
       mode: "system_welcome",
       time: "08:00",
@@ -384,7 +398,7 @@ export default function ChatbotPage() {
                 RAG Engine Aktif
               </span>
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                236 Chunks
+                885 Chunks
               </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
