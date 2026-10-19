@@ -298,10 +298,21 @@ export default function ChatbotPage() {
     }, 50);
 
     try {
+      const recentHistory = messages
+        .filter((m) => m.mode !== "system_welcome" && m.mode !== "network_error")
+        .slice(-6)
+        .map((m) => ({
+          sender: m.sender,
+          text: m.text,
+        }));
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: textToSend }),
+        body: JSON.stringify({
+          message: textToSend,
+          history: recentHistory,
+        }),
       });
 
       const data = await res.json();
