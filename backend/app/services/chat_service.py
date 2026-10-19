@@ -83,7 +83,27 @@ def chat_message(sid, data, user, db):
     
     # Try RAG with knowledge base and Gemini
     from .rag_service import query_rag
-    rag_result = query_rag(data.message)
+    
+    # Retrieve previous 6 messages from this session for multi-turn context
+    history = []
+    if hasattr(data, "history") and data.history:
+        history = [{"sender": h.sender, "text": h.text} for h in data.history]
+    else:
+        prev_msgs = list(
+            db.scalars(
+                select(ChatMessage)
+                .where(ChatMessage.session_id == sid)
+                .order_by(ChatMessage.id.desc())
+                .limit(6)
+            )
+        )
+        for m in reversed(prev_msgs):
+            history.append({
+                "sender": "user" if m.role == "user" else "bot",
+                "text": m.content,
+            })
+
+    rag_result = query_rag(data.message, history=history)
     
     if rag_result.get("mode") in ("rag_verified_module", "rag_filtered_out_of_scope"):
         reply = rag_result["reply"]
