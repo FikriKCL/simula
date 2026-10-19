@@ -73,13 +73,78 @@ def cosine_sim(a: List[float], b: List[float]) -> float:
     return dot / (na * nb) if na and nb else 0.0
 
 
-def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, Any]:
+def condense_query(query: str, history: List[Dict[str, Any]], client) -> str:
     """
-    RAG pipeline:
-    1. Embed query
-    2. Retrieve top-k chunks from knowledge base
-    3. Check threshold guardrail
-    4. Prompt Gemini with retrieved context
+    If conversation history exists, rewrite follow-up questions (e.g. 'bagaimana cara menanganinya?')
+    into a self-contained standalone query (e.g. 'bagaimana cara menangani luka bakar melepuh?').
+    """
+    if not history or not client:
+        return query
+
+    # Filter out empty or initial welcome messages
+    clean_history = [
+        h for h in history
+        if h.get("text") and not h.get("text", "").startswith("Halo! Saya **Asisten")
+    ]
+    if not clean_history:
+        return query
+
+    transcript_parts = []
+    for item in clean_history[-6:]:
+        sender_label = "User" if item.get("sender") == "user" else "Assistant"
+        # Truncate past long text to preserve brevity
+        text_preview = item.get("text", "").strip()[:300]
+        transcript_parts.append(f"{sender_label}: {text_preview}")
+
+    transcript = "\n".join(transcript_parts)
+
+    condense_prompt = (
+        "Anda adalah perumus kueri pencarian (Query Re-writer) untuk sistem pencarian materi kepalangmerahan PMI.\n"
+        "Tugas: Analisis riwayat percakapan dan pertanyaan terbaru pengguna. "
+        "Ubah pertanyaan terbaru menjadi SATU kalimat pertanyaan pencarian mandiri (standalone search query) yang eksplisit, "
+        "menggantikan semua kata ganti ambigu (seperti: 'itu', 'dia', 'tersebut', 'menanganinya', 'alatnya', 'caranya') "
+        "dengan topik spesifik yang sedang dibahas sebelumnya.\n\n"
+        "Aturan Ketat:\n"
+        "- Jika pertanyaan terbaru sudah mandiri dan lengkap, kembalikan pertanyaan asli tanpa perubahan.\n"
+        "- HANYA keluarkan satu baris pertanyaan hasil rumusan, tanpa penjelasan atau tanda kutip tambahan.\n\n"
+        f"Riwayat Percakapan:\n{transcript}\n\n"
+        f"Pertanyaan Terbaru: {query}\n\n"
+        f"Pertanyaan Mandiri:"
+    )
+
+    try:
+        from google.genai import types
+        res = client.models.generate_content(
+            model="gemini-3.5-flash-lite",
+            contents=condense_prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.0,
+                max_output_tokens=100,
+            ),
+        )
+        condensed = res.text.strip().strip('"').strip("'")
+        if condensed and len(condensed) > 3:
+            logger.info("Conversational Query Condensed: '%s' -> '%s'", query, condensed)
+            return condensed
+    except Exception as e:
+        logger.warning("Failed to condense query, falling back to original: %s", e)
+
+    return query
+
+
+def query_rag(
+    query: str,
+    history: List[Dict[str, Any]] | None = None,
+    top_k: int = 4,
+    threshold: float = 0.50,
+) -> Dict[str, Any]:
+    """
+    Multi-Turn Conversational RAG pipeline:
+    1. Condense ambiguous follow-up query using conversation history
+    2. Embed standalone query via gemini-embedding-001 (768-dim)
+    3. Retrieve top-k chunks from 885-chunk knowledge base
+    4. Check threshold guardrail
+    5. Prompt Gemini with conversation history + retrieved context
     """
     client = get_gemini_client()
     kb = load_knowledge_base()
@@ -93,12 +158,17 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
 
     from google.genai import types
 
-    # 1. Embed query
+    # 1. Condense follow-up query if history is provided
+    search_query = query
+    if history:
+        search_query = condense_query(query, history, client)
+
+    # 2. Embed standalone search query
     try:
         config = types.EmbedContentConfig(output_dimensionality=768)
         emb_res = client.models.embed_content(
             model="gemini-embedding-001",
-            contents=query,
+            contents=search_query,
             config=config,
         )
         q_emb = emb_res.embeddings[0].values
@@ -110,10 +180,10 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
             "mode": "rag_error",
         }
 
-    # 2. Similarity search
+    # 3. Similarity search over all knowledge base chunks
     scored: List[Tuple[float, Dict[str, Any]]] = []
     for item in kb:
-        if "embedding" in item:
+        if "embedding" in item and item["embedding"]:
             sim = cosine_sim(q_emb, item["embedding"])
             scored.append((sim, item))
 
@@ -129,7 +199,7 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
 
     best_score = top_items[0][0]
 
-    # 3. Guardrail 1: Similarity Threshold
+    # 4. Guardrail: Similarity Threshold
     if best_score < threshold:
         return {
             "reply": "Maaf, pertanyaan Anda di luar konteks materi kurikulum kepalangmerahan kami. Saya hanya dapat menjawab pertanyaan seputar materi resmi PMR/PMI (Pertolongan Pertama, Kesiapsiagaan Bencana, 7 Prinsip Palang Merah & Gerakan PMI, Donor Darah Sukarela, Kepemimpinan, Sanitasi/WASH, dan Kesehatan Remaja Sebaya).",
@@ -137,7 +207,7 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
             "mode": "rag_filtered_out_of_scope",
         }
 
-    # 4. Prepare context for LLM
+    # 5. Prepare context and sources
     context_blocks = []
     sources = []
     for score, item in top_items:
@@ -152,26 +222,44 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
 
     context_str = "\n\n---\n\n".join(context_blocks)
 
+    # 6. Format recent conversation history for prompt continuity
+    history_str = ""
+    if history:
+        clean_history = [
+            h for h in history
+            if h.get("text") and not h.get("text", "").startswith("Halo! Saya **Asisten")
+        ]
+        if clean_history:
+            history_lines = []
+            for item in clean_history[-5:]:
+                role = "Pengguna" if item.get("sender") == "user" else "Asisten"
+                snippet = item.get("text", "").strip()[:350]
+                history_lines.append(f"{role}: {snippet}")
+            history_str = "Riwayat Dialog Sebelumnya:\n" + "\n".join(history_lines) + "\n\n"
+
     system_instruction = (
         "Anda adalah asisten virtual resmi edukasi Kepalangmerahan (SIMULA PMI). "
         "Tugas utama Anda adalah menjawab pertanyaan pengguna secara ramah, jelas, terstruktur, dan edukatif "
         "HANYA berdasarkan potongan materi modul resmi PMI yang disediakan di bawah ini.\n\n"
-        "Aturan Ketat:\n"
-        "1. Jawab HANYA menggunakan informasi dari materi pembelajaran yang disediakan.\n"
-        "2. Jika jawaban tidak tercantum di dalam materi, katakan dengan sopan: "
+        "Aturan Percakapan & Kontinuitas:\n"
+        "1. Pahami riwayat dialog sebelumnya jika pertanyaan pengguna merupakan pertanyaan lanjutan (follow-up). "
+        "Jawablah secara berkesinambungan dan koheren tanpa mengulangi penjelasan yang tidak perlu.\n"
+        "2. Jawab HANYA menggunakan informasi dari materi modul pembelajaran yang disediakan.\n"
+        "3. Jika jawaban tidak tercantum di dalam materi, katakan dengan sopan: "
         "'Maaf, informasi tersebut tidak ditemukan dalam modul kepalangmerahan kami.'\n"
-        "3. JANGAN menjawab pertanyaan umum di luar topik kepalangmerahan, pertolongan pertama, donor darah, atau bencana.\n"
-        "4. Gunakan format yang rapi (bullet points/nomor jika berupa langkah-langkah atau daftar).\n"
-        "5. Cantumkan rujukan nama modul dan topiknya di akhir jawaban secara singkat."
+        "4. JANGAN menjawab pertanyaan umum di luar topik kepalangmerahan, pertolongan pertama, donor darah, atau bencana.\n"
+        "5. Gunakan format yang rapi (bullet points/nomor jika berupa langkah-langkah atau daftar).\n"
+        "6. Cantumkan rujukan nama modul dan topiknya di akhir jawaban secara singkat."
     )
 
     prompt = (
-        f"Kumpulan Potongan Materi Modul:\n{context_str}\n\n"
-        f"Pertanyaan Pengguna: {query}\n\n"
+        f"{history_str}"
+        f"Kumpulan Potongan Materi Modul Resmi PMI:\n{context_str}\n\n"
+        f"Pertanyaan Terbaru Pengguna: {query}\n\n"
         f"Jawaban Edukatif:"
     )
 
-    # 5. Generate content via Gemini
+    # 7. Generate contextual response via Gemini
     try:
         response = client.models.generate_content(
             model="gemini-3.5-flash-lite",
@@ -190,4 +278,6 @@ def query_rag(query: str, top_k: int = 3, threshold: float = 0.52) -> Dict[str, 
         "reply": reply_text,
         "sources": sources,
         "mode": "rag_verified_module",
+        "search_query": search_query,
     }
+
