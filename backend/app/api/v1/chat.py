@@ -48,4 +48,5 @@ def chat_message(
 )
 def test_chat(data: ChatInput):
     from app.services.rag_service import query_rag
-    return query_rag(data.message)
+    history_dicts = [{"sender": h.sender, "text": h.text} for h in data.history] if data.history else []
+    return query_rag(data.message, history=history_dicts)
