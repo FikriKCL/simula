@@ -129,11 +129,12 @@ DOMAIN_ROOT_MAP = {
     "kesiapsiagaan": "siaga",
     "bersiaga": "siaga",
     "kepalangmerahan": "palang",
-    " kepemimpinan": "pimpin",
+    "kepemimpinan": "pimpin",
     "pemimpin": "pimpin",
     "memimpin": "pimpin",
     "terkilir": "keseleo",
     "keseleo": "keseleo",
+    "kilir": "keseleo",
     "pingsan": "pingsan",
     "sadarkan": "sadar",
     "kesadaran": "sadar",
@@ -151,23 +152,46 @@ DOMAIN_ROOT_MAP = {
     "pengungsian": "ungsi",
     "pengungsi": "ungsi",
     "mengevakuasi": "evakuasi",
+    "tersedak": "sedak",
+    "keselek": "sedak",
+    "pencernaan": "cerna",
+    "pernapasan": "napas",
+    "bernapas": "napas",
+    "penularan": "tular",
+    "menular": "tular",
+    "tertular": "tular",
+    "pencegahan": "cegah",
+    "mencegah": "cegah",
 }
 
-# colloquial -> formal query expansion terms for BM25
+# colloquial -> formal query expansion terms for BM25 (0 API tokens)
 SYNONYM_EXPANSIONS = {
-    "mimisan": ["hidung", "darah"],
-    "pingsan": ["sadar", "syok"],
-    "keseleo": ["sendi", "otot", "terkilir"],
-    "terkilir": ["sendi", "otot", "keseleo"],
-    "knalpot": ["luka", "bakar"],
-    "air": ["banjir", "wash", "bersih"],
-    "7": ["tujuh", "prinsip"],
-    "tujuh": ["prinsip", "dasar"],
+    "mimisan": ["hidung", "darah", "perdarahan"],
+    "pingsan": ["sadar", "syok", "kesadaran"],
+    "keseleo": ["sendi", "otot", "terkilir", "ligamen"],
+    "terkilir": ["sendi", "otot", "keseleo", "ligamen"],
+    "knalpot": ["luka", "bakar", "panas"],
+    "air": ["banjir", "wash", "bersih", "sanitasi"],
+    "7": ["tujuh", "prinsip", "dasar"],
+    "tujuh": ["prinsip", "dasar", "gerakan"],
     "dds": ["donor", "darah", "sukarela"],
-    "prs": ["pendidikan", "remaja", "sebaya"],
-    "apd": ["alat", "perlindungan", "diri"],
-    "pp": ["pertolongan", "pertama"],
+    "prs": ["pendidikan", "remaja", "sebaya", "kesehatan"],
+    "apd": ["alat", "perlindungan", "diri", "sarung", "masker"],
+    "pp": ["pertolongan", "pertama", "penolong"],
     "asb": ["ayo", "siaga", "bencana"],
+    "rjp": ["resusitasi", "jantung", "paru", "napas", "buatan"],
+    "cpr": ["resusitasi", "jantung", "paru", "napas", "buatan"],
+    "keselek": ["tersedak", "sumbatan", "jalan", "napas"],
+    "tersedak": ["sumbatan", "jalan", "napas", "tenggorokan"],
+    "ctps": ["cuci", "tangan", "pakai", "sabun"],
+    "wash": ["air", "sanitasi", "kebersihan", "lingkungan"],
+    "tribakti": ["tri", "bakti", "pmr"],
+    "ims": ["infeksi", "menular", "seksual", "hiv", "aids"],
+    "narkoba": ["napza", "zat", "adiktif", "obat"],
+    "napza": ["narkotika", "psikotropika", "zat", "adiktif"],
+    "erupsi": ["gunung", "api", "letusan", "lahar"],
+    "puting": ["beliung", "angin", "topan", "badai"],
+    "hb": ["hemoglobin", "darah", "donor"],
 }
 
 
@@ -350,21 +374,58 @@ def check_fast_intent(query: str) -> Dict[str, Any] | None:
 
 
 FOLLOWUP_PRONOUN_PATTERN = re.compile(
-    r"\b(itu|ini|tersebut|tadi|di\s+atas|lanjutannya|selanjutnya|sebelumnya|lainnya|contohnya|syaratnya|gejalanya|tandanya|caranya|penanganannya|menanganinya|mengobatinya|mencegahnya|dampaknya|penyebabnya|jenisnya|macamnya|alatnya|fungsinya|tujuannya)\b",
+    r"\b(itu|ini|tersebut|tadi|di\s+atas|lanjutannya|selanjutnya|sebelumnya|lainnya|contohnya|syaratnya|gejalanya|tandanya|caranya|penanganannya|menanganinya|mengobatinya|mencegahnya|dampaknya|penyebabnya|jenisnya|macamnya|alatnya|fungsinya|tujuannya|langkahnya|prinsipnya)\b",
     re.IGNORECASE,
 )
 
 SHORT_FOLLOWUP_STARTERS = re.compile(
-    r"^(lalu|terus|kemudian|kalau|jika|bila|bagaimana\s+(jika|kalau|bila|cara|dengan)|apa\s+(saja|lagi|bedanya|perbedaannya)|kenapa|mengapa|berapa|kapan)\b",
+    r"^(lalu|terus|kemudian|kalau|jika|bila|bagaimana\s+(jika|kalau|bila|cara|dengan)|apa\s+(saja|lagi|bedanya|perbedaannya|maksudnya|artinya)|kenapa|mengapa|berapa|kapan|jelaskan\s+(lebih|tentang|poin|nomor|yang))\b",
     re.IGNORECASE,
 )
+
+ORDINAL_MAP = {
+    "pertama": 1,
+    "kesatu": 1,
+    "1": 1,
+    "kedua": 2,
+    "2": 2,
+    "ketiga": 3,
+    "3": 3,
+    "keempat": 4,
+    "4": 4,
+    "kelima": 5,
+    "5": 5,
+    "keenam": 6,
+    "6": 6,
+    "ketujuh": 7,
+    "7": 7,
+}
+
+ORDINAL_REF_PATTERN = re.compile(
+    r"\b(?:poin|nomor|langkah|prinsip|bagian|urutan|yang)\s+(?:ke[-\s]?)?(pertama|kesatu|kedua|ketiga|keempat|kelima|keenam|ketujuh|[1-7])\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_numbered_point_from_bot(bot_text: str, target_num: int) -> str:
+    """Extracts the title/keywords of a specific numbered item from the last bot message (0 tokens)."""
+    pattern = re.compile(rf"(?:^|\n)\s*{target_num}\.\s+([^\n]+)")
+    match = pattern.search(bot_text)
+    if not match:
+        return ""
+    line = match.group(1).strip()
+    bold_match = re.search(r"\*\*([^*]+)\*\*", line)
+    if bold_match:
+        return bold_match.group(1).strip(" :.-")
+    words = re.findall(r"\w+", line.lower())
+    return " ".join(w for w in words[:6] if w not in INDONESIAN_STOPWORDS)
 
 
 def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | None) -> str:
     """
     Zero-Token Local Conversational Query Resolution!
     Replaces the expensive synchronous LLM call (`condense_query`) with fast (<0.2ms)
-    deterministic topic extraction from recent conversation history.
+    deterministic topic & numbered-item extraction from recent conversation history.
     """
     if not history:
         return query
@@ -382,7 +443,17 @@ def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | Non
     q_strip = query.strip()
     content_tokens = [w for w in re.findall(r"\w+", q_strip.lower()) if w not in INDONESIAN_STOPWORDS and len(w) > 2]
 
-    has_pronoun = bool(FOLLOWUP_PRONOUN_PATTERN.search(q_strip))
+    # Check if user refers to a specific numbered point from the last assistant message (e.g. "jelaskan poin nomor 3")
+    ord_match = ORDINAL_REF_PATTERN.search(q_strip)
+    bot_turns = [h.get("text", "") for h in reversed(clean_history) if h.get("sender") in ("bot", "assistant")]
+    ordinal_topic = ""
+    if ord_match and bot_turns:
+        ord_key = ord_match.group(1).lower()
+        target_num = ORDINAL_MAP.get(ord_key, 0)
+        if target_num:
+            ordinal_topic = _extract_numbered_point_from_bot(bot_turns[0], target_num)
+
+    has_pronoun = bool(FOLLOWUP_PRONOUN_PATTERN.search(q_strip)) or bool(ord_match)
     has_followup_starter = bool(SHORT_FOLLOWUP_STARTERS.search(q_strip))
     is_short_query = len(content_tokens) <= 2
 
@@ -390,13 +461,17 @@ def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | Non
     if not has_pronoun and not is_short_query and not (has_followup_starter and len(content_tokens) <= 3):
         return query
 
-    # Extract anchor topic terms from the most recent user message(s) in history
-    user_turns = [h.get("text", "") for h in reversed(clean_history) if h.get("sender") == "user"]
-    if not user_turns:
-        return query
-
     anchor_tokens: List[str] = []
     seen = set(content_tokens)
+
+    if ordinal_topic:
+        for w in re.findall(r"\w+", ordinal_topic.lower()):
+            if len(w) > 2 and w not in seen:
+                anchor_tokens.append(w)
+                seen.add(w)
+
+    # Extract anchor topic terms from the most recent user message(s) in history
+    user_turns = [h.get("text", "") for h in reversed(clean_history) if h.get("sender") == "user"]
     for ut in user_turns[:2]:
         for w in re.findall(r"\w+", ut.lower()):
             if (
@@ -407,10 +482,21 @@ def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | Non
             ):
                 anchor_tokens.append(w)
                 seen.add(w)
-            if len(anchor_tokens) >= 5:
+            if len(anchor_tokens) >= 6:
                 break
-        if len(anchor_tokens) >= 3:
+        if len(anchor_tokens) >= 4:
             break
+
+    # Fallback: extract bolded key concepts from the last bot message if user history was too generic
+    if len(anchor_tokens) < 2 and bot_turns:
+        bold_terms = re.findall(r"\*\*([^*]{3,35})\*\*", bot_turns[0])
+        for bt in bold_terms[:3]:
+            for w in re.findall(r"\w+", bt.lower()):
+                if len(w) > 2 and w not in INDONESIAN_STOPWORDS and w not in seen:
+                    anchor_tokens.append(w)
+                    seen.add(w)
+                if len(anchor_tokens) >= 5:
+                    break
 
     if not anchor_tokens:
         return query
@@ -420,6 +506,29 @@ def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | Non
     return expanded
 
 
+def _section_to_question(sec_title: str, doc_title: str) -> str | None:
+    """Converts a clean knowledge base section_title into a natural follow-up question (0 tokens)."""
+    if not sec_title:
+        return None
+    clean = re.sub(r"\s*\(Hal\.\s*[\d\-]+\)", "", sec_title, flags=re.IGNORECASE).strip(" :-•*")
+    clean = re.sub(r"^(?:BAB\s+[IVXLCDM\d]+|MODUL\s+\d+|[A-Z]\.|[0-9]+\.)\s*", "", clean, flags=re.IGNORECASE).strip()
+    if len(clean) < 6 or len(clean) > 58:
+        return None
+    low = clean.lower()
+    if any(skip in low for skip in ("materi pokok", "materi umum", "daftar isi", "kata pengantar", "pendahuluan", "penutup", "evaluasi", "lampiran", "kompetensi", "tujuan pembelajaran", "pokok bahasan")):
+        return None
+    if clean.endswith("?"):
+        return clean
+    if low.startswith(("apa ", "apakah ", "bagaimana ", "mengapa ", "kenapa ", "siapa ", "kapan ")):
+        return f"{clean}?"
+    if low.startswith(("langkah", "cara", "prosedur", "teknik", "penanganan", "pertolongan")):
+        return f"Bagaimana {clean[0].lower() + clean[1:]}?"
+    if low.startswith(("syarat", "gejala", "tanda", "ciri", "faktor", "jenis", "macam", "manfaat", "tujuan", "fungsi", "prinsip", "hak", "kewajiban")):
+        return f"Apa saja {clean[0].lower() + clean[1:]}?"
+    short_doc = doc_title.split("(")[0].replace("Buku Panduan", "").replace("Panduan Fasilitator PMR:", "").strip()
+    return f"Bagaimana penjelasan tentang {clean} pada {short_doc}?"
+
+
 def generate_followup_suggestions(
     query: str,
     retrieved_items: List[Dict[str, Any]],
@@ -427,9 +536,9 @@ def generate_followup_suggestions(
     max_suggestions: int = 3,
 ) -> List[str]:
     """
-    Zero-Token Deterministic Follow-Up Suggestion Generator.
-    Selects 3 contextually relevant follow-up questions based on retrieved categories and sections,
-    excluding questions already asked in the conversation.
+    Zero-Token Deterministic + Section-Aware Follow-Up Suggestion Generator.
+    Blends dynamic questions derived from neighboring section titles in the same module
+    with curated category questions, excluding questions already asked.
     """
     asked_lower = {query.strip().lower()}
     if history:
@@ -440,7 +549,27 @@ def generate_followup_suggestions(
     q_words = set(tokenize_id(query))
     candidates: List[str] = []
 
-    # 1. Gather candidates from the matched categories
+    # 1. Dynamic section-aware suggestion from adjacent/related chunks in KB (0 API tokens)
+    kb = _cached_kb or []
+    if kb and retrieved_items:
+        top_item = retrieved_items[0]
+        top_id = top_item.get("id", -1)
+        top_doc = top_item.get("doc_title", "")
+        top_sec = top_item.get("section_title", "")
+        for offset in (1, 2, -1, 3):
+            neighbor_idx = top_id - 1 + offset
+            if 0 <= neighbor_idx < len(kb):
+                nb = kb[neighbor_idx]
+                if nb.get("doc_title") == top_doc and nb.get("section_title") != top_sec:
+                    dyn_q = _section_to_question(nb.get("section_title", ""), top_doc)
+                    if dyn_q and dyn_q.lower() not in asked_lower:
+                        dyn_words = set(tokenize_id(dyn_q))
+                        overlap = len(q_words & dyn_words) / max(len(dyn_words), 1)
+                        if overlap < 0.55 and dyn_q not in candidates:
+                            candidates.append(dyn_q)
+                            break
+
+    # 2. Gather curated candidates from the matched categories
     seen_cats = []
     for item in retrieved_items:
         cat = item.get("category", "")
@@ -452,13 +581,12 @@ def generate_followup_suggestions(
             cand_low = cand.lower()
             if cand_low in asked_lower:
                 continue
-            # Avoid suggesting a question with >65% token overlap with the current query
             cand_words = set(tokenize_id(cand))
             overlap = len(q_words & cand_words) / max(len(cand_words), 1)
             if overlap < 0.60 and cand not in candidates:
                 candidates.append(cand)
 
-    # 2. Fill remaining slots from default suggestions if needed
+    # 3. Fill remaining slots from default suggestions if needed
     for d in DEFAULT_SUGGESTIONS:
         if len(candidates) >= max_suggestions:
             break
@@ -572,6 +700,70 @@ def get_query_embedding(search_query: str, client) -> List[float]:
     return q_emb
 
 
+def _compute_local_rerank_bonus(
+    item: Dict[str, Any],
+    q_words: List[str],
+    q_bigrams: List[str],
+    target_tier: str,
+) -> float:
+    """
+    Zero-Token Local Cross-Feature Reranker (<0.1ms):
+    1. Exact Bigram / Phrase match in section_title or content (prevents unigram dilution like 'luka' vs 'luka bakar')
+    2. Section Title keyword coverage bonus
+    3. PMR Tier / Audience match bonus (Mula / Madya / Wira / Fasilitator)
+    """
+    bonus = 0.0
+    sec_low = item.get("section_title", "").lower()
+    doc_low = item.get("doc_title", "").lower()
+    content_low = item.get("content", "").lower()
+
+    # 1. Exact Bigram / Phrase Bonus
+    for bg in q_bigrams:
+        if bg in sec_low:
+            bonus += 0.0085
+        elif bg in content_low:
+            bonus += 0.0045
+
+    # 2. Section Heading Keyword Coverage Bonus
+    if q_words:
+        sec_hits = sum(1 for w in q_words if w in sec_low)
+        if sec_hits:
+            bonus += 0.0030 * (sec_hits / len(q_words))
+
+    # 3. Target PMR Level / Role Bonus
+    if target_tier and target_tier in doc_low:
+        bonus += 0.0055
+
+    return bonus
+
+
+def _detect_target_tier(query_low: str) -> str:
+    if any(k in query_low for k in ("mula", " tingkat sd", "anak sd")):
+        return "mula"
+    if any(k in query_low for k in ("madya", " tingkat smp", "anak smp")):
+        return "madya"
+    if any(k in query_low for k in ("wira", " tingkat sma", " tingkat smk", "anak sma")):
+        return "wira"
+    if any(k in query_low for k in ("fasilitator", "pelatih", "pembina", "mengajar")):
+        return "fasilitator"
+    return ""
+
+
+def _needs_neighbor_continuation(chunk_text: str) -> bool:
+    """Detects if a chunk ends mid-procedure/list or mid-sentence so its neighbor can complete it."""
+    stripped = chunk_text.strip()
+    if not stripped:
+        return False
+    # Ends with colon, comma, hyphen, or open list item
+    if stripped[-1] in (":", ",", ";", "-"):
+        return True
+    # Contains numbered list items (e.g. 1., 2.) that might continue in the next chunk
+    numbered_matches = re.findall(r"(?:^|\n)\s*(\d+)\.\s+", stripped)
+    if numbered_matches and int(numbered_matches[-1]) <= 6:
+        return True
+    return False
+
+
 def hybrid_retrieve(
     search_query: str,
     q_emb: List[float],
@@ -583,7 +775,8 @@ def hybrid_retrieve(
     Hybrid Search combining:
     1. Pre-normalized Dense Vector Search (Gemini Embedding 768-dim)
     2. Stemmed + Synonym-Expanded BM25 Lexical Search
-    3. Reciprocal Rank Fusion (RRF) + Dynamic Tail Pruning (saves LLM input tokens)
+    3. Reciprocal Rank Fusion (RRF) + Zero-Token Phrase/Title/Level Reranker
+    4. Adjacent Continuation Stitching + Dynamic Tail Pruning (strictly caps LLM input tokens)
     """
     if not kb:
         return False, [], [], "rag_no_match", []
@@ -636,7 +829,7 @@ def hybrid_retrieve(
         )
         return False, [], [], "rag_filtered_out_of_scope", []
 
-    # 4. Reciprocal Rank Fusion (RRF)
+    # 4. Reciprocal Rank Fusion (RRF) + Local Phrase/Title/Level Reranking (0 API tokens)
     RRF_K = 60
     WEIGHT_VECTOR = 0.55
     WEIGHT_BM25 = 0.45
@@ -649,18 +842,29 @@ def hybrid_retrieve(
     for rank, (idx, _score) in enumerate(bm25_scores[:35], start=1):
         rrf_map[idx] = rrf_map.get(idx, 0.0) + (WEIGHT_BM25 / (RRF_K + rank))
 
+    q_low = search_query.lower()
+    raw_q_words = [w for w in re.findall(r"\w+", q_low) if w not in INDONESIAN_STOPWORDS and len(w) > 2]
+    q_bigrams = [f"{raw_q_words[i]} {raw_q_words[i + 1]}" for i in range(len(raw_q_words) - 1)]
+    target_tier = _detect_target_tier(q_low)
+
+    for idx in list(rrf_map.keys()):
+        rrf_map[idx] += _compute_local_rerank_bonus(kb[idx], raw_q_words, q_bigrams, target_tier)
+
     ranked_candidates = sorted(rrf_map.items(), key=lambda x: x[1], reverse=True)
     if not ranked_candidates:
         return False, [], [], "rag_no_match", []
 
-    # 5. Dynamic Context Pruning & Deduplication (reduces prompt tokens while maximizing precision)
+    # 5. Dynamic Context Pruning, Deduplication & Continuation Stitching (strict token cap)
+    MAX_CONTEXT_CHARS = 3400
+    total_chars = 0
     context_blocks: List[str] = []
     sources: List[Dict[str, Any]] = []
     selected_items: List[Dict[str, Any]] = []
     seen_prefixes: set[str] = set()
+    selected_indices: set[int] = set()
 
     for idx, _rrf in ranked_candidates:
-        if len(selected_items) >= top_k:
+        if len(selected_items) >= top_k or total_chars >= MAX_CONTEXT_CHARS:
             break
         item = kb[idx]
         sim = full_vector_sim.get(idx, 0.0)
@@ -675,9 +879,29 @@ def hybrid_retrieve(
         prefix_sig = re.sub(r"\W+", "", content_str[:160].lower())
         if prefix_sig in seen_prefixes:
             continue
-        seen_prefixes.add(prefix_sig)
 
+        # Check if the #1 best chunk is cut off mid-list/procedure and can be stitched with idx + 1
+        if (
+            len(selected_items) == 0
+            and idx + 1 < len(kb)
+            and kb[idx + 1].get("doc_title") == item.get("doc_title")
+            and _needs_neighbor_continuation(content_str)
+        ):
+            next_item = kb[idx + 1]
+            next_content = next_item.get("content", "").strip()
+            next_sig = re.sub(r"\W+", "", next_content[:160].lower())
+            if next_sig not in seen_prefixes and len(content_str) + len(next_content) <= 1950:
+                content_str = f"{content_str}\n{next_content}"
+                seen_prefixes.add(next_sig)
+                selected_indices.add(idx + 1)
+
+        if total_chars + len(content_str) > MAX_CONTEXT_CHARS and selected_items:
+            continue
+
+        seen_prefixes.add(prefix_sig)
+        selected_indices.add(idx)
         selected_items.append(item)
+        total_chars += len(content_str)
         context_blocks.append(
             f"[{item.get('doc_title', 'Modul')} | {item.get('section_title', 'Materi')}]\n{content_str}"
         )
@@ -710,22 +934,27 @@ def _build_grounded_prompt(
             and not h.get("text", "").startswith("Percakapan telah direset")
         ]
         if clean_history:
+            recent_slice = clean_history[-3:]
             history_lines = []
-            for item in clean_history[-4:]:
+            for idx_h, item in enumerate(recent_slice):
+                is_last = idx_h == len(recent_slice) - 1
                 role = "Pengguna" if item.get("sender") == "user" else "Asisten"
-                snippet = item.get("text", "").strip()[:280]
+                # Allocate 600 chars for the immediate last turn so numbered lists aren't cut off, 180 for older turns
+                limit = 600 if is_last else 180
+                snippet = item.get("text", "").strip()[:limit]
                 history_lines.append(f"{role}: {snippet}")
             history_str = "Riwayat Dialog:\n" + "\n".join(history_lines) + "\n\n"
 
     system_instruction = (
-        "Anda adalah asisten virtual resmi edukasi Kepalangmerahan (SIMULA PMI). "
-        "Jawablah secara ramah, jelas, terstruktur, dan edukatif HANYA berdasarkan materi modul resmi PMI di bawah.\n"
+        "Anda adalah SIMULA AI, asisten edukasi resmi Kepalangmerahan (PMR/PMI). "
+        "Jawablah secara akurat, jelas, ramah, dan sistematis HANYA dari materi modul PMI di bawah.\n"
         "Aturan:\n"
-        "1. Gunakan HANYA informasi dari materi modul yang disediakan. Jika tidak tercantum, katakan: "
+        "1. Gunakan HANYA fakta dari materi yang diberikan. Jika tidak ada, katakan: "
         "'Maaf, informasi tersebut tidak ditemukan dalam modul kepalangmerahan kami.'\n"
-        "2. Jika pertanyaan merupakan lanjutan dari Riwayat Dialog, jawab secara berkesinambungan.\n"
-        "3. Gunakan format terstruktur (poin/nomor untuk langkah-langkah, **teks tebal** untuk istilah penting).\n"
-        "4. Cantumkan rujukan singkat judul modul & bab/halaman di akhir jawaban."
+        "2. Awali dengan `> ` (kutipan singkat definisi/inti jawaban), lalu rincikan dengan poin/nomor terstruktur dan **teks tebal** pada istilah kunci.\n"
+        "3. Gunakan tabel Markdown (`| ... |`) jika membandingkan kategori/tingkatan/jenis.\n"
+        "4. Untuk prosedur Pertolongan Pertama/Bencana, sertakan baris peringatan diawali `Penting:` atau `Jangan sekali-kali` jika ada larangan/keselamatan di materi.\n"
+        "5. Tutup dengan rujukan singkat judul modul & halaman."
     )
 
     prompt = (
