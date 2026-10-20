@@ -3,9 +3,10 @@
 import { useState, useRef, useId } from "react";
 
 interface Source {
-  doc_title: string;
-  section_title: string;
+  doc_title?: string;
+  section_title?: string;
   similarity?: number;
+  title?: string;
 }
 
 interface Message {
@@ -13,6 +14,8 @@ interface Message {
   sender: "user" | "bot";
   text: string;
   sources?: Source[];
+  suggestions?: string[];
+  is_emergency?: boolean;
   mode?: string;
   time: string;
 }
@@ -62,120 +65,11 @@ const CATEGORIES = [
   },
 ];
 
-// Rich formatter for bot responses (Markdown formatting)
-function FormattedMessage({ text }: { text: string }) {
-  const lines = text.split("\n");
-
-  return (
-    <div className="space-y-2.5 text-sm leading-relaxed text-slate-800 break-words dark:text-slate-200">
-      {lines.map((line, i) => {
-        const trimmed = line.trim();
-        if (!trimmed) {
-          return <div key={i} className="h-1" />;
-        }
-
-        // Horizontal separator line (e.g. ---)
-        if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
-          return (
-            <hr
-              key={i}
-              className="my-3 border-t border-slate-200/80 dark:border-slate-800"
-            />
-          );
-        }
-
-        // Warning / Caution highlight
-        if (
-          trimmed.toLowerCase().startsWith("jangan sekali-kali") ||
-          trimmed.toLowerCase().startsWith("perhatian:") ||
-          trimmed.toLowerCase().startsWith("peringatan:") ||
-          trimmed.toLowerCase().startsWith("penting:")
-        ) {
-          return (
-            <div
-              key={i}
-              className="my-2 rounded-xl border-l-4 border-amber-500 bg-amber-50/90 p-3 text-xs leading-relaxed text-amber-950 shadow-xs dark:border-amber-400 dark:bg-amber-950/40 dark:text-amber-200"
-            >
-              <div className="flex items-start gap-2">
-                <span className="shrink-0 text-sm">⚠️</span>
-                <span>{renderBold(trimmed)}</span>
-              </div>
-            </div>
-          );
-        }
-
-        // Headings
-        if (trimmed.startsWith("### ")) {
-          return (
-            <h4
-              key={i}
-              className="mt-3 text-sm font-bold tracking-tight text-red-700 dark:text-red-400"
-            >
-              {renderBold(trimmed.replace("### ", ""))}
-            </h4>
-          );
-        }
-        if (trimmed.startsWith("## ")) {
-          return (
-            <h3
-              key={i}
-              className="mt-4 text-base font-bold tracking-tight text-slate-900 dark:text-white"
-            >
-              {renderBold(trimmed.replace("## ", ""))}
-            </h3>
-          );
-        }
-        if (trimmed.startsWith("# ")) {
-          return (
-            <h2
-              key={i}
-              className="mt-4 text-lg font-extrabold tracking-tight text-slate-900 dark:text-white"
-            >
-              {renderBold(trimmed.replace("# ", ""))}
-            </h2>
-          );
-        }
-
-        // Bullet points (* or -)
-        if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
-          const content = trimmed.substring(2);
-          return (
-            <div key={i} className="flex items-start gap-2.5 pl-1">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500 ring-2 ring-red-500/20" />
-              <span className="flex-1 leading-relaxed">{renderBold(content)}</span>
-            </div>
-          );
-        }
-
-        // Numbered list
-        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
-        if (numMatch) {
-          return (
-            <div key={i} className="flex items-start gap-2.5 pl-1">
-              <span className="shrink-0 font-bold font-mono text-red-600 dark:text-red-400">
-                {numMatch[1]}.
-              </span>
-              <span className="flex-1 leading-relaxed">{renderBold(numMatch[2])}</span>
-            </div>
-          );
-        }
-
-        // Regular paragraph
-        return (
-          <p key={i} className="leading-relaxed">
-            {renderBold(trimmed)}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
-// Simple bold parser
-function renderBold(text: string) {
-  const parts = text.split(/(\*\*.*?\*\*)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
+// Rich inline parser for **bold**, `code`, and *italic*
+function renderInline(text: string) {
+  const tokens = text.split(/(\*\*.*?\*\*|`[^`]+`)/g);
+  return tokens.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
         <strong
           key={index}
@@ -185,8 +79,240 @@ function renderBold(text: string) {
         </strong>
       );
     }
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return (
+        <code
+          key={index}
+          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-red-700 dark:bg-slate-800 dark:text-red-300"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
     return part;
   });
+}
+
+// Rich formatter for bot responses (Markdown formatting including tables, blockquotes, nested lists)
+function FormattedMessage({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) {
+      elements.push(<div key={`sp-${i}`} className="h-1" />);
+      i++;
+      continue;
+    }
+
+    // Markdown Table block detection
+    if (
+      trimmed.startsWith("|") &&
+      trimmed.endsWith("|") &&
+      i + 1 < lines.length &&
+      lines[i + 1].trim().startsWith("|")
+    ) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      const rows = tableLines
+        .filter((row) => !/^\|[\s\-:|]+\|$/.test(row))
+        .map((row) =>
+          row
+            .slice(1, -1)
+            .split("|")
+            .map((cell) => cell.trim())
+        );
+
+      if (rows.length > 0) {
+        const header = rows[0];
+        const body = rows.slice(1);
+        elements.push(
+          <div
+            key={`tbl-${i}`}
+            className="my-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800"
+          >
+            <table className="w-full border-collapse text-left text-xs">
+              <thead className="bg-slate-100 text-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
+                <tr>
+                  {header.map((col, cIdx) => (
+                    <th
+                      key={cIdx}
+                      className="border-b border-slate-200 px-3 py-2 font-bold dark:border-slate-700"
+                    >
+                      {renderInline(col)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800">
+                {body.map((r, rIdx) => (
+                  <tr
+                    key={rIdx}
+                    className="bg-white/60 hover:bg-slate-50 dark:bg-slate-900/40 dark:hover:bg-slate-800/40"
+                  >
+                    {r.map((cell, cIdx) => (
+                      <td key={cIdx} className="px-3 py-2 align-top">
+                        {renderInline(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+    }
+
+    // Horizontal separator line (e.g. ---)
+    if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
+      elements.push(
+        <hr
+          key={`hr-${i}`}
+          className="my-3 border-t border-slate-200/80 dark:border-slate-800"
+        />
+      );
+      i++;
+      continue;
+    }
+
+    // Warning / Caution highlight
+    if (
+      trimmed.toLowerCase().startsWith("jangan sekali-kali") ||
+      trimmed.toLowerCase().startsWith("perhatian:") ||
+      trimmed.toLowerCase().startsWith("peringatan:") ||
+      trimmed.toLowerCase().startsWith("penting:")
+    ) {
+      elements.push(
+        <div
+          key={`warn-${i}`}
+          className="my-2 rounded-xl border-l-4 border-amber-500 bg-amber-50/90 p-3 text-xs leading-relaxed text-amber-950 shadow-xs dark:border-amber-400 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <div className="flex items-start gap-2">
+            <span className="shrink-0 text-sm">⚠️</span>
+            <span>{renderInline(trimmed)}</span>
+          </div>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Blockquote (> ...)
+    if (trimmed.startsWith("> ")) {
+      elements.push(
+        <blockquote
+          key={`bq-${i}`}
+          className="my-2 border-l-3 border-red-400 bg-slate-50/80 py-1.5 pl-3 pr-2 italic text-slate-700 rounded-r-lg dark:border-red-500 dark:bg-slate-800/40 dark:text-slate-300"
+        >
+          {renderInline(trimmed.slice(2))}
+        </blockquote>
+      );
+      i++;
+      continue;
+    }
+
+    // Headings
+    if (trimmed.startsWith("### ")) {
+      elements.push(
+        <h4
+          key={`h4-${i}`}
+          className="mt-3 text-sm font-bold tracking-tight text-red-700 dark:text-red-400"
+        >
+          {renderInline(trimmed.replace("### ", ""))}
+        </h4>
+      );
+      i++;
+      continue;
+    }
+    if (trimmed.startsWith("## ")) {
+      elements.push(
+        <h3
+          key={`h3-${i}`}
+          className="mt-4 text-base font-bold tracking-tight text-slate-900 dark:text-white"
+        >
+          {renderInline(trimmed.replace("## ", ""))}
+        </h3>
+      );
+      i++;
+      continue;
+    }
+    if (trimmed.startsWith("# ")) {
+      elements.push(
+        <h2
+          key={`h2-${i}`}
+          className="mt-4 text-lg font-extrabold tracking-tight text-slate-900 dark:text-white"
+        >
+          {renderInline(trimmed.replace("# ", ""))}
+        </h2>
+      );
+      i++;
+      continue;
+    }
+
+    // Bullet points (* or -), supporting nested indentation
+    if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+      const indentSpaces = rawLine.search(/\S|$/);
+      const isNested = indentSpaces >= 2;
+      const content = trimmed.substring(2);
+      elements.push(
+        <div
+          key={`ul-${i}`}
+          className={`flex items-start gap-2.5 ${isNested ? "pl-6" : "pl-1"}`}
+        >
+          <span
+            className={`mt-2 shrink-0 rounded-full ${
+              isNested
+                ? "h-1.5 w-1.5 border border-red-500 bg-transparent"
+                : "h-1.5 w-1.5 bg-red-500 ring-2 ring-red-500/20"
+            }`}
+          />
+          <span className="flex-1 leading-relaxed">{renderInline(content)}</span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Numbered list
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    if (numMatch) {
+      elements.push(
+        <div key={`ol-${i}`} className="flex items-start gap-2.5 pl-1">
+          <span className="shrink-0 font-bold font-mono text-red-600 dark:text-red-400">
+            {numMatch[1]}.
+          </span>
+          <span className="flex-1 leading-relaxed">
+            {renderInline(numMatch[2])}
+          </span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(
+      <p key={`p-${i}`} className="leading-relaxed">
+        {renderInline(trimmed)}
+      </p>
+    );
+    i++;
+  }
+
+  return (
+    <div className="space-y-2.5 text-sm leading-relaxed text-slate-800 break-words dark:text-slate-200">
+      {elements}
+    </div>
+  );
 }
 
 export default function ChatbotPage() {
@@ -197,8 +323,13 @@ export default function ChatbotPage() {
     {
       id: "initial-welcome",
       sender: "bot",
-      text: "Halo! Saya **Asisten Virtual Resmi SIMULA (Palang Merah Remaja & PMI)**.\n\nSaya didukung sistem **RAG Berpagar Ketat** yang membaca langsung materi kurikulum resmi PMI (885 chunks terverifikasi):\n- **Pertolongan Pertama (Tingkat Mula & Wira)**\n- **Kesiapsiagaan Bencana (Ayo Siaga Bencana)**\n- **Gerakan Palang Merah & 7 Prinsip Dasar PMI**\n- **Donor Darah Sukarela (DDS)**\n- **Kepemimpinan & Dinamika Kelompok PMR**\n- **Pendidikan Remaja Sebaya & Kesehatan Lingkungan (WASH)**\n\nSilakan klik salah satu contoh pertanyaan di sidebar atau ketik pertanyaan Anda sendiri di bawah!",
+      text: "Halo! Saya **Asisten Virtual Resmi SIMULA (Palang Merah Remaja & PMI)**.\n\nSaya didukung sistem **Hybrid RAG Berpagar Ketat** yang membaca langsung **13 modul kurikulum resmi PMI (844 chunks bersih terindeks)**:\n- **Pertolongan Pertama (Tingkat Mula & Wira)**\n- **Kesiapsiagaan Bencana (Ayo Siaga Bencana)**\n- **Gerakan Palang Merah & 7 Prinsip Dasar PMI**\n- **Donor Darah Sukarela (DDS)**\n- **Kepemimpinan & Dinamika Kelompok PMR**\n- **Pendidikan Remaja Sebaya & Kesehatan Lingkungan (WASH)**\n\nSilakan klik salah satu contoh pertanyaan di sidebar atau ketik pertanyaan Anda sendiri di bawah!",
       sources: [],
+      suggestions: [
+        "Bagaimana langkah pertolongan pertama pada luka bakar melepuh?",
+        "Sebutkan dan jelaskan 7 Prinsip Dasar Gerakan Palang Merah!",
+        "Apa saja barang penting di dalam Tas Siaga Bencana?",
+      ],
       mode: "system_welcome",
       time: "08:00",
     },
@@ -295,6 +426,8 @@ export default function ChatbotPage() {
       sender: "bot",
       text: "",
       sources: [],
+      suggestions: [],
+      is_emergency: false,
       mode: "streaming",
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
@@ -375,6 +508,8 @@ export default function ChatbotPage() {
                           ...m,
                           mode: payload.mode || "rag_verified_module",
                           sources: payload.sources || [],
+                          suggestions: payload.suggestions || [],
+                          is_emergency: Boolean(payload.is_emergency),
                         }
                       : m
                   )
@@ -413,6 +548,8 @@ export default function ChatbotPage() {
                   ...m,
                   text: data.reply || "Tidak ada respons dari sistem.",
                   sources: data.sources || [],
+                  suggestions: data.suggestions || [],
+                  is_emergency: Boolean(data.is_emergency),
                   mode: data.mode || "unknown",
                 }
               : m
@@ -453,6 +590,11 @@ export default function ChatbotPage() {
         sender: "bot",
         text: "Percakapan telah direset. Silakan tanyakan apa saja seputar materi kepalangmerahan PMR/PMI!",
         sources: [],
+        suggestions: [
+          "Bagaimana langkah pertolongan pertama pada luka bakar melepuh?",
+          "Sebutkan dan jelaskan 7 Prinsip Dasar Gerakan Palang Merah!",
+          "Apa saja barang penting di dalam Tas Siaga Bencana?",
+        ],
         mode: "system_welcome",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       },
@@ -482,11 +624,11 @@ export default function ChatbotPage() {
                   SIMULA AI
                 </h1>
                 <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950 dark:text-red-300">
-                  PMR Mula
+                  PMR PMI
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Asisten Pembelajaran PMI
+                Asisten Pembelajaran Kepalangmerahan
               </p>
             </div>
           </div>
@@ -498,14 +640,14 @@ export default function ChatbotPage() {
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-400">
                 <span className="inline-block h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>
-                RAG Engine Aktif
+                Hybrid RAG Engine
               </span>
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                885 Chunks
+                844 Chunks Bersih
               </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-              Menjawab <strong>100% dari dokumen modul resmi</strong> PMI. Dilengkapi 2 lapis guardrail untuk mencegah jawaban di luar topik.
+              Menjawab <strong>100% dari 13 modul resmi</strong> PMI dengan BM25 + Vector Search, memori percakapan hemat token, & guardrail anti-halusinasi.
             </p>
           </div>
         </div>
@@ -571,7 +713,7 @@ export default function ChatbotPage() {
               <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <span>Model: Gemini 3.5 Flash-Lite</span>
                 <span>•</span>
-                <span>Embedding: 768 Dimensi</span>
+                <span>Hybrid Search (BM25 + 768d Vector)</span>
               </div>
             </div>
           </div>
@@ -642,6 +784,8 @@ export default function ChatbotPage() {
                               ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
                               : msg.mode === "rag_filtered_out_of_scope"
                               ? "bg-amber-50 text-amber-700 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-300"
+                              : msg.mode === "conversational_assistant"
+                              ? "bg-blue-50 text-blue-700 ring-1 ring-blue-500/20 dark:bg-blue-950/60 dark:text-blue-300"
                               : msg.mode === "streaming"
                               ? "bg-red-50 text-red-700 ring-1 ring-red-500/20 dark:bg-red-950/60 dark:text-red-300 animate-pulse"
                               : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
@@ -651,11 +795,25 @@ export default function ChatbotPage() {
                             ? "✓ Terverifikasi Modul"
                             : msg.mode === "rag_filtered_out_of_scope"
                             ? "🛡️ Filter: Di Luar Konteks"
+                            : msg.mode === "conversational_assistant"
+                            ? "💬 Asisten Interaktif"
                             : msg.mode === "streaming"
                             ? "⚡ Menyiapkan Jawaban..."
                             : "Informasi Sistem"}
                         </span>
                       )}
+                    </div>
+                  )}
+
+                  {/* Emergency Safety Banner */}
+                  {msg.sender === "bot" && msg.is_emergency && (
+                    <div className="mb-3.5 flex items-start gap-2.5 rounded-xl border border-red-300 bg-red-50/90 p-3 text-xs text-red-900 dark:border-red-800/80 dark:bg-red-950/50 dark:text-red-200">
+                      <span className="shrink-0 text-base">🚑</span>
+                      <div className="leading-relaxed">
+                        <strong className="font-bold">Panduan Keselamatan Darurat:</strong>{" "}
+                        Utamakan keselamatan penolong (gunakan APD). Jika menghadapi kondisi darurat medis nyata, segera hubungi{" "}
+                        <strong className="underline">119</strong>, Posko PMI, atau bawa ke Puskesmas/Rumah Sakit terdekat.
+                      </div>
                     </div>
                   )}
 
@@ -677,7 +835,9 @@ export default function ChatbotPage() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
                       </span>
-                      <span className="animate-pulse">Menghubungkan ke modul pembelajaran PMI & merangkum...</span>
+                      <span className="animate-pulse">
+                        Menghubungkan ke modul pembelajaran PMI & merangkum...
+                      </span>
                     </div>
                   )}
 
@@ -697,10 +857,16 @@ export default function ChatbotPage() {
                             className="flex items-center justify-between gap-2.5 rounded-lg bg-white px-3 py-2 text-xs border border-slate-200/60 shadow-2xs min-w-0 dark:bg-slate-900/80 dark:border-slate-800"
                           >
                             <span className="min-w-0 flex-1 truncate pr-2 font-medium text-slate-800 dark:text-slate-200">
-                              {src.doc_title} •{" "}
-                              <span className="text-slate-500 dark:text-slate-400 font-normal">
-                                {src.section_title}
-                              </span>
+                              {src.doc_title || src.title}
+                              {src.section_title && (
+                                <>
+                                  {" "}
+                                  •{" "}
+                                  <span className="text-slate-500 dark:text-slate-400 font-normal">
+                                    {src.section_title}
+                                  </span>
+                                </>
+                              )}
                             </span>
                             {src.similarity !== undefined && (
                               <span className="shrink-0 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold font-mono text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950 dark:text-emerald-300">
@@ -712,6 +878,30 @@ export default function ChatbotPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Follow-up Suggestions Chips (Zero Extra Tokens) */}
+                  {msg.sender === "bot" &&
+                    msg.id !== streamingMsgId &&
+                    msg.suggestions &&
+                    msg.suggestions.length > 0 && (
+                      <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800/70">
+                        <div className="mb-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                          💡 Topik Lanjutan yang Disarankan:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {msg.suggestions.map((sug, sIdx) => (
+                            <button
+                              key={sIdx}
+                              onClick={() => handleSend(sug)}
+                              disabled={loading}
+                              className="rounded-lg border border-red-200/80 bg-red-50/50 px-2.5 py-1.5 text-left text-xs font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100/70 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
+                            >
+                              {sug} ➔
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                   {/* Action Bar (Copy, Jump to Start, Timestamp) */}
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100/70 pt-2 text-[10px] dark:border-slate-800/60">
@@ -738,7 +928,20 @@ export default function ChatbotPage() {
                             <button
                               onClick={() => {
                                 const el = document.getElementById(`sources-${msg.id}`);
-                                el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                if (el && chatContainerRef.current) {
+                                  const containerRect =
+                                    chatContainerRef.current.getBoundingClientRect();
+                                  const elRect = el.getBoundingClientRect();
+                                  const targetScroll =
+                                    elRect.top -
+                                    containerRect.top +
+                                    chatContainerRef.current.scrollTop -
+                                    20;
+                                  chatContainerRef.current.scrollTo({
+                                    top: Math.max(0, targetScroll),
+                                    behavior: "smooth",
+                                  });
+                                }
                               }}
                               title="Gulir ke bagian referensi dan sumber"
                               className="rounded px-1.5 py-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition font-medium"
@@ -760,7 +963,6 @@ export default function ChatbotPage() {
               </div>
             </div>
           ))}
-
         </div>
 
         {/* Floating Scroll Navigation Controls */}
@@ -823,7 +1025,13 @@ export default function ChatbotPage() {
               </div>
             </div>
             <div className="mt-2.5 flex items-center justify-between px-1 text-[11px] text-slate-400 dark:text-slate-500">
-              <span>Tekan <kbd className="rounded border border-slate-200 px-1 py-0.5 font-mono text-[10px] dark:border-slate-800">Enter</kbd> untuk mengirim</span>
+              <span>
+                Tekan{" "}
+                <kbd className="rounded border border-slate-200 px-1 py-0.5 font-mono text-[10px] dark:border-slate-800">
+                  Enter
+                </kbd>{" "}
+                untuk mengirim
+              </span>
               <span>SIMULA PMI Intelligence System</span>
             </div>
           </div>

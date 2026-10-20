@@ -108,6 +108,110 @@ FILES = [
     },
 ]
 
+
+def is_garbage_chunk(raw_content: str) -> bool:
+    content = raw_content.strip()
+    low = content.lower()
+    if "kanvas kosong" in low or "tampak sepenuhnya kosong" in low or "unggah ulang gambar" in low:
+        return True
+    lines = [
+        ln.strip()
+        for ln in content.splitlines()
+        if ln.strip()
+        and not ln.strip().startswith("#")
+        and not ln.strip().startswith("<!--")
+        and not re.match(r"^[-*_]{3,}$", ln.strip())
+    ]
+    body_without_wrapper = [
+        ln
+        for ln in lines
+        if not re.match(
+            r"^berikut adalah (ekstrak|ekstraksi|seluruh teks|transkrip|ringkasan)",
+            ln.lower(),
+        )
+        and ln.lower() != "palang merah remaja mula"
+    ]
+    return len(" ".join(body_without_wrapper).strip()) < 35
+
+
+def is_likely_heading(line: str, doc_title: str) -> bool:
+    if not line or len(line) < 4 or len(line) > 65:
+        return False
+    if line.lower() == doc_title.lower():
+        return False
+    if not line[0].isupper() and not line[0].isdigit():
+        return False
+    if any(ch in line for ch in (".", ",", ";", "!", ")", "]")) and not re.match(
+        r"^([IVXLCDM]+|[A-Z]|\d+)\.\s+[A-Z]", line
+    ):
+        if not line.endswith("?"):
+            return False
+    words = line.split()
+    if len(words) > 9:
+        return False
+    if re.match(
+        r"^(BAB\s+[IVXLCDM\d]+|MODUL\s+[IVXLCDM\d]+|[IVXLCDM]+\.\s+[A-Z]|[A-Z]\.\s+[A-Z]|\d+\.\s+[A-Z])",
+        line,
+    ):
+        return True
+    cap_words = sum(
+        1
+        for w in words
+        if w[0].isupper()
+        or w.lower() in {"dan", "di", "ke", "dari", "pada", "untuk", "atau", "yang", "dalam", "dengan"}
+    )
+    return cap_words == len(words) and len(words) >= 2
+
+
+def infer_section_title(raw_content: str, doc_title: str, current_sec: str) -> str:
+    current_sec_clean = re.sub(r"[#*_`]+", "", current_sec).strip().rstrip(":")
+    pages = [int(p) for p in re.findall(r"(?:<!--\s*Halaman|##\s*Halaman|\[Hal\.)\s*(\d+)", raw_content)]
+    page_label = ""
+    if pages:
+        min_p, max_p = min(pages), max(pages)
+        page_label = f"Hal. {min_p}" if min_p == max_p else f"Hal. {min_p}-{max_p}"
+
+    is_generic = (
+        not current_sec_clean
+        or current_sec_clean.lower() == doc_title.lower()
+        or (current_sec_clean.isupper() and len(current_sec_clean) > 30)
+        or re.match(r"^halaman\s+\d+$", current_sec_clean.lower())
+        or current_sec_clean.lower() == "materi umum"
+        or len(current_sec_clean) > 75
+    )
+
+    topic_cand = "" if is_generic else current_sec_clean
+    if not topic_cand:
+        lines = [ln.strip() for ln in raw_content.splitlines() if ln.strip()]
+        for idx, s in enumerate(lines):
+            if s.startswith("<!--") or re.match(r"^[-*_]{3,}$", s):
+                continue
+            if idx == 0 and not s.startswith("#") and len(lines) > 1:
+                continue
+            s_clean = re.sub(r"^(\[Hal\.\s*\d+\]\s*|[#>*\-\s]+)", "", s)
+            s_clean = re.sub(r"[*_`]+", "", s_clean).strip()
+            if is_likely_heading(s_clean, doc_title):
+                topic_cand = s_clean.rstrip(":")
+                break
+
+    if page_label and topic_cand:
+        return topic_cand if page_label.lower() in topic_cand.lower() else f"{topic_cand} ({page_label})"
+    return topic_cand or page_label or current_sec_clean or "Materi Pokok"
+
+
+def clean_chunk_content(raw_content: str) -> str:
+    text = re.sub(r"<!--\s*Halaman\s+(\d+)\s*-->\s*", r"[Hal. \1] ", raw_content)
+    cleaned_lines = []
+    for ln in text.splitlines():
+        s = ln.strip()
+        if re.match(r"^berikut adalah (ekstrak|ekstraksi|seluruh teks|transkrip).*?:\s*$", s.lower()):
+            continue
+        if re.match(r"^[-*_]{3,}$", s):
+            continue
+        cleaned_lines.append(ln)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(cleaned_lines)).strip()
+
+
 def split_into_chunks(text: str, max_chars: int = 1100, overlap: int = 150):
     paragraphs = text.split("\n\n")
     chunks = []
@@ -135,8 +239,8 @@ def split_into_chunks(text: str, max_chars: int = 1100, overlap: int = 150):
             
     return chunks
 
+
 def process_documents():
-    # If knowledge_base.json already exists and is complete, load cached embeddings
     existing_map = {}
     if os.path.exists(OUTPUT_JSON):
         try:
@@ -144,7 +248,6 @@ def process_documents():
                 prev_data = json.load(f)
             for item in prev_data:
                 if "embedding" in item and item["embedding"]:
-                    # Cache by content string
                     existing_map[item["content"]] = item["embedding"]
             print(f"Loaded {len(existing_map)} previously cached embeddings.")
         except Exception as e:
@@ -163,7 +266,6 @@ def process_documents():
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
             
-        # Split by markdown headers or page delimiters
         sections = re.split(r"\n(?=#{1,3}\s+)", content)
         for sec in sections:
             sec_strip = sec.strip()
@@ -171,32 +273,39 @@ def process_documents():
                 continue
                 
             header_match = re.match(r"^(#{1,3}\s+[^\n]+)", sec_strip)
-            section_title = header_match.group(1).lstrip("#").strip() if header_match else "Materi Umum"
+            raw_section_title = header_match.group(1).lstrip("#").strip() if header_match else "Materi Umum"
             
-            # Split section if it's too long
             sub_chunks = split_into_chunks(sec_strip, max_chars=1100, overlap=150)
             for sub in sub_chunks:
+                if is_garbage_chunk(sub):
+                    continue
+                cleaned_sub = clean_chunk_content(sub)
+                sec_title = infer_section_title(sub, doc_info["doc_title"], raw_section_title)
                 item = {
                     "id": chunk_id,
                     "doc_title": doc_info["doc_title"],
                     "category": doc_info.get("category", "umum"),
-                    "section_title": section_title,
-                    "content": sub
+                    "section_title": sec_title,
+                    "content": cleaned_sub,
                 }
-                if sub in existing_map:
+                if cleaned_sub in existing_map:
+                    item["embedding"] = existing_map[cleaned_sub]
+                elif sub in existing_map:
                     item["embedding"] = existing_map[sub]
                 all_items.append(item)
                 chunk_id += 1
                 
-    print(f"Total chunks created across all documents: {len(all_items)}")
+    print(f"Total clean chunks created across all documents: {len(all_items)}")
     
-    # Check chunks that still need embedding
     needed = [item for item in all_items if "embedding" not in item]
     print(f"Chunks needing new embeddings: {len(needed)} / {len(all_items)}")
 
     if needed:
         print("Generating embeddings via Gemini API (model: gemini-embedding-001, dimension: 768)...")
-        config = types.EmbedContentConfig(output_dimensionality=768)
+        config = types.EmbedContentConfig(
+            output_dimensionality=768,
+            task_type="RETRIEVAL_DOCUMENT",
+        )
         batch_size = 20
         total_batches = (len(needed) + batch_size - 1) // batch_size
         
@@ -205,7 +314,6 @@ def process_documents():
             end_i = min(start_i + batch_size, len(needed))
             batch = needed[start_i:end_i]
             
-            # Contextual embedding text with category and title prefix
             texts = [
                 f"[{item.get('category', '').upper()}] {item['doc_title']} - {item['section_title']}\n{item['content']}"
                 for item in batch
@@ -227,7 +335,6 @@ def process_documents():
                     print(f"Batch {batch_idx + 1} attempt {attempt + 1} rate-limited or error: {e}. Waiting {wait_time}s...")
                     time.sleep(wait_time)
                     
-            # Incremental save every 10 batches to prevent data loss
             if (batch_idx + 1) % 10 == 0:
                 with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
                     json.dump(all_items, f, ensure_ascii=False, indent=2)
@@ -241,4 +348,3 @@ def process_documents():
 
 if __name__ == "__main__":
     process_documents()
-
