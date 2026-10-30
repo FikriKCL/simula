@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useId } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface Source {
   doc_title?: string;
@@ -65,10 +65,61 @@ const CATEGORIES = [
   },
 ];
 
-// Rich inline parser for **bold**, `code`, and *italic*
+const MAX_INPUT_CHARS = 2000; // matches ChatInput.message max_length in the backend
+const STORAGE_KEY = "simula-chat-history-v1";
+const MAX_STORED_MESSAGES = 60;
+
+// Replies that are errors or UI notices, not real answers: never sent back as context
+const NON_CONTEXT_MODES = new Set([
+  "system_welcome",
+  "streaming",
+  "stopped",
+  "network_error",
+  "backend_offline",
+  "connection_error",
+  "rate_limited",
+  "invalid_input",
+  "rag_error",
+  "rag_unavailable",
+]);
+
+const DEFAULT_SUGGESTIONS = [
+  "Bagaimana langkah pertolongan pertama pada luka bakar melepuh?",
+  "Sebutkan dan jelaskan 7 Prinsip Dasar Gerakan Palang Merah!",
+  "Apa saja barang penting di dalam Tas Siaga Bencana?",
+];
+
+const nowTime = () =>
+  new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+// Rich inline parser for **bold**, `code`, *italic*, and [links](https://...)
+const INLINE_PATTERN =
+  /(\*\*[^*]+?\*\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|\*[^*\s](?:[^*]*[^*\s])?\*)/g;
+
 function renderInline(text: string) {
-  const tokens = text.split(/(\*\*.*?\*\*|`[^`]+`)/g);
+  const tokens = text.split(INLINE_PATTERN);
   return tokens.map((part, index) => {
+    const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+    if (link) {
+      return (
+        <a
+          key={index}
+          href={link[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-red-700 underline underline-offset-2 hover:text-red-800 dark:text-red-300"
+        >
+          {link[1]}
+        </a>
+      );
+    }
+    if (part.startsWith("*") && !part.startsWith("**") && part.endsWith("*") && part.length > 2) {
+      return (
+        <em key={index} className="italic text-slate-600 dark:text-slate-300">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
         <strong
@@ -207,16 +258,22 @@ function FormattedMessage({ text }: { text: string }) {
     }
 
     // Blockquote (> ...)
-    if (trimmed.startsWith("> ")) {
+    if (trimmed.startsWith(">")) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        quoteLines.push(lines[i].trim().replace(/^>\s?/, ""));
+        i++;
+      }
       elements.push(
         <blockquote
           key={`bq-${i}`}
-          className="my-2 border-l-3 border-red-400 bg-slate-50/80 py-1.5 pl-3 pr-2 italic text-slate-700 rounded-r-lg dark:border-red-500 dark:bg-slate-800/40 dark:text-slate-300"
+          className="my-2 space-y-1 border-l-3 border-red-400 bg-slate-50/80 py-1.5 pl-3 pr-2 italic text-slate-700 rounded-r-lg dark:border-red-500 dark:bg-slate-800/40 dark:text-slate-300"
         >
-          {renderInline(trimmed.slice(2))}
+          {quoteLines.filter(Boolean).map((ql, qIdx) => (
+            <p key={qIdx}>{renderInline(ql)}</p>
+          ))}
         </blockquote>
       );
-      i++;
       continue;
     }
 
@@ -316,8 +373,10 @@ function FormattedMessage({ text }: { text: string }) {
 }
 
 export default function ChatbotPage() {
-  const baseId = useId();
   const counterRef = useRef(1);
+  const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [restored, setRestored] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -325,11 +384,7 @@ export default function ChatbotPage() {
       sender: "bot",
       text: "Halo! Saya **Asisten Virtual Resmi SIMULA (Palang Merah Remaja & PMI)**.\n\nSaya didukung sistem **Hybrid RAG Berpagar Ketat** yang membaca langsung **13 modul kurikulum resmi PMI (844 chunks bersih terindeks)**:\n- **Pertolongan Pertama (Tingkat Mula & Wira)**\n- **Kesiapsiagaan Bencana (Ayo Siaga Bencana)**\n- **Gerakan Palang Merah & 7 Prinsip Dasar PMI**\n- **Donor Darah Sukarela (DDS)**\n- **Kepemimpinan & Dinamika Kelompok PMR**\n- **Pendidikan Remaja Sebaya & Kesehatan Lingkungan (WASH)**\n\nSilakan klik salah satu contoh pertanyaan di sidebar atau ketik pertanyaan Anda sendiri di bawah!",
       sources: [],
-      suggestions: [
-        "Bagaimana langkah pertolongan pertama pada luka bakar melepuh?",
-        "Sebutkan dan jelaskan 7 Prinsip Dasar Gerakan Palang Merah!",
-        "Apa saja barang penting di dalam Tas Siaga Bencana?",
-      ],
+      suggestions: DEFAULT_SUGGESTIONS,
       mode: "system_welcome",
       time: "08:00",
     },
@@ -343,9 +398,46 @@ export default function ChatbotPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
 
+  // Restore the conversation saved in this browser (survives page refresh)
+  useEffect(() => {
+    // Ids must stay unique across reloads because restored messages keep their old ids
+    counterRef.current = Date.now();
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if (Array.isArray(saved) && saved.length > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from localStorage after hydration
+        setMessages(saved.filter((m: Message) => m.mode !== "streaming"));
+      }
+    } catch {
+      // Storage unavailable or corrupted: start with the welcome message
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restored || loading) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)));
+    } catch {
+      // Ignore quota / private-mode errors
+    }
+  }, [messages, restored, loading]);
+
+  // Auto-grow the textarea up to ~6 lines
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input]);
+
   const generateId = (prefix: string) => {
     counterRef.current += 1;
-    return `${prefix}-${baseId}-${counterRef.current}`;
+    return `${prefix}-${counterRef.current.toString(36)}`;
+  };
+
+  const stopGenerating = () => {
+    abortRef.current?.abort();
   };
 
   const handleChatScroll = () => {
@@ -400,14 +492,24 @@ export default function ChatbotPage() {
     }
   };
 
-  const handleCopy = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopy = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // Clipboard API is blocked on insecure origins (e.g. http://<LAN-IP>)
+    }
+  };
+
+  const updateBotMsg = (botMsgId: string, patch: (m: Message) => Partial<Message>) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === botMsgId ? { ...m, ...patch(m) } : m))
+    );
   };
 
   const handleSend = async (messageText?: string) => {
-    const textToSend = (messageText || input).trim();
+    const textToSend = (messageText || input).trim().slice(0, MAX_INPUT_CHARS);
     if (!textToSend || loading) return;
 
     const userMsgId = generateId("user");
@@ -418,7 +520,7 @@ export default function ChatbotPage() {
       id: userMsgId,
       sender: "user",
       text: textToSend,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: nowTime(),
     };
 
     const initialBotMsg: Message = {
@@ -429,26 +531,62 @@ export default function ChatbotPage() {
       suggestions: [],
       is_emergency: false,
       mode: "streaming",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: nowTime(),
     };
+
+    // Only real Q&A turns are useful context; drop errors, notices and their questions' failed replies
+    const recentHistory = messages
+      .filter((m) => !NON_CONTEXT_MODES.has(m.mode ?? "") && m.text)
+      .slice(-6)
+      .map((m) => ({
+        sender: m.sender,
+        text: m.text.slice(0, 4000),
+      }));
 
     setMessages((prev) => [...prev, userMsg, initialBotMsg]);
     setInput("");
     setLoading(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setTimeout(() => {
       scrollToBottom(true);
     }, 50);
 
-    try {
-      const recentHistory = messages
-        .filter((m) => m.mode !== "system_welcome" && m.mode !== "network_error")
-        .slice(-6)
-        .map((m) => ({
-          sender: m.sender,
-          text: m.text,
-        }));
+    const handleEvent = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) return;
+      const jsonStr = trimmed.slice(5).trim();
+      if (!jsonStr) return;
 
+      let payload;
+      try {
+        payload = JSON.parse(jsonStr);
+      } catch {
+        return; // Ignore malformed events
+      }
+
+      if (payload.type === "meta") {
+        updateBotMsg(botMsgId, () => ({
+          mode: payload.mode || "rag_verified_module",
+          sources: payload.sources || [],
+          suggestions: payload.suggestions || [],
+          is_emergency: Boolean(payload.is_emergency),
+        }));
+      } else if (payload.type === "delta" && payload.text) {
+        updateBotMsg(botMsgId, (m) => ({ text: m.text + payload.text }));
+
+        if (chatContainerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+          if (scrollHeight - scrollTop - clientHeight < 280) {
+            chatContainerRef.current.scrollTo({ top: scrollHeight, behavior: "auto" });
+          }
+        }
+      }
+    };
+
+    try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -457,23 +595,17 @@ export default function ChatbotPage() {
           history: recentHistory,
           stream: true,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === botMsgId
-              ? {
-                  ...m,
-                  text:
-                    errData.reply ||
-                    `Gagal menghubungi server backend (Status ${res.status}). Pastikan backend FastAPI sedang berjalan.`,
-                  mode: errData.mode || "network_error",
-                }
-              : m
-          )
-        );
+        updateBotMsg(botMsgId, () => ({
+          text:
+            errData.reply ||
+            `Gagal menghubungi server backend (Status ${res.status}). Pastikan backend FastAPI sedang berjalan.`,
+          mode: errData.mode || "network_error",
+        }));
         return;
       }
 
@@ -489,72 +621,22 @@ export default function ChatbotPage() {
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
+          const lines = buffer.split(/\r?\n/);
           buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data:")) continue;
-            const jsonStr = trimmed.slice(5).trim();
-            if (!jsonStr) continue;
-
-            try {
-              const payload = JSON.parse(jsonStr);
-              if (payload.type === "meta") {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === botMsgId
-                      ? {
-                          ...m,
-                          mode: payload.mode || "rag_verified_module",
-                          sources: payload.sources || [],
-                          suggestions: payload.suggestions || [],
-                          is_emergency: Boolean(payload.is_emergency),
-                        }
-                      : m
-                  )
-                );
-              } else if (payload.type === "delta") {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === botMsgId ? { ...m, text: m.text + payload.text } : m
-                  )
-                );
-
-                if (chatContainerRef.current) {
-                  const { scrollTop, scrollHeight, clientHeight } =
-                    chatContainerRef.current;
-                  if (scrollHeight - scrollTop - clientHeight < 280) {
-                    chatContainerRef.current.scrollTo({
-                      top: scrollHeight,
-                      behavior: "smooth",
-                    });
-                  }
-                }
-              } else if (payload.type === "done") {
-                // Done event
-              }
-            } catch {
-              // Ignore partial chunk parse errors
-            }
-          }
+          lines.forEach(handleEvent);
         }
+        // Flush whatever is left if the stream did not end with a newline
+        buffer += decoder.decode();
+        if (buffer) handleEvent(buffer);
       } else {
         const data = await res.json();
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === botMsgId
-              ? {
-                  ...m,
-                  text: data.reply || "Tidak ada respons dari sistem.",
-                  sources: data.sources || [],
-                  suggestions: data.suggestions || [],
-                  is_emergency: Boolean(data.is_emergency),
-                  mode: data.mode || "unknown",
-                }
-              : m
-          )
-        );
+        updateBotMsg(botMsgId, () => ({
+          text: data.reply || "Tidak ada respons dari sistem.",
+          sources: data.sources || [],
+          suggestions: data.suggestions || [],
+          is_emergency: Boolean(data.is_emergency),
+          mode: data.mode || "unknown",
+        }));
       }
 
       setTimeout(() => {
@@ -562,41 +644,42 @@ export default function ChatbotPage() {
         setHasNewUnseen(true);
       }, 50);
     } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === botMsgId
-            ? {
-                ...m,
-                text: "Gagal tersambung ke backend API di port 8000. Pastikan terminal backend FastAPI (`uvicorn app.main:app --port 8000`) sudah berjalan.",
-                sources: [],
-                mode: "network_error",
-              }
-            : m
-        )
-      );
-      setTimeout(() => {
-        scrollToMessage(userMsgId);
-      }, 50);
+      if (controller.signal.aborted) {
+        updateBotMsg(botMsgId, (m) => ({
+          text: m.text
+            ? `${m.text}\n\n*(Jawaban dihentikan oleh pengguna)*`
+            : "Jawaban dihentikan sebelum selesai.",
+          mode: "stopped",
+        }));
+      } else {
+        updateBotMsg(botMsgId, () => ({
+          text: "Gagal tersambung ke backend API di port 8000. Pastikan terminal backend FastAPI (`uvicorn app.main:app --port 8000`) sudah berjalan.",
+          sources: [],
+          mode: "network_error",
+        }));
+        setTimeout(() => {
+          scrollToMessage(userMsgId);
+        }, 50);
+      }
     } finally {
+      abortRef.current = null;
       setLoading(false);
       setStreamingMsgId(null);
+      inputRef.current?.focus();
     }
   };
 
   const resetChat = () => {
+    abortRef.current?.abort();
     setMessages([
       {
         id: generateId("reset"),
         sender: "bot",
         text: "Percakapan telah direset. Silakan tanyakan apa saja seputar materi kepalangmerahan PMR/PMI!",
         sources: [],
-        suggestions: [
-          "Bagaimana langkah pertolongan pertama pada luka bakar melepuh?",
-          "Sebutkan dan jelaskan 7 Prinsip Dasar Gerakan Palang Merah!",
-          "Apa saja barang penting di dalam Tas Siaga Bencana?",
-        ],
+        suggestions: DEFAULT_SUGGESTIONS,
         mode: "system_welcome",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        time: nowTime(),
       },
     ]);
     setTimeout(() => {
@@ -799,6 +882,10 @@ export default function ChatbotPage() {
                             ? "💬 Asisten Interaktif"
                             : msg.mode === "streaming"
                             ? "⚡ Menyiapkan Jawaban..."
+                            : msg.mode === "stopped"
+                            ? "⏹ Dihentikan"
+                            : msg.mode === "rate_limited"
+                            ? "⏳ Tunggu Sebentar"
                             : "Informasi Sistem"}
                         </span>
                       )}
@@ -998,41 +1085,81 @@ export default function ChatbotPage() {
         {/* Input Dock Bar */}
         <div className="shrink-0 border-t border-slate-200/80 bg-white/90 p-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/90">
           <div className="mx-auto max-w-4xl">
-            <div className="relative flex items-center rounded-2xl border border-slate-200 bg-slate-50/90 shadow-sm transition-all focus-within:border-red-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:focus-within:border-red-500 dark:focus-within:bg-slate-900">
-              <input
-                type="text"
+            {/* Topic shortcuts for small screens, where the sidebar is hidden */}
+            {messages.length <= 1 && (
+              <div className="custom-scrollbar -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 lg:hidden">
+                {CATEGORIES.map((cat, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSend(cat.prompt)}
+                    disabled={loading}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-300 hover:text-red-700 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                  >
+                    <span>{cat.icon}</span>
+                    {cat.title}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="relative flex items-end rounded-2xl border border-slate-200 bg-slate-50/90 shadow-sm transition-all focus-within:border-red-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:focus-within:border-red-500 dark:focus-within:bg-slate-900">
+              <textarea
+                ref={inputRef}
+                rows={1}
                 value={input}
+                maxLength={MAX_INPUT_CHARS}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                     e.preventDefault();
                     handleSend();
                   }
                 }}
+                aria-label="Tulis pertanyaan"
                 placeholder="Tanyakan materi kepalangmerahan (contoh: Bagaimana cara menolong korban luka bakar?)..."
-                disabled={loading}
-                className="w-full bg-transparent px-5 py-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none dark:text-white dark:placeholder-slate-500"
+                className="max-h-40 w-full resize-none bg-transparent px-5 py-4 text-sm leading-relaxed text-slate-900 placeholder-slate-400 focus:outline-none dark:text-white dark:placeholder-slate-500"
               />
-              <div className="pr-2.5">
-                <button
-                  onClick={() => handleSend()}
-                  disabled={loading || !input.trim()}
-                  className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-5 text-xs font-bold text-white shadow-md shadow-red-500/25 transition-all hover:from-red-700 hover:to-rose-700 hover:shadow-lg hover:shadow-red-500/30 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
-                >
-                  <span>Kirim</span>
-                  <span className="text-sm">➔</span>
-                </button>
+              <div className="pb-2 pr-2.5">
+                {loading ? (
+                  <button
+                    onClick={stopGenerating}
+                    title="Hentikan jawaban"
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-300 bg-white px-4 text-xs font-bold text-red-700 transition hover:bg-red-50 active:scale-95 dark:border-red-800 dark:bg-slate-900 dark:text-red-300 dark:hover:bg-red-950/40"
+                  >
+                    <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-600" />
+                    <span>Stop</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={!input.trim()}
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-5 text-xs font-bold text-white shadow-md shadow-red-500/25 transition-all hover:from-red-700 hover:to-rose-700 hover:shadow-lg hover:shadow-red-500/30 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <span>Kirim</span>
+                    <span className="text-sm">➔</span>
+                  </button>
+                )}
               </div>
             </div>
             <div className="mt-2.5 flex items-center justify-between px-1 text-[11px] text-slate-400 dark:text-slate-500">
               <span>
-                Tekan{" "}
                 <kbd className="rounded border border-slate-200 px-1 py-0.5 font-mono text-[10px] dark:border-slate-800">
                   Enter
                 </kbd>{" "}
-                untuk mengirim
+                kirim •{" "}
+                <kbd className="rounded border border-slate-200 px-1 py-0.5 font-mono text-[10px] dark:border-slate-800">
+                  Shift+Enter
+                </kbd>{" "}
+                baris baru
               </span>
-              <span>SIMULA PMI Intelligence System</span>
+              {input.length > MAX_INPUT_CHARS * 0.8 ? (
+                <span className={input.length >= MAX_INPUT_CHARS ? "font-semibold text-red-600" : ""}>
+                  {input.length}/{MAX_INPUT_CHARS}
+                </span>
+              ) : (
+                <span className="hidden sm:inline">
+                  Jawaban AI bisa keliru — cek kembali ke modul & pembina PMR
+                </span>
+              )}
             </div>
           </div>
         </div>
