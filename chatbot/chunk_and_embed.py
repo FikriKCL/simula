@@ -1,7 +1,19 @@
+"""
+Memotong materi Markdown di processed/ menjadi potongan (chunks) lalu membuat embedding.
+
+Setiap potongan menyimpan jalur judul induknya (parent_title), misalnya
+"Prinsip Dasar Gerakan" untuk potongan "1. Kemanusiaan", dan subjudul kecil yang
+bersebelahan digabung menjadi satu potongan. Tanpa ini, daftar seperti 7 Prinsip Dasar
+terpecah menjadi potongan-potongan kecil tanpa konteks dan sulit ditemukan.
+
+Embedding yang teksnya tidak berubah dipakai ulang dari knowledge_base.json lama.
+Jalankan dari folder simula/:  python chatbot/chunk_and_embed.py  [--dry-run]
+"""
 import os
 import re
 import sys
 import json
+import hashlib
 import logging
 import time
 from pathlib import Path
@@ -10,35 +22,16 @@ from dotenv import load_dotenv
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-# Suppress SDK warning in terminal
-logging.getLogger("google_genai").setLevel(logging.ERROR)
-from google import genai
-from google.genai import types
-
-# Resolve .env file dynamically regardless of current working directory
 CURRENT_DIR = Path(__file__).resolve().parent
-ENV_CANDIDATES = [
-    CURRENT_DIR.parent / "backend" / ".env",
-    CURRENT_DIR / ".env",
-    CURRENT_DIR.parent / ".env",
-]
-for env_file in ENV_CANDIDATES:
-    if env_file.exists():
-        load_dotenv(env_file)
-        break
-else:
-    load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError(
-        "GEMINI_API_KEY tidak ditemukan! Pastikan Anda telah mengisi GEMINI_API_KEY di file backend/.env"
-    )
-
-client = genai.Client(api_key=api_key)
-
 PROCESSED_DIR = os.path.join(CURRENT_DIR, "processed")
 OUTPUT_JSON = os.path.join(PROCESSED_DIR, "knowledge_base.json")
+# Embeddings are checkpointed here after every batch so a run stopped by the API quota can resume
+EMBED_CACHE_JSON = os.path.join(PROCESSED_DIR, "embedding_cache.json")
+
+MAX_CHARS = 1300  # target size of one chunk
+MIN_CHARS = 350  # chunks smaller than this keep absorbing following sections of the same topic
+MAX_LIST_CHARS = 2400  # a numbered list under one heading (e.g. 7 Prinsip Dasar) stays in one chunk
+OVERLAP = 150
 
 FILES = [
     {
@@ -106,245 +99,377 @@ FILES = [
         "doc_title": "Buku Manajemen Pembinaan dan Pengembangan PMR PMI",
         "category": "manajemen_pmr",
     },
+    {
+        "filename": "14_ayo_siaga_bencana_madya.md",
+        "doc_title": "Buku Panduan Ayo Siaga Bencana (PMR Madya)",
+        "category": "kesiapsiagaan_bencana",
+    },
+    {
+        "filename": "15_ayo_siaga_bencana_wira.md",
+        "doc_title": "Buku Panduan Ayo Siaga Bencana (PMR Wira)",
+        "category": "kesiapsiagaan_bencana",
+    },
+    {
+        "filename": "16_fasilitator_ayo_siaga_bencana_mula.md",
+        "doc_title": "Panduan Fasilitator Ayo Siaga Bencana (PMR Mula)",
+        "category": "kesiapsiagaan_bencana",
+    },
+    {
+        "filename": "17_fasilitator_ayo_siaga_bencana_madya.md",
+        "doc_title": "Panduan Fasilitator Ayo Siaga Bencana (PMR Madya)",
+        "category": "kesiapsiagaan_bencana",
+    },
+    {
+        "filename": "18_fasilitator_ayo_siaga_bencana_wira.md",
+        "doc_title": "Panduan Fasilitator Ayo Siaga Bencana (PMR Wira)",
+        "category": "kesiapsiagaan_bencana",
+    },
 ]
 
+# Sections that never answer a learner's question
+FRONT_MATTER = re.compile(
+    r"^(daftar\s+isi|kata\s+pengantar|sambutan|tim\s+penyusun|penyusun|kontributor|editor|"
+    r"daftar\s+pustaka|ucapan\s+terima\s*kasih|catatan(\s+edukasi)?|pesan\s+edukasi\s+sampul)\b",
+    re.IGNORECASE,
+)
+PAGE_MARKER = re.compile(r"^\s*(?:<!--\s*Halaman\s+(\d+)\s*-->|#{1,3}\s*Halaman\s+(\d+)\s*)$", re.IGNORECASE)
+MD_HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
+LIST_ITEM = re.compile(r"^\s*([-*•]|\d{1,2}[.)]|[a-z][.)])\s+")
 
-def is_garbage_chunk(raw_content: str) -> bool:
-    content = raw_content.strip()
-    low = content.lower()
+
+WRAPPER_LINE = re.compile(r"^berikut (adalah|ini).*(ekstrak|ekstraksi|transkrip|transkripsi|teks)", re.IGNORECASE)
+
+
+def clean_heading(text: str) -> str:
+    text = re.sub(r"[*_`­]+", "", text).strip()
+    return re.sub(r"\s+", " ", text).rstrip(":").strip()
+
+
+def is_likely_heading(line: str) -> bool:
+    """Heading heuristics for text-layer PDFs, which have no Markdown '#' markers."""
+    if len(line) < 4 or len(line) > 70 or not (line[0].isupper() or line[0].isdigit()):
+        return False
+    words = line.split()
+    if len(words) > 9 or line.endswith((",", ";")):
+        return False
+    if re.match(r"^(BAB|MODUL|SESI|BAGIAN)\s+[IVXLCDM\d]+\b", line, re.IGNORECASE):
+        return True
+    if re.match(r"^([IVX]+|[A-Z])\.\s+[A-Z]", line):
+        return True
+    if any(ch in line for ch in ".,;!()[]"):
+        return False
+    small = {"dan", "di", "ke", "dari", "pada", "untuk", "atau", "yang", "dalam", "dengan", "&"}
+    caps = sum(1 for w in words if w[0].isupper() or w[0].isdigit() or w.lower() in small)
+    return caps == len(words) and len(words) >= 2
+
+
+def heuristic_level(line: str, first_on_page: bool) -> int:
+    if re.match(r"^(BAB|MODUL|SESI|BAGIAN)\s", line, re.IGNORECASE):
+        return 1
+    # Single letters (A. ... I.) are lesson-plan items; "I." is not treated as a Roman numeral
+    if re.match(r"^[A-Z]\.\s", line):
+        return 3
+    if re.match(r"^[IVX]{2,}\.\s", line):
+        return 2
+    return 2 if first_on_page else 3
+
+
+def parse_sections(text: str, doc_title: str):
+    """Splits a Markdown document into sections, each with its full heading path and page."""
+    lines = text.splitlines()
+    md_headings = sum(
+        1 for ln in lines[1:] if MD_HEADING.match(ln.strip()) and not PAGE_MARKER.match(ln.strip())
+    )
+    use_markdown = md_headings >= 5
+
+    sections = []
+    stack: list[tuple[int, str]] = []
+    page = None
+    first_on_page = False
+    current = {"path": (), "page": None, "lines": []}
+
+    def flush():
+        body = "\n".join(current["lines"]).strip()
+        if body:
+            sections.append({"path": current["path"], "page": current["page"], "body": body})
+
+    def open_section(level: int, title: str):
+        nonlocal current
+        flush()
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+        stack.append((level, title))
+        current = {"path": tuple(t for _, t in stack), "page": page, "lines": []}
+
+    for idx, raw in enumerate(lines):
+        line = raw.strip()
+        if idx == 0 and line.startswith("# "):
+            continue  # document title
+        pm = PAGE_MARKER.match(line)
+        if pm:
+            page = int(pm.group(1) or pm.group(2))
+            first_on_page = True
+            if current["page"] is None:
+                current["page"] = page
+            continue
+        if not line:
+            current["lines"].append("")
+            continue
+        if WRAPPER_LINE.match(line) or re.fullmatch(r"[-*_]{3,}", line):
+            continue
+
+        heading = None
+        if use_markdown:
+            m = MD_HEADING.match(line)
+            if m:
+                heading = (min(len(m.group(1)), 4), clean_heading(m.group(2)))
+            elif re.fullmatch(r"\*\*[^*]{3,70}\*\*:?", line):
+                heading = (4, clean_heading(line))
+        elif is_likely_heading(line):
+            heading = (heuristic_level(line, first_on_page), clean_heading(line))
+
+        first_on_page = False
+        if heading and heading[1] and heading[1].lower() != doc_title.lower():
+            open_section(*heading)
+        else:
+            current["lines"].append(raw.rstrip())
+    flush()
+    return sections
+
+
+def join_wrapped_lines(body: str) -> str:
+    """Re-joins lines that a PDF text layer broke in the middle of a sentence."""
+    out: list[str] = []
+    for line in body.replace("­", "").splitlines():
+        s = line.strip()
+        if (
+            out
+            and out[-1]
+            and s
+            and not LIST_ITEM.match(s)
+            and not s.startswith(("|", ">", "#"))
+            and not out[-1].rstrip().endswith((".", ":", "!", "?", "|"))
+            and s[0].islower()
+        ):
+            out[-1] = out[-1].rstrip() + " " + s
+        else:
+            out.append(s)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+
+
+def is_front_matter(section) -> bool:
+    if any(FRONT_MATTER.match(p) for p in section["path"]):
+        return True
+    body = section["body"]
+    return bool(re.search(r"\bISBN\b|Hak\s+Cipta\s*©", body))
+
+
+def is_garbage(text: str) -> bool:
+    low = text.lower()
     if "kanvas kosong" in low or "tampak sepenuhnya kosong" in low or "unggah ulang gambar" in low:
         return True
-    lines = [
-        ln.strip()
-        for ln in content.splitlines()
-        if ln.strip()
-        and not ln.strip().startswith("#")
-        and not ln.strip().startswith("<!--")
-        and not re.match(r"^[-*_]{3,}$", ln.strip())
-    ]
-    body_without_wrapper = [
-        ln
-        for ln in lines
-        if not re.match(
-            r"^berikut adalah (ekstrak|ekstraksi|seluruh teks|transkrip|ringkasan)",
-            ln.lower(),
-        )
-        and ln.lower() != "palang merah remaja mula"
-    ]
-    return len(" ".join(body_without_wrapper).strip()) < 35
+    words = re.findall(r"[a-zA-Z]{3,}", text)
+    return len(words) < 12
 
 
-def is_likely_heading(line: str, doc_title: str) -> bool:
-    if not line or len(line) < 4 or len(line) > 65:
-        return False
-    if line.lower() == doc_title.lower():
-        return False
-    if not line[0].isupper() and not line[0].isdigit():
-        return False
-    if any(ch in line for ch in (".", ",", ";", "!", ")", "]")) and not re.match(
-        r"^([IVXLCDM]+|[A-Z]|\d+)\.\s+[A-Z]", line
-    ):
-        if not line.endswith("?"):
-            return False
-    words = line.split()
-    if len(words) > 9:
-        return False
-    if re.match(
-        r"^(BAB\s+[IVXLCDM\d]+|MODUL\s+[IVXLCDM\d]+|[IVXLCDM]+\.\s+[A-Z]|[A-Z]\.\s+[A-Z]|\d+\.\s+[A-Z])",
-        line,
-    ):
-        return True
-    cap_words = sum(
-        1
-        for w in words
-        if w[0].isupper()
-        or w.lower() in {"dan", "di", "ke", "dari", "pada", "untuk", "atau", "yang", "dalam", "dengan"}
-    )
-    return cap_words == len(words) and len(words) >= 2
-
-
-def infer_section_title(raw_content: str, doc_title: str, current_sec: str) -> str:
-    current_sec_clean = re.sub(r"[#*_`]+", "", current_sec).strip().rstrip(":")
-    pages = [int(p) for p in re.findall(r"(?:<!--\s*Halaman|##\s*Halaman|\[Hal\.)\s*(\d+)", raw_content)]
-    page_label = ""
-    if pages:
-        min_p, max_p = min(pages), max(pages)
-        page_label = f"Hal. {min_p}" if min_p == max_p else f"Hal. {min_p}-{max_p}"
-
-    is_generic = (
-        not current_sec_clean
-        or current_sec_clean.lower() == doc_title.lower()
-        or (current_sec_clean.isupper() and len(current_sec_clean) > 30)
-        or re.match(r"^halaman\s+\d+$", current_sec_clean.lower())
-        or current_sec_clean.lower() == "materi umum"
-        or len(current_sec_clean) > 75
-    )
-
-    topic_cand = "" if is_generic else current_sec_clean
-    if not topic_cand:
-        lines = [ln.strip() for ln in raw_content.splitlines() if ln.strip()]
-        for idx, s in enumerate(lines):
-            if s.startswith("<!--") or re.match(r"^[-*_]{3,}$", s):
-                continue
-            if idx == 0 and not s.startswith("#") and len(lines) > 1:
-                continue
-            s_clean = re.sub(r"^(\[Hal\.\s*\d+\]\s*|[#>*\-\s]+)", "", s)
-            s_clean = re.sub(r"[*_`]+", "", s_clean).strip()
-            if is_likely_heading(s_clean, doc_title):
-                topic_cand = s_clean.rstrip(":")
-                break
-
-    if page_label and topic_cand:
-        return topic_cand if page_label.lower() in topic_cand.lower() else f"{topic_cand} ({page_label})"
-    return topic_cand or page_label or current_sec_clean or "Materi Pokok"
-
-
-def clean_chunk_content(raw_content: str) -> str:
-    text = re.sub(r"<!--\s*Halaman\s+(\d+)\s*-->\s*", r"[Hal. \1] ", raw_content)
-    cleaned_lines = []
-    for ln in text.splitlines():
-        s = ln.strip()
-        if re.match(r"^berikut adalah (ekstrak|ekstraksi|seluruh teks|transkrip).*?:\s*$", s.lower()):
-            continue
-        if re.match(r"^[-*_]{3,}$", s):
-            continue
-        cleaned_lines.append(ln)
-    return re.sub(r"\n{3,}", "\n\n", "\n".join(cleaned_lines)).strip()
-
-
-def split_into_chunks(text: str, max_chars: int = 1100, overlap: int = 150):
-    paragraphs = text.split("\n\n")
-    chunks = []
-    current_chunk = []
-    current_len = 0
-    
+def split_long(text: str, max_chars: int = MAX_CHARS, overlap: int = OVERLAP):
+    if len(text) <= MAX_LIST_CHARS and text.count("### ") >= 2:
+        return [text]  # a merged numbered list is kept whole
+    paragraphs = []
+    for p in re.split(r"\n\s*\n|\n(?=\s*(?:[-*•]|\d{1,2}[.)])\s)", text):
+        p = p.strip()
+        if len(p) > max_chars:
+            # Very long paragraph: break it at sentence boundaries
+            paragraphs.extend(x for x in re.split(r"(?<=[.!?])\s+", p) if x)
+        elif p:
+            paragraphs.append(p)
+    chunks, current, size = [], [], 0
     for p in paragraphs:
-        p_clean = p.strip()
-        if not p_clean:
-            continue
-        if current_len + len(p_clean) > max_chars and current_chunk:
-            chunk_text = "\n\n".join(current_chunk)
-            chunks.append(chunk_text)
-            last = current_chunk[-1] if len(current_chunk[-1]) < overlap else current_chunk[-1][-overlap:]
-            current_chunk = [last, p_clean]
-            current_len = len(last) + len(p_clean)
+        if size + len(p) > max_chars and current:
+            chunks.append("\n\n".join(current))
+            tail = current[-1] if len(current[-1]) < overlap else current[-1][-overlap:]
+            current, size = [tail, p], len(tail) + len(p)
         else:
-            current_chunk.append(p_clean)
-            current_len += len(p_clean)
-            
-    if current_chunk:
-        chunk_text = "\n\n".join(current_chunk)
-        if len(chunk_text.strip()) > 50:
-            chunks.append(chunk_text)
-            
+            current.append(p)
+            size += len(p)
+    if current:
+        chunks.append("\n\n".join(current))
     return chunks
 
 
-def process_documents():
-    existing_map = {}
+def page_label(pages) -> str:
+    pages = sorted({p for p in pages if p})
+    if not pages:
+        return ""
+    return f"Hal. {pages[0]}" if pages[0] == pages[-1] else f"Hal. {pages[0]}-{pages[-1]}"
+
+
+def build_chunks(doc_info, text: str):
+    doc_title = doc_info["doc_title"]
+    sections = [s for s in parse_sections(text, doc_title) if not is_front_matter(s)]
+    for s in sections:
+        s["body"] = join_wrapped_lines(s["body"])
+
+    # Group consecutive sections: siblings under the same parent are merged while they fit,
+    # and a group that is still tiny keeps absorbing sections of the same top-level topic.
+    groups: list[list[dict]] = []
+    for s in sections:
+        size = len(s["body"]) + len(s["path"][-1] if s["path"] else "")
+        if groups:
+            g = groups[-1]
+            g_size = sum(len(x["body"]) for x in g)
+            same_parent = g[-1]["path"][:-1] == s["path"][:-1]
+            same_topic = g[-1]["path"][:1] == s["path"][:1]
+            numbered_list = same_parent and all(
+                x["path"] and re.match(r"^\d{1,2}[.)]\s", x["path"][-1]) for x in (*g, s)
+            )
+            limit = MAX_LIST_CHARS if numbered_list else MAX_CHARS
+            if g_size + size <= limit and (same_parent or (g_size < MIN_CHARS and same_topic)):
+                g.append(s)
+                continue
+        groups.append([s])
+
+    chunks = []
+    for g in groups:
+        paths = [s["path"] for s in g]
+        leaf_titles = [p[-1] for p in paths if p]
+        common = os.path.commonprefix(paths)
+        if len(g) == 1:
+            section_title = leaf_titles[0] if leaf_titles else ""
+            parent = paths[0][:-1]
+        elif common:
+            # e.g. "Prinsip Dasar Gerakan" for merged "1. Kemanusiaan" ... "7. Kesemestaan"
+            section_title = common[-1]
+            parent = common[:-1]
+        else:
+            section_title = f"{leaf_titles[0]} s.d. {leaf_titles[-1]}" if leaf_titles else ""
+            parent = ()
+
+        parts = []
+        for s in g:
+            own_title = s["path"][-1] if s["path"] else ""
+            if len(g) > 1 and own_title and own_title != section_title:
+                parts.append(f"### {own_title}\n{s['body']}")
+            else:
+                parts.append(s["body"])
+        content = "\n\n".join(parts)
+
+        label = page_label(s["page"] for s in g)
+        title_with_page = f"{section_title} ({label})" if section_title and label else (section_title or label or "Materi")
+        for piece in split_long(content):
+            if is_garbage(piece):
+                continue
+            chunks.append({
+                "doc_title": doc_title,
+                "category": doc_info.get("category", "umum"),
+                "parent_title": " > ".join(parent),
+                "section_title": title_with_page,
+                "content": piece,
+            })
+    return chunks
+
+
+def embedding_text(item) -> str:
+    path = " > ".join(p for p in (item["doc_title"], item.get("parent_title"), item["section_title"]) if p)
+    return f"[{item.get('category', '').upper()}] {path}\n{item['content']}"
+
+
+def embed_hash(item) -> str:
+    return hashlib.sha1(embedding_text(item).encode("utf-8")).hexdigest()
+
+
+def process_documents(dry_run: bool = False):
+    existing = {}
     if os.path.exists(OUTPUT_JSON):
         try:
             with open(OUTPUT_JSON, "r", encoding="utf-8") as f:
-                prev_data = json.load(f)
-            for item in prev_data:
-                if "embedding" in item and item["embedding"]:
-                    existing_map[item["content"]] = item["embedding"]
-            print(f"Loaded {len(existing_map)} previously cached embeddings.")
+                for item in json.load(f):
+                    if item.get("embedding"):
+                        existing[item.get("embed_hash") or embed_hash(item)] = item["embedding"]
         except Exception as e:
             print(f"Warning loading cache: {e}")
+    if os.path.exists(EMBED_CACHE_JSON):
+        with open(EMBED_CACHE_JSON, "r", encoding="utf-8") as f:
+            existing.update(json.load(f))
+    print(f"Loaded {len(existing)} previously cached embeddings.")
 
     all_items = []
-    chunk_id = 1
-    
     for doc_info in FILES:
         filepath = os.path.join(PROCESSED_DIR, doc_info["filename"])
         if not os.path.exists(filepath):
-            print(f"Skipping {filepath} (file not found)")
+            print(f"Skipping {doc_info['filename']} (file not found)")
             continue
-            
-        print(f"Reading {doc_info['filename']}...")
         with open(filepath, "r", encoding="utf-8") as f:
-            content = f.read()
-            
-        sections = re.split(r"\n(?=#{1,3}\s+)", content)
-        for sec in sections:
-            sec_strip = sec.strip()
-            if not sec_strip or len(sec_strip) < 40:
-                continue
-                
-            header_match = re.match(r"^(#{1,3}\s+[^\n]+)", sec_strip)
-            raw_section_title = header_match.group(1).lstrip("#").strip() if header_match else "Materi Umum"
-            
-            sub_chunks = split_into_chunks(sec_strip, max_chars=1100, overlap=150)
-            for sub in sub_chunks:
-                if is_garbage_chunk(sub):
-                    continue
-                cleaned_sub = clean_chunk_content(sub)
-                sec_title = infer_section_title(sub, doc_info["doc_title"], raw_section_title)
-                item = {
-                    "id": chunk_id,
-                    "doc_title": doc_info["doc_title"],
-                    "category": doc_info.get("category", "umum"),
-                    "section_title": sec_title,
-                    "content": cleaned_sub,
-                }
-                if cleaned_sub in existing_map:
-                    item["embedding"] = existing_map[cleaned_sub]
-                elif sub in existing_map:
-                    item["embedding"] = existing_map[sub]
-                all_items.append(item)
-                chunk_id += 1
-                
-    print(f"Total clean chunks created across all documents: {len(all_items)}")
-    
+            chunks = build_chunks(doc_info, f.read())
+        print(f"{doc_info['filename']}: {len(chunks)} chunks")
+        all_items.extend(chunks)
+
+    for i, item in enumerate(all_items, start=1):
+        item["id"] = i
+        item["embed_hash"] = embed_hash(item)
+        if item["embed_hash"] in existing:
+            item["embedding"] = existing[item["embed_hash"]]
+
+    print(f"Total chunks: {len(all_items)}")
     needed = [item for item in all_items if "embedding" not in item]
     print(f"Chunks needing new embeddings: {len(needed)} / {len(all_items)}")
 
+    if dry_run:
+        out = os.path.join(PROCESSED_DIR, "knowledge_base.preview.json")
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump([{k: v for k, v in it.items() if k != "embedding"} for it in all_items], f, ensure_ascii=False, indent=2)
+        print(f"Dry run: chunks written without embeddings to {out}")
+        return
+
     if needed:
+        logging.getLogger("google_genai").setLevel(logging.ERROR)
+        from google import genai
+        from google.genai import types
+
+        for env_file in (CURRENT_DIR.parent / "backend" / ".env", CURRENT_DIR / ".env", CURRENT_DIR.parent / ".env"):
+            if env_file.exists():
+                load_dotenv(env_file)
+                break
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY tidak ditemukan! Isi GEMINI_API_KEY di backend/.env")
+        client = genai.Client(api_key=api_key)
+
         print("Generating embeddings via Gemini API (model: gemini-embedding-001, dimension: 768)...")
-        config = types.EmbedContentConfig(
-            output_dimensionality=768,
-            task_type="RETRIEVAL_DOCUMENT",
-        )
-        batch_size = 20
+        config = types.EmbedContentConfig(output_dimensionality=768, task_type="RETRIEVAL_DOCUMENT")
+        batch_size = 20  # small batches stay under the per-minute token quota
         total_batches = (len(needed) + batch_size - 1) // batch_size
-        
         for batch_idx in range(total_batches):
-            start_i = batch_idx * batch_size
-            end_i = min(start_i + batch_size, len(needed))
-            batch = needed[start_i:end_i]
-            
-            texts = [
-                f"[{item.get('category', '').upper()}] {item['doc_title']} - {item['section_title']}\n{item['content']}"
-                for item in batch
-            ]
-            
-            for attempt in range(5):
+            batch = needed[batch_idx * batch_size:(batch_idx + 1) * batch_size]
+            for attempt in range(8):
                 try:
                     res = client.models.embed_content(
                         model="gemini-embedding-001",
-                        contents=texts,
-                        config=config
+                        contents=[embedding_text(item) for item in batch],
+                        config=config,
                     )
                     for item, emb in zip(batch, res.embeddings):
                         item["embedding"] = emb.values
-                    print(f"Processed batch {batch_idx + 1}/{total_batches} (chunks {start_i + 1} to {end_i} / {len(needed)})")
+                        existing[item["embed_hash"]] = emb.values
+                    with open(EMBED_CACHE_JSON, "w", encoding="utf-8") as f:
+                        json.dump(existing, f)
+                    print(f"Processed batch {batch_idx + 1}/{total_batches}")
+                    time.sleep(8)
                     break
                 except Exception as e:
-                    wait_time = 12 * (attempt + 1)
-                    print(f"Batch {batch_idx + 1} attempt {attempt + 1} rate-limited or error: {e}. Waiting {wait_time}s...")
+                    wait_time = 30 * (attempt + 1)
+                    print(f"Batch {batch_idx + 1} attempt {attempt + 1} failed: {str(e)[:150]}. Waiting {wait_time}s...")
                     time.sleep(wait_time)
-                    
-            if (batch_idx + 1) % 10 == 0:
-                with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
-                    json.dump(all_items, f, ensure_ascii=False, indent=2)
-                print("Checkpoint saved to knowledge_base.json")
-                
-            time.sleep(1.2)
-        
+            else:
+                raise RuntimeError("Embedding gagal setelah beberapa percobaan; jalankan ulang untuk melanjutkan.")
+
+    missing = sum(1 for item in all_items if "embedding" not in item)
+    if missing:
+        raise RuntimeError(f"{missing} chunks tanpa embedding; knowledge_base.json tidak ditimpa.")
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(all_items, f, ensure_ascii=False, indent=2)
-    print(f"SUCCESS: Saved complete knowledge base ({len(all_items)} chunks) with embeddings to: {OUTPUT_JSON}")
+    print(f"SUCCESS: Saved knowledge base ({len(all_items)} chunks) to: {OUTPUT_JSON}")
+
 
 if __name__ == "__main__":
-    process_documents()
+    process_documents(dry_run="--dry-run" in sys.argv)

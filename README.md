@@ -296,7 +296,20 @@ python chatbot/test_rag.py
 4. Anda dapat langsung mengklik contoh pertanyaan cepat di sidebar (Pertolongan Pertama, Siaga Bencana, Kesehatan Remaja, atau Guardrail Luar Topik) atau mengetik pertanyaan bebas.
 5. Tombol **Stop** menghentikan jawaban yang sedang ditulis. Riwayat percakapan tersimpan di browser (localStorage), jadi tidak hilang saat halaman di-refresh; klik **Reset** untuk menghapusnya.
 
-#### 3. Sinkronisasi Data ke PostgreSQL (`pgvector`):
+#### 3. Membangun Ulang Knowledge Base (setelah menambah/mengubah PDF):
+```powershell
+# Dari direktori simula (venv backend aktif, GEMINI_API_KEY terisi di backend/.env):
+python chatbot/extract_text_materials.py      # PDF yang punya lapisan teks -> processed/*.md
+python chatbot/extract_scanned_materials.py   # PDF hasil scan -> OCR Gemini Vision -> processed/*.md
+python chatbot/chunk_and_embed.py --dry-run   # cek hasil potongan tanpa memanggil API
+python chatbot/chunk_and_embed.py             # potong + embedding -> processed/knowledge_base.json
+```
+- OCR disimpan per halaman di `processed/ocr_cache/`, jadi jika terhenti (rate limit) cukup jalankan ulang; halaman yang sudah selesai tidak diproses lagi.
+- Setiap potongan menyimpan **judul induknya** (`parent_title`, mis. *Prinsip Dasar Gerakan* untuk *1. Kemanusiaan*) dan subjudul bernomor yang bersebelahan digabung, sehingga daftar seperti 7 Prinsip Dasar terambil utuh.
+- Halaman depan (Daftar Isi, Kata Pengantar, Tim Penyusun, ISBN) dibuang otomatis.
+- Embedding yang teksnya tidak berubah dipakai ulang, sehingga menjalankan ulang tidak menghabiskan kuota.
+
+#### 4. Sinkronisasi Data ke PostgreSQL (`pgvector`):
 Jika database PostgreSQL aktif di Docker dan Anda ingin mengindeks seluruh 844 materi vektor ke tabel `document_chunks`:
 ```powershell
 python chatbot/seed_pgvector.py

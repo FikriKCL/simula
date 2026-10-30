@@ -348,7 +348,7 @@ def check_fast_intent(query: str) -> Dict[str, Any] | None:
         return {
             "reply": (
                 "Halo Sahabat PMR! 👋 Saya **SIMULA AI**, asisten virtual edukasi Kepalangmerahan resmi Anda.\n\n"
-                "Saya siap membantu menjawab pertanyaan Anda berdasarkan **13 Modul Resmi PMI**, meliputi:\n"
+                "Saya siap membantu menjawab pertanyaan Anda berdasarkan **18 Modul Resmi PMI**, meliputi:\n"
                 "- **Pertolongan Pertama (PP)** *(Luka, Perdarahan, Patah Tulang, Luka Bakar, RJP, Syok)*\n"
                 "- **Ayo Siaga Bencana (ASB)** *(Gempa Bumi, Banjir, Tsunami, Longsor, Tas Siaga Bencana)*\n"
                 "- **Gerakan Kepalangmerahan** *(Sejarah, 7 Prinsip Dasar, Lambang, Tri Bakti PMR)*\n"
@@ -665,10 +665,11 @@ def get_bm25_index(kb: List[Dict[str, Any]], mtime: float):
     except ImportError:
         BM25Okapi = _PureBM25Okapi
 
-    # Repeat doc_title and section_title twice to give heading matches higher lexical weight
+    # Repeat section_title twice to give heading matches higher lexical weight; parent_title
+    # carries the enclosing heading (e.g. "Prinsip Dasar Gerakan" for "1. Kemanusiaan")
     corpus = [
         tokenize_id(
-            f"{item.get('doc_title', '')} {item.get('section_title', '')} "
+            f"{item.get('doc_title', '')} {item.get('parent_title', '')} {item.get('section_title', '')} "
             f"{item.get('section_title', '')} {item.get('content', '')}"
         )
         for item in kb
@@ -689,7 +690,7 @@ def get_corpus_vocab(kb: List[Dict[str, Any]], mtime: float):
         return _cached_vocab
     vocab = set()
     for item in kb:
-        text = f"{item.get('doc_title', '')} {item.get('section_title', '')} {item.get('content', '')}"
+        text = f"{item.get('doc_title', '')} {item.get('parent_title', '')} {item.get('section_title', '')} {item.get('content', '')}"
         vocab.update(tokenize_id(text))
     _cached_vocab = vocab
     _cached_vocab_mtime = mtime
@@ -737,7 +738,7 @@ def _compute_local_rerank_bonus(
     3. PMR Tier / Audience match bonus (Mula / Madya / Wira / Fasilitator)
     """
     bonus = 0.0
-    sec_low = item.get("section_title", "").lower()
+    sec_low = f"{item.get('parent_title', '')} {item.get('section_title', '')}".lower()
     doc_low = item.get("doc_title", "").lower()
     content_low = item.get("content", "").lower()
 
@@ -997,8 +998,10 @@ def hybrid_retrieve(
         selected_items.append(item)
         block_chars.append(len(content_str))
         total_chars += len(content_str)
+        parent_title = item.get("parent_title", "")[:90]
+        heading = f"{parent_title} > {section_title}" if parent_title else section_title
         context_blocks.append(
-            f"[{item.get('doc_title', 'Modul')} | {section_title}]\n{content_str}"
+            f"[{item.get('doc_title', 'Modul')} | {heading}]\n{content_str}"
         )
         sources.append({
             "doc_title": item.get("doc_title"),

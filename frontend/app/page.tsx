@@ -382,7 +382,7 @@ export default function ChatbotPage() {
     {
       id: "initial-welcome",
       sender: "bot",
-      text: "Halo! Saya **Asisten Virtual Resmi SIMULA (Palang Merah Remaja & PMI)**.\n\nSaya didukung sistem **Hybrid RAG Berpagar Ketat** yang membaca langsung **13 modul kurikulum resmi PMI (844 chunks bersih terindeks)**:\n- **Pertolongan Pertama (Tingkat Mula & Wira)**\n- **Kesiapsiagaan Bencana (Ayo Siaga Bencana)**\n- **Gerakan Palang Merah & 7 Prinsip Dasar PMI**\n- **Donor Darah Sukarela (DDS)**\n- **Kepemimpinan & Dinamika Kelompok PMR**\n- **Pendidikan Remaja Sebaya & Kesehatan Lingkungan (WASH)**\n\nSilakan klik salah satu contoh pertanyaan di sidebar atau ketik pertanyaan Anda sendiri di bawah!",
+      text: "Halo! Saya **Asisten Virtual Resmi SIMULA (Palang Merah Remaja & PMI)**.\n\nSaya didukung sistem **Hybrid RAG Berpagar Ketat** yang membaca langsung **18 modul kurikulum resmi PMI**:\n- **Pertolongan Pertama (Tingkat Mula & Wira)**\n- **Kesiapsiagaan Bencana (Ayo Siaga Bencana Mula, Madya & Wira)**\n- **Gerakan Palang Merah & 7 Prinsip Dasar PMI**\n- **Donor Darah Sukarela (DDS)**\n- **Kepemimpinan & Dinamika Kelompok PMR**\n- **Pendidikan Remaja Sebaya & Kesehatan Lingkungan (WASH)**\n\nSilakan klik salah satu contoh pertanyaan di sidebar atau ketik pertanyaan Anda sendiri di bawah!",
       sources: [],
       suggestions: DEFAULT_SUGGESTIONS,
       mode: "system_welcome",
@@ -726,11 +726,11 @@ export default function ChatbotPage() {
                 Hybrid RAG Engine
               </span>
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                844 Chunks Bersih
+                18 Modul PMI
               </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-              Menjawab <strong>100% dari 13 modul resmi</strong> PMI dengan BM25 + Vector Search, memori percakapan hemat token, & guardrail anti-halusinasi.
+              Menjawab <strong>hanya dari 18 modul resmi</strong> PMI dengan BM25 + Vector Search, memori percakapan hemat token, & guardrail anti-halusinasi.
             </p>
           </div>
         </div>
