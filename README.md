@@ -125,7 +125,7 @@ Langkah-langkah berikut direkomendasikan untuk mode pengembangan (*development m
    ```powershell
    docker compose up -d db
    ```
-   *Container PostgreSQL akan aktif di background pada port `5432` dengan user `simula` dan database `simula`.*
+   *Container PostgreSQL akan aktif di background pada port `5433` (di host, dipetakan ke `5432` di dalam container) dengan user `simula` dan database `simula`. Gunakan host `127.0.0.1`, bukan `localhost`: di Windows `localhost` dicoba lewat IPv6 dulu sehingga koneksi ke database bisa tertahan.*
 
 ---
 
@@ -146,7 +146,7 @@ Copy-Item .env.example .env
    ```
 2. Buka file `.env` dengan teks editor, lalu sesuaikan nilai berikut:
    ```env
-   DATABASE_URL=postgresql://simula:simula_dev_password@localhost:5432/simula?schema=public
+   DATABASE_URL=postgresql://simula:simula_dev_password@127.0.0.1:5433/simula?schema=public
    JWT_SECRET=<TEMPEL_HASIL_TOKEN_DARI_LANGKAH_SEBELUMNYA>
    ACCESS_TOKEN_MINUTES=30
    CORS_ORIGINS=["http://localhost:3000"]
@@ -241,7 +241,7 @@ Konfigurasi backend disimpan di file `backend/.env`. Berikut rincian parameterny
 
 | Variabel | Tipe | Default / Contoh | Deskripsi |
 |---|---|---|---|
-| `DATABASE_URL` | String | `postgresql://simula:simula_dev_password@localhost:5432/simula?schema=public` | Connection string PostgreSQL. |
+| `DATABASE_URL` | String | `postgresql://simula:simula_dev_password@127.0.0.1:5433/simula?schema=public` | Connection string PostgreSQL. |
 | `JWT_SECRET` | String | *(Wajib diisi acak)* | Kunci rahasia enkripsi JWT (minimal 32 karakter acak). |
 | `ACCESS_TOKEN_MINUTES` | Integer | `30` | Durasi masa berlaku token login (1 - 1440 menit). |
 | `CORS_ORIGINS` | JSON Array | `["http://localhost:3000"]` | Daftar domain frontend yang diizinkan mengakses API. |
