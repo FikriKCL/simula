@@ -457,6 +457,13 @@ def process_documents(dry_run: bool = False):
                     time.sleep(8)
                     break
                 except Exception as e:
+                    if "PerDay" in str(e):
+                        done = len(all_items) - sum(1 for item in all_items if "embedding" not in item)
+                        print(
+                            f"Kuota harian embedding Gemini habis ({done}/{len(all_items)} chunks sudah punya embedding, "
+                            "tersimpan di embedding_cache.json). Jalankan ulang besok untuk melanjutkan."
+                        )
+                        sys.exit(2)
                     wait_time = 30 * (attempt + 1)
                     print(f"Batch {batch_idx + 1} attempt {attempt + 1} failed: {str(e)[:150]}. Waiting {wait_time}s...")
                     time.sleep(wait_time)
