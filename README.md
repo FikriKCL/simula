@@ -265,7 +265,7 @@ Seluruh basis pengetahuan AI diindeks dari **13 dokumen resmi PMI**, antara lain
 3. **Gerakan Palang Merah**, **Donor Darah Sukarela**, **Kepemimpinan**, **Manajemen PMR**.
 4. **Kesehatan Remaja Sebaya (PRS)** dan **Remaja Sehat Peduli Sesama (WASH)**.
 
-Materi telah diproses menjadi **844 potongan teks (*chunks*)** dan di-embed ke dalam vektor 768-dimensi (`gemini-embedding-001`), tersimpan di `chatbot/processed/knowledge_base.json`.
+Materi telah diproses menjadi **1.287 potongan teks (*chunks*)** dan di-embed ke dalam vektor 768-dimensi (`gemini-embedding-001`), tersimpan di `chatbot/processed/knowledge_base.json`.
 
 ### 🛡️ Lapis Pengaman (*Guardrails*)
 - **Lapis 1 (Similarity Threshold + Cakupan Kosakata)**: Jika pertanyaan tidak mirip dengan materi kepalangmerahan, bot langsung menolak tanpa memanggil LLM (hemat API & anti-halusinasi).
@@ -310,7 +310,7 @@ python chatbot/chunk_and_embed.py             # potong + embedding -> processed/
 - Embedding yang teksnya tidak berubah dipakai ulang, sehingga menjalankan ulang tidak menghabiskan kuota.
 
 #### 4. Sinkronisasi Data ke PostgreSQL (`pgvector`):
-Jika database PostgreSQL aktif di Docker dan Anda ingin mengindeks seluruh 844 materi vektor ke tabel `document_chunks`:
+Jika database PostgreSQL aktif di Docker dan Anda ingin mengindeks seluruh 1.287 materi vektor ke tabel `document_chunks`:
 ```powershell
 python chatbot/seed_pgvector.py
 ```
