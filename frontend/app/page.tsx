@@ -898,8 +898,9 @@ export default function ChatbotPage() {
                       <span className="shrink-0 text-base">🚑</span>
                       <div className="leading-relaxed">
                         <strong className="font-bold">Panduan Keselamatan Darurat:</strong>{" "}
-                        Utamakan keselamatan penolong (gunakan APD). Jika menghadapi kondisi darurat medis nyata, segera hubungi{" "}
-                        <strong className="underline">119</strong>, Posko PMI, atau bawa ke Puskesmas/Rumah Sakit terdekat.
+                        Utamakan keselamatan dirimu dan minta bantuan orang dewasa. Jika ini keadaan darurat nyata, segera hubungi{" "}
+                        <strong className="underline">112</strong> (darurat), <strong className="underline">119</strong> (ambulans),
+                        atau <strong className="underline">113</strong> (pemadam kebakaran), atau bawa korban ke Puskesmas/Rumah Sakit terdekat.
                       </div>
                     </div>
                   )}

@@ -259,8 +259,8 @@ Konfigurasi backend disimpan di file `backend/.env`. Berikut rincian parameterny
 SIMULA dilengkapi dengan fitur **Chatbot AI Berpagar (*Retrieval-Augmented Generation*)** yang dirancang khusus untuk menjawab pertanyaan seputar materi kepalangmerahan PMR/PMI secara akurat dan anti-halusinasi.
 
 ### 📚 Modul Materi Pembelajaran Terverifikasi
-Seluruh basis pengetahuan AI diindeks dari **13 dokumen resmi PMI**, antara lain:
-1. **Pertolongan Pertama** (Buku PP Mula, PP Wira, Panduan Fasilitator PP): Luka, Perdarahan, Patah Tulang, Pingsan, Syok, RJP, dll.
+Seluruh basis pengetahuan AI diindeks dari **18 dokumen resmi PMI**, antara lain:
+1. **Pertolongan Pertama** (Buku PP Mula, PP Wira, Panduan Fasilitator PP): Luka, Perdarahan, Patah Tulang, Luka Bakar, Pingsan, Syok, dll. (langkah RJP belum ada di modul).
 2. **Kesiapsiagaan Bencana** (Ayo Siaga Bencana Mula): Gempa Bumi, Banjir, Tsunami, Longsor, Kebakaran, Evakuasi.
 3. **Gerakan Palang Merah**, **Donor Darah Sukarela**, **Kepemimpinan**, **Manajemen PMR**.
 4. **Kesehatan Remaja Sebaya (PRS)** dan **Remaja Sehat Peduli Sesama (WASH)**.
