@@ -196,8 +196,6 @@ SYNONYM_EXPANSIONS = {
     "air": ["banjir", "wash", "bersih", "sanitasi"],
     "7": ["tujuh", "prinsip", "dasar"],
     "tujuh": ["prinsip", "dasar", "gerakan"],
-    # The principle chunks lost their "Prinsip Dasar" heading during extraction, so match their names
-    "prinsip": ["kemanusiaan", "kesamaan", "kenetralan", "kemandirian", "kesukarelaan", "kesatuan", "kesemestaan"],
     "dds": ["donor", "darah", "sukarela"],
     "prs": ["pendidikan", "remaja", "sebaya", "kesehatan"],
     "apd": ["alat", "perlindungan", "diri", "sarung", "masker"],
