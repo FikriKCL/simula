@@ -11,7 +11,9 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 PROCESSED_DIR = os.path.join(os.path.dirname(__file__), "processed")
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-# List of all digital text documents to extract
+# List of all digital text documents to extract.
+# Buku PP Mula, Kepemimpinan, dan Donor Darah sebagian besar berupa gambar, jadi
+# diproses oleh extract_scanned_materials.py (OCR) dan tidak dicantumkan di sini.
 DOCUMENTS = [
     {
         "pdf": "DOKUMEN TEXT (ISI).pdf",
@@ -20,27 +22,9 @@ DOCUMENTS = [
         "min_chars": 40,
     },
     {
-        "pdf": "2.1. PP PMR MULA.pdf",
-        "output": "02_pertolongan_pertama_mula.md",
-        "title": "BUKU PANDUAN PERTOLONGAN PERTAMA (PMR MULA)",
-        "min_chars": 20,
-    },
-    {
         "pdf": "2.3. PP PMR WIRA.pdf",
         "output": "04_pertolongan_pertama_wira.md",
         "title": "BUKU PANDUAN PERTOLONGAN PERTAMA (PMR WIRA)",
-        "min_chars": 30,
-    },
-    {
-        "pdf": "3. KEPEMIMPINAN PMR (MULA-MADYA-WIRA).pdf",
-        "output": "05_kepemimpinan_pmr.md",
-        "title": "BUKU KEPEMIMPINAN PMR (MULA, MADYA, WIRA)",
-        "min_chars": 30,
-    },
-    {
-        "pdf": "4. DONOR DARAH PMR (MULA-MADYA-WIRA).pdf",
-        "output": "06_donor_darah_pmr.md",
-        "title": "BUKU DONOR DARAH SUKARELA PMR (MULA, MADYA, WIRA)",
         "min_chars": 30,
     },
     {

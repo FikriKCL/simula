@@ -104,8 +104,14 @@ def chat_message(sid, data, user, db):
             })
 
     rag_result = query_rag(data.message, history=history)
+    suggestions = rag_result.get("suggestions", [])
+    is_emergency = bool(rag_result.get("is_emergency", False))
     
-    if rag_result.get("mode") in ("rag_verified_module", "rag_filtered_out_of_scope"):
+    if rag_result.get("mode") in (
+        "rag_verified_module",
+        "rag_filtered_out_of_scope",
+        "conversational_assistant",
+    ):
         reply = rag_result["reply"]
         sources = rag_result["sources"]
         mode = rag_result["mode"]
@@ -130,5 +136,9 @@ def chat_message(sid, data, user, db):
         db,
         ChatMessage(session_id=sid, role="assistant", content=reply, sources=sources),
     )
-    return dict(record(response), mode=mode)
-
+    return dict(
+        record(response),
+        mode=mode,
+        suggestions=suggestions,
+        is_emergency=is_emergency,
+    )

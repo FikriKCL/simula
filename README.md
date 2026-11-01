@@ -125,7 +125,7 @@ Langkah-langkah berikut direkomendasikan untuk mode pengembangan (*development m
    ```powershell
    docker compose up -d db
    ```
-   *Container PostgreSQL akan aktif di background pada port `5432` dengan user `simula` dan database `simula`.*
+   *Container PostgreSQL akan aktif di background pada port `5433` (di host, dipetakan ke `5432` di dalam container) dengan user `simula` dan database `simula`. Gunakan host `127.0.0.1`, bukan `localhost`: di Windows `localhost` dicoba lewat IPv6 dulu sehingga koneksi ke database bisa tertahan.*
 
 ---
 
@@ -146,7 +146,7 @@ Copy-Item .env.example .env
    ```
 2. Buka file `.env` dengan teks editor, lalu sesuaikan nilai berikut:
    ```env
-   DATABASE_URL=postgresql://simula:simula_dev_password@localhost:5432/simula?schema=public
+   DATABASE_URL=postgresql://simula:simula_dev_password@127.0.0.1:5433/simula?schema=public
    JWT_SECRET=<TEMPEL_HASIL_TOKEN_DARI_LANGKAH_SEBELUMNYA>
    ACCESS_TOKEN_MINUTES=30
    CORS_ORIGINS=["http://localhost:3000"]
@@ -241,7 +241,7 @@ Konfigurasi backend disimpan di file `backend/.env`. Berikut rincian parameterny
 
 | Variabel | Tipe | Default / Contoh | Deskripsi |
 |---|---|---|---|
-| `DATABASE_URL` | String | `postgresql://simula:simula_dev_password@localhost:5432/simula?schema=public` | Connection string PostgreSQL. |
+| `DATABASE_URL` | String | `postgresql://simula:simula_dev_password@127.0.0.1:5433/simula?schema=public` | Connection string PostgreSQL. |
 | `JWT_SECRET` | String | *(Wajib diisi acak)* | Kunci rahasia enkripsi JWT (minimal 32 karakter acak). |
 | `ACCESS_TOKEN_MINUTES` | Integer | `30` | Durasi masa berlaku token login (1 - 1440 menit). |
 | `CORS_ORIGINS` | JSON Array | `["http://localhost:3000"]` | Daftar domain frontend yang diizinkan mengakses API. |
@@ -259,16 +259,26 @@ Konfigurasi backend disimpan di file `backend/.env`. Berikut rincian parameterny
 SIMULA dilengkapi dengan fitur **Chatbot AI Berpagar (*Retrieval-Augmented Generation*)** yang dirancang khusus untuk menjawab pertanyaan seputar materi kepalangmerahan PMR/PMI secara akurat dan anti-halusinasi.
 
 ### 📚 Modul Materi Pembelajaran Terverifikasi
-Seluruh basis pengetahuan AI diindeks dari **3 dokumen resmi PMI**:
-1. **Pertolongan Pertama (PP Mula)**: Luka, Pendarahan, Patah Tulang, Pingsan, Syok, dll.
-2. **Kesiapsiagaan Bencana (Ayo Siaga Mula)**: Gempa Bumi, Banjir, Tsunami, Longsor, Kebakaran, Evakuasi.
-3. **Pelatihan Remaja Sebaya (PRS PMI)**: Tumbuh Kembang Remaja, Kesehatan Reproduksi, Potensi Diri.
+Seluruh basis pengetahuan AI diindeks dari **13 dokumen resmi PMI**, antara lain:
+1. **Pertolongan Pertama** (Buku PP Mula, PP Wira, Panduan Fasilitator PP): Luka, Perdarahan, Patah Tulang, Pingsan, Syok, RJP, dll.
+2. **Kesiapsiagaan Bencana** (Ayo Siaga Bencana Mula): Gempa Bumi, Banjir, Tsunami, Longsor, Kebakaran, Evakuasi.
+3. **Gerakan Palang Merah**, **Donor Darah Sukarela**, **Kepemimpinan**, **Manajemen PMR**.
+4. **Kesehatan Remaja Sebaya (PRS)** dan **Remaja Sehat Peduli Sesama (WASH)**.
 
-Materi telah diproses menjadi **236 potongan teks (*chunks*)** dan di-embed ke dalam vektor 768-dimensi (`gemini-embedding-001`), tersimpan di `chatbot/processed/knowledge_base.json`.
+Materi telah diproses menjadi **1.287 potongan teks (*chunks*)** dan di-embed ke dalam vektor 768-dimensi (`gemini-embedding-001`), tersimpan di `chatbot/processed/knowledge_base.json`.
 
-### 🛡️ 2 Lapis Pengaman (*Strict Guardrails*)
-- **Lapis 1 (Similarity Threshold)**: Jika pertanyaan pengguna tidak mirip dengan materi kepalangmerahan (skor kosinus di bawah batas), bot langsung menolak tanpa memanggil LLM (hemat API & anti-halusinasi).
-- **Lapis 2 (Strict Grounded Instruction)**: Model LLM (`gemini-3.5-flash-lite`) dipandu agar **HANYA** menjawab dari materi yang dilampirkan dan menyertakan rujukan nama modul/bab di akhir jawaban.
+### 🛡️ Lapis Pengaman (*Guardrails*)
+- **Lapis 1 (Similarity Threshold + Cakupan Kosakata)**: Jika pertanyaan tidak mirip dengan materi kepalangmerahan, bot langsung menolak tanpa memanggil LLM (hemat API & anti-halusinasi).
+- **Lapis 2 (Strict Grounded Instruction)**: Model LLM (default `gemini-3.5-flash-lite`, bisa diganti via `GEMINI_MODEL`) dipandu agar **HANYA** menjawab dari materi yang dilampirkan, mengabaikan instruksi yang disisipkan pengguna, dan menyertakan rujukan modul di akhir jawaban.
+- **Lapis 3 (Batas Pemakaian)**: Endpoint playground publik `/api/v1/chat/test` & `/chat/test/stream` dibatasi `CHAT_PLAYGROUND_RATE_LIMIT` permintaan/menit per IP (default 20), riwayat maksimal 20 pesan, pertanyaan maksimal 2000 karakter.
+
+### ⚙️ Environment Variable Chatbot (`backend/.env`)
+| Variabel | Default | Keterangan |
+|---|---|---|
+| `GEMINI_API_KEY` | – | Wajib. API key Google AI Studio. |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Model untuk merangkum jawaban. |
+| `CHAT_PLAYGROUND_RATE_LIMIT` | `20` | Maks. permintaan/menit per IP ke endpoint playground. |
+| `KNOWLEDGE_BASE_PATH` | otomatis | Path `knowledge_base.json` (di Docker Compose sudah di-set & di-mount otomatis). |
 
 ### 🧪 Cara Menjalankan & Menguji Fitur Chatbot:
 
@@ -284,9 +294,23 @@ python chatbot/test_rag.py
 2. Pastikan frontend berjalan: `npm run dev` (di folder `frontend`)
 3. Buka browser: **`http://localhost:3000`**
 4. Anda dapat langsung mengklik contoh pertanyaan cepat di sidebar (Pertolongan Pertama, Siaga Bencana, Kesehatan Remaja, atau Guardrail Luar Topik) atau mengetik pertanyaan bebas.
+5. Tombol **Stop** menghentikan jawaban yang sedang ditulis. Riwayat percakapan tersimpan di browser (localStorage), jadi tidak hilang saat halaman di-refresh; klik **Reset** untuk menghapusnya.
 
-#### 3. Sinkronisasi Data ke PostgreSQL (`pgvector`):
-Jika database PostgreSQL aktif di Docker dan Anda ingin mengindeks seluruh 236 materi vektor ke tabel `document_chunks`:
+#### 3. Membangun Ulang Knowledge Base (setelah menambah/mengubah PDF):
+```powershell
+# Dari direktori simula (venv backend aktif, GEMINI_API_KEY terisi di backend/.env):
+python chatbot/extract_text_materials.py      # PDF yang punya lapisan teks -> processed/*.md
+python chatbot/extract_scanned_materials.py   # PDF hasil scan -> OCR Gemini Vision -> processed/*.md
+python chatbot/chunk_and_embed.py --dry-run   # cek hasil potongan tanpa memanggil API
+python chatbot/chunk_and_embed.py             # potong + embedding -> processed/knowledge_base.json
+```
+- OCR disimpan per halaman di `processed/ocr_cache/`, jadi jika terhenti (rate limit) cukup jalankan ulang; halaman yang sudah selesai tidak diproses lagi.
+- Setiap potongan menyimpan **judul induknya** (`parent_title`, mis. *Prinsip Dasar Gerakan* untuk *1. Kemanusiaan*) dan subjudul bernomor yang bersebelahan digabung, sehingga daftar seperti 7 Prinsip Dasar terambil utuh.
+- Halaman depan (Daftar Isi, Kata Pengantar, Tim Penyusun, ISBN) dibuang otomatis.
+- Embedding yang teksnya tidak berubah dipakai ulang, sehingga menjalankan ulang tidak menghabiskan kuota.
+
+#### 4. Sinkronisasi Data ke PostgreSQL (`pgvector`):
+Jika database PostgreSQL aktif di Docker dan Anda ingin mengindeks seluruh 1.287 materi vektor ke tabel `document_chunks`:
 ```powershell
 python chatbot/seed_pgvector.py
 ```

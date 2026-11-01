@@ -224,7 +224,7 @@ python -m pytest -q
 Lima tes lokal tidak memerlukan PostgreSQL (termasuk uji rollback transaksi ORM). Lima tes integrasi akan **skip** tanpa TEST_DATABASE_URL. Untuk menjalankannya, buat database terpisah bernama `simula_test`, migrasikan, lalu:
 
 ```powershell
-$env:TEST_DATABASE_URL = "postgresql://simula:simula_dev_password@localhost:5432/simula_test?schema=public"
+$env:TEST_DATABASE_URL = "postgresql://simula:simula_dev_password@127.0.0.1:5433/simula_test?schema=public"
 # Override DATABASE_URL sementara hanya untuk migrasi database test:
 $env:DATABASE_URL = $env:TEST_DATABASE_URL
 npm run db:deploy

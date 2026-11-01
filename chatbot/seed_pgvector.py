@@ -19,7 +19,7 @@ for env_file in ENV_CANDIDATES:
 else:
     load_dotenv()
 
-raw_url = os.getenv("DATABASE_URL", "postgresql://simula:simula_dev_password@localhost:5432/simula")
+raw_url = os.getenv("DATABASE_URL", "postgresql://simula:simula_dev_password@127.0.0.1:5433/simula")
 parts = urlsplit(raw_url)
 query = dict(parse_qsl(parts.query))
 query.pop("schema", None)

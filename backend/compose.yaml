@@ -30,6 +30,10 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://simula:simula_dev_password@db:5432/simula?schema=public
+      KNOWLEDGE_BASE_PATH: /app/chatbot/processed/knowledge_base.json
+    volumes:
+      # The chatbot knowledge base lives outside the backend build context
+      - ../chatbot/processed:/app/chatbot/processed:ro
     ports:
       - "8000:8000"
     depends_on:
