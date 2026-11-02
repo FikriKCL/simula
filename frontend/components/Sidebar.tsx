@@ -4,7 +4,7 @@ import { BooksIcon, Cross, ProfileIcon } from "./Icons";
 export type NavKey = "pembelajaran" | "materi" | "profil";
 
 const items: { key: NavKey; href: string; label: string; icon: React.ReactNode }[] = [
-  { key: "pembelajaran", href: "/", label: "Pembelajaran", icon: <Cross size={34} color="currentColor" dot="var(--bg)" /> },
+  { key: "pembelajaran", href: "/dashboard", label: "Pembelajaran", icon: <Cross size={34} color="currentColor" dot="var(--bg)" /> },
   { key: "materi", href: "/materi", label: "Materi", icon: <BooksIcon size={38} /> },
   { key: "profil", href: "/profil", label: "Profil", icon: <ProfileIcon size={44} /> },
 ];
