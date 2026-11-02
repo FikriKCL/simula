@@ -1,42 +1,72 @@
 import { NextResponse } from "next/server";
 
+const MAX_MESSAGE_CHARS = 2000;
+
+function errorReply(reply: string, mode: string, status: number, error?: string) {
+  return NextResponse.json({ reply, sources: [], mode, error }, { status });
+}
+
 export async function POST(req: Request) {
+  let body;
   try {
-    const body = await req.json();
-    const isStream = body.stream !== false;
-    const backendHost = process.env.BACKEND_URL || "http://127.0.0.1:8000";
-    const endpoint = isStream ? "/api/v1/chat/test/stream" : "/api/v1/chat/test";
-    const backendUrl = `${backendHost}${endpoint}`;
+    body = await req.json();
+  } catch {
+    return errorReply("Permintaan tidak valid.", "invalid_input", 400);
+  }
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    // Lets the backend rate-limit per browser instead of per proxy
-    const forwardedFor = req.headers.get("x-forwarded-for");
-    if (forwardedFor) headers["X-Forwarded-For"] = forwardedFor;
+  const message = typeof body?.message === "string" ? body.message.trim() : "";
+  if (!message || message.length > MAX_MESSAGE_CHARS) {
+    return errorReply(
+      `Pertanyaan tidak boleh kosong dan maksimal ${MAX_MESSAGE_CHARS} karakter.`,
+      "invalid_input",
+      422
+    );
+  }
 
-    const res = await fetch(backendUrl, {
+  const isStream = body.stream !== false;
+  const backendHost = process.env.BACKEND_URL || "http://127.0.0.1:8000";
+  const endpoint = isStream ? "/api/v1/chat/test/stream" : "/api/v1/chat/test";
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  // Lets the backend rate-limit per browser instead of per proxy
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) headers["X-Forwarded-For"] = forwardedFor;
+
+  try {
+    const res = await fetch(`${backendHost}${endpoint}`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ message: body.message, history: body.history ?? [] }),
+      body: JSON.stringify({ message, history: Array.isArray(body.history) ? body.history : [] }),
       // Stops the backend (and Gemini) stream when the user presses "Stop" or leaves
       signal: req.signal,
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      const reply =
-        res.status === 429
-          ? "Terlalu banyak pertanyaan dalam waktu singkat. Tunggu sebentar lalu coba lagi ya."
-          : res.status === 422
-          ? "Pertanyaan tidak valid atau terlalu panjang (maksimal 2000 karakter)."
-          : `Gagal menghubungi server backend (Status ${res.status}). Pastikan backend FastAPI sedang berjalan.`;
-      return NextResponse.json(
-        {
-          reply,
-          sources: [],
-          mode: res.status === 429 ? "rate_limited" : res.status === 422 ? "invalid_input" : "backend_offline",
-          error: errText,
-        },
-        { status: res.status }
+      if (res.status === 429) {
+        const wait = Number(res.headers.get("retry-after")) || 0;
+        return errorReply(
+          wait
+            ? `Terlalu banyak pertanyaan dalam waktu singkat. Coba lagi dalam ${wait} detik.`
+            : "Terlalu banyak pertanyaan dalam waktu singkat. Tunggu sebentar lalu coba lagi.",
+          "rate_limited",
+          429,
+          errText
+        );
+      }
+      if (res.status === 422) {
+        return errorReply(
+          "Pertanyaan tidak valid atau terlalu panjang (maksimal 2000 karakter).",
+          "invalid_input",
+          422,
+          errText
+        );
+      }
+      return errorReply(
+        `Server asisten sedang bermasalah (status ${res.status}). Coba lagi beberapa saat lagi.`,
+        "backend_offline",
+        502,
+        errText
       );
     }
 
@@ -51,19 +81,16 @@ export async function POST(req: Request) {
       });
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(await res.json());
   } catch (error: unknown) {
+    // The browser cancelled the request (Stop button / tab closed): nobody reads this
+    if (req.signal.aborted) return new Response(null, { status: 499 });
     const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan koneksi";
-    return NextResponse.json(
-      {
-        reply: "Backend FastAPI belum berjalan di http://127.0.0.1:8000. Silakan jalankan backend terlebih dahulu.",
-        sources: [],
-        mode: "connection_error",
-        error: errorMessage,
-      },
-      { status: 503 }
+    return errorReply(
+      "Server asisten belum bisa dihubungi. Pastikan backend sudah berjalan, lalu coba lagi.",
+      "connection_error",
+      503,
+      errorMessage
     );
   }
 }
-

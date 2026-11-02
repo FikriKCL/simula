@@ -1,74 +1,52 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Dark mode follows the `dark` class set by the theme script/toggle, not only the OS setting */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  overscroll-behavior: none;
 }
 
-/* Modern visible, wide & easily draggable custom scrollbar */
+/* Slim scrollbar that stays easy to grab */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+
+.dark .custom-scrollbar {
+  scrollbar-color: rgb(51 65 85) transparent;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(226, 232, 240, 0.85);
-  border-radius: 8px;
-}
-
-:is(.dark) .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(30, 41, 59, 0.85);
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.85);
-  border-radius: 8px;
-  border: 2px solid rgba(226, 232, 240, 0.85);
-  transition: background-color 0.15s ease;
-}
-
-:is(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.85);
-  border: 2px solid rgba(30, 41, 59, 0.85);
+  background: rgb(203 213 225);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #dc2626; /* PMI Red accent on hover */
-  border-color: #dc2626;
+  background-color: rgb(148 163 184);
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:active {
-  background: #b91c1c; /* Darker red when dragging */
-  border-color: #b91c1c;
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(51 65 85);
 }
 
-/* Firefox fallback */
-@supports not selector(::-webkit-scrollbar) {
-  .custom-scrollbar {
-    scrollbar-width: auto;
-    scrollbar-color: rgba(148, 163, 184, 0.85) rgba(226, 232, 240, 0.85);
-  }
-  :is(.dark) .custom-scrollbar {
-    scrollbar-color: rgba(100, 116, 139, 0.85) rgba(30, 41, 59, 0.85);
-  }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(71 85 105);
 }
