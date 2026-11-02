@@ -40,3 +40,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+
+# chatbot pipeline intermediates
+chatbot/processed/ocr_cache/
+chatbot/processed/knowledge_base.preview.json
+chatbot/processed/embedding_cache.json
+
+# claude code (pengaturan & catatan lokal, jangan ikut di-commit)
+.claude/settings.local.json
+CLAUDE.local.md

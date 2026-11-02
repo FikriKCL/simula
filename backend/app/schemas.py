@@ -178,9 +178,12 @@ class SessionOut(BaseModel):
     created_at: datetime
 
 class SourceOut(BaseModel):
-    lesson_id: int
-    module_id: int
-    title: str
+    lesson_id: int | None = None
+    module_id: int | None = None
+    title: str | None = None
+    doc_title: str | None = None
+    section_title: str | None = None
+    similarity: float | None = None
 
 class MessageOut(BaseModel):
     id: int
@@ -192,3 +195,5 @@ class MessageOut(BaseModel):
 
 class ChatReplyOut(MessageOut):
     mode: str
+    suggestions: list[str] = Field(default_factory=list)
+    is_emergency: bool = False

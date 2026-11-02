@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     access_token_minutes: int = Field(default=30, ge=1, le=1440)
     cors_origins: list[str] = ["http://localhost:3000"]
     gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3.5-flash-lite"
+    # Max requests per minute per IP on the public /chat/test playground endpoints
+    chat_playground_rate_limit: int = Field(default=20, ge=1, le=1000)
 
     @field_validator("jwt_secret")
     @classmethod

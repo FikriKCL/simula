@@ -8,19 +8,32 @@ export async function POST(req: Request) {
     const endpoint = isStream ? "/api/v1/chat/test/stream" : "/api/v1/chat/test";
     const backendUrl = `${backendHost}${endpoint}`;
 
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    // Lets the backend rate-limit per browser instead of per proxy
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    if (forwardedFor) headers["X-Forwarded-For"] = forwardedFor;
+
     const res = await fetch(backendUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers,
+      body: JSON.stringify({ message: body.message, history: body.history ?? [] }),
+      // Stops the backend (and Gemini) stream when the user presses "Stop" or leaves
+      signal: req.signal,
     });
 
     if (!res.ok) {
       const errText = await res.text();
+      const reply =
+        res.status === 429
+          ? "Terlalu banyak pertanyaan dalam waktu singkat. Tunggu sebentar lalu coba lagi ya."
+          : res.status === 422
+          ? "Pertanyaan tidak valid atau terlalu panjang (maksimal 2000 karakter)."
+          : `Gagal menghubungi server backend (Status ${res.status}). Pastikan backend FastAPI sedang berjalan.`;
       return NextResponse.json(
         {
-          reply: `Gagal menghubungi server backend (Status ${res.status}). Pastikan backend FastAPI sedang berjalan.`,
+          reply,
           sources: [],
-          mode: "backend_offline",
+          mode: res.status === 429 ? "rate_limited" : res.status === 422 ? "invalid_input" : "backend_offline",
           error: errText,
         },
         { status: res.status }
