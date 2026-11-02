@@ -1,52 +1,165 @@
 @import "tailwindcss";
 
-/* Dark mode follows the `dark` class set by the theme script/toggle, not only the OS setting */
-@custom-variant dark (&:where(.dark, .dark *));
+/* Varian dark mengikuti toggle tema (data-theme), bukan setelan sistem */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Petakan variabel ke nama utilitas: bg-surface, text-brand, shadow-pop, dst. */
 @theme inline {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-display), var(--font-body), system-ui, sans-serif;
+
+  --color-page: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-line: var(--border);
+  --color-brand: var(--red);
+  --color-brand-soft: var(--red-soft);
+  --color-sky: var(--blue);
+  --color-sky-dark: var(--blue-dark);
+  --color-sky-soft: var(--blue-soft);
+  --color-sky-edge: var(--blue-edge);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-lock: var(--lock);
+  --color-lock-edge: var(--lock-edge);
+  --color-cloud-blue: var(--cloud-blue);
+  --color-cloud-pink: var(--cloud-pink);
+  --color-cloud-yellow: var(--cloud-yellow);
+
+  --shadow-pop: 0 4px 0 var(--border);
+  --shadow-float: var(--shadow);
 }
 
-html,
-body {
-  overscroll-behavior: none;
+/* Animasi pop in / pop out untuk chat */
+@theme {
+  --animate-pop-in: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-pop-out: pop-out 0.22s ease-in both;
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(24px) scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes pop-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translateY(24px) scale(0.85);
+    }
+  }
 }
 
-/* Slim scrollbar that stays easy to grab */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(203 213 225) transparent;
+:root {
+  --bg: #f6faff;
+  --surface: #ffffff;
+  --text: #2d3748;
+  --text-muted: #5a6b82;
+  --border: #dfe6ef;
+  --red: #e53935;
+  --red-soft: #fdecea;
+  --blue: #42a5f5;
+  --blue-dark: #1e88e5;
+  --blue-edge: #dcecfb;
+  --blue-soft: #dbeefd;
+  --gold: #ffb300;
+  --gold-soft: #fff1c9;
+  --lock: #e3e7ec;
+  --lock-edge: #c9d0d9;
+  --cloud-blue: #dcebfa;
+  --cloud-pink: #ffe0e3;
+  --cloud-yellow: #ffefc7;
+  --shadow: 0 6px 24px rgba(30, 60, 100, 0.12);
 }
 
-.dark .custom-scrollbar {
-  scrollbar-color: rgb(51 65 85) transparent;
+[data-theme="dark"] {
+  --bg: #0f1722;
+  --surface: #182231;
+  --text: #e8eef7;
+  --text-muted: #9fb0c7;
+  --border: #2a3a50;
+  --red: #ff6b66;
+  --red-soft: #3a2224;
+  --blue: #2b7fc4;
+  --blue-dark: #1b5f9a;
+  --blue-edge: #17476f;
+  --blue-soft: #1c3550;
+  --gold: #ffc233;
+  --gold-soft: #4a3d17;
+  --lock: #2a3547;
+  --lock-edge: #1f2937;
+  --cloud-blue: #1c3047;
+  --cloud-pink: #3a2a33;
+  --cloud-yellow: #3d3520;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
 }
 
+@layer base {
+  html,
+  body {
+    font-family: var(--font-body), "Nunito", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background 0.25s, color 0.25s;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+/* ---------- Scrollbar kustom (pseudo-element, lebih rapi tetap di CSS) ---------- */
 .custom-scrollbar::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(226, 232, 240, 0.85);
+  border-radius: 8px;
+}
+
+[data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.85);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgb(203 213 225);
-  border-radius: 9999px;
-  border: 3px solid transparent;
-  background-clip: content-box;
+  background: rgba(148, 163, 184, 0.85);
+  border-radius: 8px;
+  border: 2px solid rgba(226, 232, 240, 0.85);
+  transition: background-color 0.15s ease;
+}
+
+[data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.85);
+  border: 2px solid rgba(30, 41, 59, 0.85);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(148 163 184);
+  background: #dc2626;
+  border-color: #dc2626;
 }
 
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgb(51 65 85);
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(71 85 105);
+@supports not selector(::-webkit-scrollbar) {
+  .custom-scrollbar {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(148, 163, 184, 0.85) rgba(226, 232, 240, 0.85);
+  }
+  [data-theme="dark"] .custom-scrollbar {
+    scrollbar-color: rgba(100, 116, 139, 0.85) rgba(30, 41, 59, 0.85);
+  }
 }
