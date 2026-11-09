@@ -123,20 +123,16 @@
   height: 12px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(226, 232, 240, 0.85);
-  border-radius: 8px;
+.dark .custom-scrollbar {
+  scrollbar-color: rgb(51 65 85) transparent;
 }
 
 [data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(30, 41, 59, 0.85);
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.85);
-  border-radius: 8px;
-  border: 2px solid rgba(226, 232, 240, 0.85);
-  transition: background-color 0.15s ease;
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 [data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-thumb {

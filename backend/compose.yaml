@@ -21,7 +21,8 @@ services:
       - simula_node_modules:/project/node_modules
     environment:
       DATABASE_URL: postgresql://simula:simula_dev_password@db:5432/simula?schema=public
-    command: sh -c "npm ci && npm run db:deploy"
+    # Reinstall only when package-lock.json changes, so routine startups work offline
+    command: sh -c "cmp -s package-lock.json node_modules/.installed-lock || { npm ci && cp package-lock.json node_modules/.installed-lock; } && npm run db:deploy"
     depends_on:
       db:
         condition: service_healthy
