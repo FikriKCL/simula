@@ -1,22 +1,24 @@
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import InlineScript from "@/components/InlineScript";
-import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import type { Metadata } from "next";
+import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const body = Nunito({
   subsets: ["latin"],
+  weight: ["400", "600", "700", "800", "900"],
+  variable: "--font-body",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const display = Baloo_2({
   subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-display",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "SIMULA - Asisten Edukasi PMR & PMI",
-  description: "Platform Asisten Belajar RAG Kepalangmerahan Palang Merah Remaja (PMR Mula) & PMI",
+  title: "Simula - Pembelajaran",
+  description: "Belajar pertolongan pertama dengan cara yang menyenangkan",
 };
 
 export const viewport: Viewport = {
@@ -34,16 +36,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="id"
-      // The theme script below sets the `dark` class before hydration
+      data-theme="light"
+      className={`${body.variable} ${display.variable}`}
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <InlineScript html={THEME_INIT_SCRIPT} />
-      </head>
-      <body className="h-full w-full bg-white font-sans text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
