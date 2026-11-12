@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import AuthGate from "@/components/AuthGate";
+import type { Metadata, Viewport } from "next";
 import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 
@@ -32,7 +33,11 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="id"
@@ -40,7 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${body.variable} ${display.variable}`}
       suppressHydrationWarning
     >
-      <body>{children}</body>
+      <body>
+        <AuthGate>{children}</AuthGate>
+      </body>
     </html>
   );
 }

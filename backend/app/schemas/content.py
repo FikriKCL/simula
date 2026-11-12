@@ -24,12 +24,15 @@ class ComicPage(BaseModel):
 
 class MaterialCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
-    kind: Literal["PDF", "VIDEO", "COMIC"]
+    kind: Literal["ARTICLE", "PDF", "VIDEO", "COMIC"]
     url: HttpUrl | None = None
     thumbnail_url: HttpUrl | None = None
+    thumbnail_key: Literal["plaster", "kit", "hand", "heart", "roll"] | None = None
+    video_provider: Literal["youtube", "vimeo"] | None = None
+    video_id: str | None = Field(default=None, max_length=32)
     body: str = Field(
         min_length=10,
-        max_length=50000,
+        max_length=1000000,
         description="Teks/transkrip materi untuk pencarian katalog",
     )
     pages: list[ComicPage] = Field(default_factory=list, max_length=100)
@@ -40,7 +43,18 @@ class MaterialCreate(BaseModel):
 
     @model_validator(mode="after")
     def format_rules(self):
-        if self.kind in ("PDF", "VIDEO") and not self.url:
+        if self.kind == "VIDEO" and (self.video_provider or self.video_id):
+            import re
+            if not self.video_provider or not self.video_id:
+                raise ValueError("Isi provider dan ID video")
+            pattern = r"[A-Za-z0-9_-]{11}" if self.video_provider == "youtube" else r"[0-9]{1,15}"
+            if not re.fullmatch(pattern, self.video_id):
+                raise ValueError("ID video tidak valid")
+        elif self.kind == "VIDEO" and not self.url:
+            raise ValueError("Video memerlukan provider dan ID")
+        if self.kind != "VIDEO" and (self.video_provider or self.video_id):
+            raise ValueError("Provider/ID hanya untuk video")
+        if self.kind == "PDF" and not self.url:
             raise ValueError("PDF/video memerlukan URL")
         if self.kind == "COMIC" and not self.pages:
             raise ValueError("Komik memerlukan halaman berurutan")
@@ -52,12 +66,16 @@ class MaterialCreate(BaseModel):
 
 
 class MaterialOut(BaseModel):
+    module_id: int | None = None
     id: int
     lesson_id: int
     title: str
     kind: str
     url: str | None
     thumbnail_url: str | None
+    thumbnail_key: str | None = None
+    video_provider: str | None = None
+    video_id: str | None = None
     body: str
     pages: list[ComicPage]
     page_count: int | None
@@ -148,13 +166,14 @@ class QuestionEdit(BaseModel):
 
 
 class MaterialCard(BaseModel):
+    thumbnail_key: str | None = None
     id: int
     lesson_id: int
     module_id: int
     topic_id: int
     level: int
     title: str
-    kind: Literal["PDF", "VIDEO", "COMIC"]
+    kind: Literal["ARTICLE", "PDF", "VIDEO", "COMIC"]
     thumbnail_url: str | None
     page_count: int | None
     duration_seconds: int | None

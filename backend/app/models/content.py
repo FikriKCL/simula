@@ -35,6 +35,9 @@ class Material(Base):
     kind: Mapped[str] = mapped_column(Text)
     url: Mapped[str | None] = mapped_column(Text)
     thumbnail_url: Mapped[str | None] = mapped_column(Text)
+    thumbnail_key: Mapped[str | None] = mapped_column(Text)
+    video_provider: Mapped[str | None] = mapped_column(Text)
+    video_id: Mapped[str | None] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text, default="", server_default="")
     pages: Mapped[list] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"), default=list, server_default="[]"

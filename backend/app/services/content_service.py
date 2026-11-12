@@ -74,12 +74,13 @@ def material_detail(aid, user, db):
     )
     return dict(
         record(material),
+        module_id=lesson.module_id,
         opened=bool(progress),
         completed=bool(progress and progress.completed_at),
     )
 
 
-def library(q, kind, topic_id, limit, offset, user, db):
+def library(q, kind, topic_id, limit, offset, user, db, module_id=None):
     # Catalogue intentionally exposes titles/thumbnails, including locked levels, but no body or source URL.
     query = (
         select(Material, Module.id.label("module_id"), Module.level, Module.topic_id)
@@ -96,6 +97,8 @@ def library(q, kind, topic_id, limit, offset, user, db):
         )
     if kind:
         query = query.where(Material.kind == kind)
+    if module_id:
+        query = query.where(Module.id == module_id)
     if topic_id:
         query = query.where(Module.topic_id == topic_id)
     total = db.scalar(select(func.count()).select_from(query.subquery()))
@@ -128,6 +131,7 @@ def library(q, kind, topic_id, limit, offset, user, db):
                 "title": mat.title,
                 "kind": mat.kind,
                 "thumbnail_url": mat.thumbnail_url,
+                "thumbnail_key": mat.thumbnail_key,
                 "page_count": mat.page_count,
                 "duration_seconds": mat.duration_seconds,
                 "locked": locked,
@@ -249,7 +253,7 @@ def profile(user, db):
         for b, earned_at in badge_rows
     ]
     stats = []
-    for kind in ("PDF", "VIDEO", "COMIC"):
+    for kind in ("ARTICLE", "PDF", "VIDEO", "COMIC"):
         base = (
             select(Material.id)
             .join(Lesson, Lesson.id == Material.lesson_id)

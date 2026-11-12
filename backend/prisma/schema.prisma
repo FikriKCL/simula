@@ -189,7 +189,10 @@ model Material {
  kind String
  url String?
  thumbnail_url String?
- body String @default("")
+ thumbnail_key String?
+ video_provider String?
+ video_id String?
+ body String @default("") @db.Text
  pages Json @default("[]")
  page_count Int?
  duration_seconds Int?

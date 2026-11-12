@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import RightPanel from "@/components/RightPanel";
 import LevelPath from "@/components/LevelPath";
@@ -5,7 +6,10 @@ import { banner, btnOutline, column } from "@/components/ui";
 
 function Cloud({ className }: { className: string }) {
   return (
-    <span aria-hidden className={`pointer-events-none absolute z-0 h-[34px] w-[90px] rounded-full ${className}`}>
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute z-0 h-[34px] w-[90px] rounded-full ${className}`}
+    >
       <span className="absolute -top-5 left-3.5 size-11 rounded-full bg-inherit" />
       <span className="absolute -top-3 left-11 size-[34px] rounded-full bg-inherit" />
     </span>
@@ -34,12 +38,20 @@ export default function Page() {
       <Sidebar active="pembelajaran" />
 
       <main className="relative overflow-hidden pb-[120px] pt-6">
-        <div className={`${column} ${banner} relative z-[2] px-[26px] py-[18px]`}>
+        <div
+          className={`${column} ${banner} relative z-[2] px-[26px] py-[18px]`}
+        >
           <div>
-            <h1 className="font-heading text-[22px] font-extrabold">Pembelajaran Simula</h1>
-            <p className="mt-0.5 text-[13px] font-bold">Materi Pertama: Ayo Siaga Bencana Mula (ASB)</p>
+            <h1 className="font-heading text-[22px] font-extrabold">
+              Pembelajaran Simula
+            </h1>
+            <p className="mt-0.5 text-[13px] font-bold">
+              Pilih modul yang tersedia untuk mulai belajar
+            </p>
           </div>
-          <button className={btnOutline}>Buku Materi</button>
+          <Link href="/materi" className={btnOutline}>
+            Buku Materi
+          </Link>
         </div>
 
         <p className="mt-[18px] text-center font-heading text-sm font-extrabold text-muted">

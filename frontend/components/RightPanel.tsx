@@ -1,36 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import ChatWindow from "./ChatWindow";
-import { HeartIcon, MoonIcon, SunIcon } from "./Icons";
+import { MoonIcon, SunIcon } from "./Icons";
 import { PikoAvatar } from "./PikoAvatar";
 import { PikoMascot } from "./PikoMascot";
 import type { Msg } from "../lib/chat";
 
 const demoMessages: Msg[] = [
-  { from: "bot", text: "Halo! Ada yang ingin kamu tanyakan tentang P3K?" },
-  { from: "me", text: "Kenapa luka harus dibersihkan?" },
-  { from: "bot", text: "Supaya kuman tidak masuk dan lukanya cepat sembuh!" },
+  { from: "bot", text: "Halo! Buka halaman Dokter Piko untuk mulai bertanya." },
 ];
-
+function subscribeTheme(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("simula-theme-change", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("simula-theme-change", callback);
+  };
+}
+function themeSnapshot(): "light" | "dark" {
+  return localStorage.getItem("simula-theme") === "dark" ? "dark" : "light";
+}
 function useTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("simula-theme");
-      if (saved === "dark" || saved === "light") setTheme(saved);
-    } catch {}
-  }, []);
-
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    themeSnapshot,
+    () => "light" as const,
+  );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem("simula-theme", theme);
-    } catch {}
   }, [theme]);
-
+  function setTheme(value: "light" | "dark") {
+    localStorage.setItem("simula-theme", value);
+    window.dispatchEvent(new Event("simula-theme-change"));
+  }
   return [theme, setTheme] as const;
 }
 
@@ -46,21 +50,26 @@ export default function RightPanel() {
       <aside className="sticky top-0 flex h-screen flex-col gap-3.5 py-6 pl-2 pr-6 max-[1100px]:hidden">
         {/* Bar atas */}
         <div className="flex h-9 items-center justify-between px-1">
-          <div className="flex h-5 w-7 flex-col overflow-hidden rounded-[3px] border border-line" aria-label="Bahasa Indonesia">
+          <div
+            className="flex h-5 w-7 flex-col overflow-hidden rounded-[3px] border border-line"
+            aria-label="Bahasa Indonesia"
+          >
             <span className="flex-1 bg-[#e53935]" />
             <span className="flex-1 bg-white" />
           </div>
 
-          <div className="flex items-center gap-1.5 font-heading text-[17px] font-black" aria-label="Nyawa tersisa 5">
-            <HeartIcon size={26} />5
-          </div>
-
-          <div className="flex gap-0.5 rounded-full bg-line p-[3px]" role="group" aria-label="Tema">
+          <div
+            className="flex gap-0.5 rounded-full bg-line p-[3px]"
+            role="group"
+            aria-label="Tema"
+          >
             <button
               onClick={() => setTheme("light")}
               aria-label="Mode terang"
               className={`${toggleBtn} ${
-                theme === "light" ? "bg-surface text-ink shadow-[0_1px_4px_rgba(0,0,0,0.18)]" : "text-muted"
+                theme === "light"
+                  ? "bg-surface text-ink shadow-[0_1px_4px_rgba(0,0,0,0.18)]"
+                  : "text-muted"
               }`}
             >
               <SunIcon />
@@ -69,7 +78,9 @@ export default function RightPanel() {
               onClick={() => setTheme("dark")}
               aria-label="Mode gelap"
               className={`${toggleBtn} ${
-                theme === "dark" ? "bg-surface text-ink shadow-[0_1px_4px_rgba(0,0,0,0.18)]" : "text-muted"
+                theme === "dark"
+                  ? "bg-surface text-ink shadow-[0_1px_4px_rgba(0,0,0,0.18)]"
+                  : "text-muted"
               }`}
             >
               <MoonIcon />
