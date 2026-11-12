@@ -1,31 +1,46 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const body = Nunito({
   subsets: ["latin"],
+  weight: ["400", "600", "700", "800", "900"],
+  variable: "--font-body",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const display = Baloo_2({
   subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-display",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "SIMULA - Asisten Edukasi PMR & PMI",
-  description: "Platform Asisten Belajar RAG Kepalangmerahan Palang Merah Remaja (PMR Mula) & PMI",
+  title: "Simula - Pembelajaran",
+  description: "Belajar pertolongan pertama dengan cara yang menyenangkan",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Shrink the layout (not overlay it) when the mobile keyboard opens, so the input stays visible
+  interactiveWidget: "resizes-content",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#020618" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="light"
+      className={`${body.variable} ${display.variable}`}
+      suppressHydrationWarning
     >
-      <body className="h-full w-full m-0 p-0 bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-100 antialiased">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
