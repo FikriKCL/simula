@@ -7,6 +7,21 @@ import Link from "next/link";
 import { api, type Material } from "@/lib/api";
 import ApiState, { useApiData } from "@/components/ApiState";
 import Markdown from "@/components/chat/Markdown";
+import Sidebar from "@/components/Sidebar";
+import RightPanel from "@/components/RightPanel";
+
+const panel = "rounded-[22px] border-2 border-line bg-surface shadow-pop";
+const btnPrimary =
+  "cursor-pointer rounded-[14px] bg-brand px-6 py-3 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none";
+const btnGhost =
+  "inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-brand px-4 py-1.5 font-heading text-sm font-extrabold text-brand no-underline transition-colors hover:bg-brand-soft";
+const kindLabel: Record<string, string> = {
+  VIDEO: "Video",
+  COMIC: "Komik",
+  PDF: "Dokumen",
+  ARTICLE: "Artikel",
+};
+
 function embed(material: Material) {
   if (
     material.video_provider === "youtube" &&
@@ -45,11 +60,13 @@ function embed(material: Material) {
   } catch {}
   return null;
 }
+
 export default function MaterialPage() {
   const { id } = useParams<{ id: string }>();
   const source = useApiData<Material>(`/materials/${id}`);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+
   useEffect(() => {
     let active = true;
     api(`/materials/${id}/open`, { method: "POST" }).catch((e) => {
@@ -59,7 +76,9 @@ export default function MaterialPage() {
       active = false;
     };
   }, [id]);
+
   const m = source.data;
+
   async function complete() {
     setBusy(true);
     setMessage("");
@@ -73,80 +92,129 @@ export default function MaterialPage() {
       setBusy(false);
     }
   }
+
   const video = m ? embed(m) : null;
+
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-6 py-10">
-      <Link className="text-brand underline" href="/materi">
-        ← Katalog materi
-      </Link>
-      <ApiState
-        loading={source.loading}
-        error={source.error}
-        retry={source.reload}
-      />
-      {m && (
-        <>
-          <h1 className="text-3xl font-bold">{m.title}</h1>
-          {m.kind === "VIDEO" &&
-            (video ? (
-              <iframe
-                className="aspect-video w-full rounded-2xl border-0"
-                src={video}
-                title={m.title}
-                allow="fullscreen; picture-in-picture"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            ) : (
-              <p>Video belum tersedia dari provider yang didukung.</p>
-            ))}
-          {m.kind === "COMIC" && (
-            <div className="space-y-6">
-              {m.pages.map((page, i) => (
-                <figure key={i}>
-                  <img
-                    className="h-auto w-full rounded-2xl"
-                    src={page.image_url}
-                    alt={page.alt}
-                    loading="lazy"
-                  />
-                  <figcaption className="mt-2">
-                    {i + 1}. {page.text}
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
+    <div className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)_320px] max-[1100px]:grid-cols-[200px_minmax(0,1fr)] max-[720px]:grid-cols-1">
+      <Sidebar active="materi" />
+
+      <main className="relative overflow-hidden pb-30 pt-6">
+        <div className="mx-auto flex w-[min(800px,calc(100%-48px))] flex-col gap-4">
+          <Link href="/materi" className={`${btnGhost} self-start`}>
+            ← Katalog materi
+          </Link>
+
+          <ApiState
+            loading={source.loading}
+            error={source.error}
+            retry={source.reload}
+          />
+
+          {m && (
+            <>
+              {/* Banner judul */}
+              <div className="rounded-[20px] bg-sky px-[26px] py-[18px] text-[#1c2b3d] shadow-[0_5px_0_var(--blue-edge)] dark:text-white">
+                <span className="inline-block rounded-full bg-white/70 px-3 py-0.5 font-heading text-xs font-extrabold text-[#1c2b3d]">
+                  {kindLabel[m.kind] ?? m.kind}
+                </span>
+                <h1 className="mt-2 font-heading text-[26px] font-extrabold leading-tight">
+                  {m.title}
+                </h1>
+              </div>
+
+              {/* Video */}
+              {m.kind === "VIDEO" &&
+                (video ? (
+                  <div className={`${panel} overflow-hidden p-2`}>
+                    <iframe
+                      className="aspect-video w-full rounded-[16px] border-0"
+                      src={video}
+                      title={m.title}
+                      allow="fullscreen; picture-in-picture"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                    />
+                  </div>
+                ) : (
+                  <p className={`${panel} p-5 text-sm font-bold text-muted`}>
+                    Video belum tersedia dari provider yang didukung.
+                  </p>
+                ))}
+
+              {/* Komik */}
+              {m.kind === "COMIC" && (
+                <div className="flex flex-col gap-4">
+                  {m.pages.map((page, i) => (
+                    <figure key={i} className={`${panel} overflow-hidden p-2`}>
+                      <img
+                        className="h-auto w-full rounded-[16px]"
+                        src={page.image_url}
+                        alt={page.alt}
+                        loading="lazy"
+                      />
+                      <figcaption className="flex gap-3 px-3 pb-2 pt-3 text-[15px] font-semibold">
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-soft font-heading text-xs font-extrabold text-brand">
+                          {i + 1}
+                        </span>
+                        {page.text}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              )}
+
+              {/* Isi materi */}
+              <section className={`${panel} p-6`}>
+                <Markdown text={m.body} />
+              </section>
+
+              {m.kind === "PDF" && m.url && /^https?:\/\//.test(m.url) && (
+                <a
+                  href={m.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${btnGhost} self-start`}
+                >
+                  Buka dokumen lama
+                </a>
+              )}
+
+              {/* Aksi */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  disabled={busy || m.completed}
+                  onClick={complete}
+                  className={btnPrimary}
+                >
+                  {m.completed
+                    ? "Sudah selesai ✓"
+                    : busy
+                      ? "Menyimpan…"
+                      : "Tandai selesai"}
+                </button>
+                <Link
+                  href={m.module_id ? `/belajar/${m.module_id}` : "/dashboard"}
+                  className={btnGhost}
+                >
+                  Kembali ke modul
+                </Link>
+              </div>
+            </>
           )}
-          <section className="rounded-2xl border-2 border-line bg-surface p-6">
-            <Markdown text={m.body} />
-          </section>
-          {m.kind === "PDF" && m.url && /^https?:\/\//.test(m.url) && (
-            <a href={m.url} target="_blank" rel="noopener noreferrer">
-              Buka dokumen lama
-            </a>
-          )}
-          <button
-            disabled={busy || m.completed}
-            onClick={complete}
-            className="rounded-xl bg-brand px-6 py-3 font-bold text-white disabled:opacity-60"
-          >
-            {m.completed
-              ? "Sudah selesai"
-              : busy
-                ? "Menyimpan…"
-                : "Tandai selesai"}
-          </button>
-          <p>
-            <Link
-              className="text-brand underline"
-              href={m.module_id ? `/belajar/${m.module_id}` : "/dashboard"}
+
+          {message && (
+            <p
+              role="status"
+              className="rounded-[14px] bg-sky-soft px-3.5 py-2.5 text-sm font-bold text-ink"
             >
-              Kembali ke modul
-            </Link>
-          </p>
-        </>
-      )}
-      {message && <p role="status">{message}</p>}
-    </main>
+              {message}
+            </p>
+          )}
+        </div>
+      </main>
+
+      <RightPanel />
+    </div>
   );
 }
