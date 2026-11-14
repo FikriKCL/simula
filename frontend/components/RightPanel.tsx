@@ -6,11 +6,7 @@ import ChatWindow from "./ChatWindow";
 import { MoonIcon, SunIcon } from "./Icons";
 import { PikoAvatar } from "./PikoAvatar";
 import { PikoMascot } from "./PikoMascot";
-import type { Msg } from "../lib/chat";
 
-const demoMessages: Msg[] = [
-  { from: "bot", text: "Halo! Buka halaman Dokter Piko untuk mulai bertanya." },
-];
 function subscribeTheme(callback: () => void) {
   window.addEventListener("storage", callback);
   window.addEventListener("simula-theme-change", callback);
@@ -103,7 +99,6 @@ export default function RightPanel() {
         {/* Chat dengan animasi pop in / pop out */}
         {mounted && (
           <ChatWindow
-            initialMessages={demoMessages}
             onClose={() => setOpen(false)}
             className={`motion-reduce:[animation-duration:0.01ms] ${
               open ? "animate-pop-in" : "pointer-events-none animate-pop-out"
