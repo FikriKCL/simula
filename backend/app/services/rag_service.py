@@ -560,27 +560,161 @@ def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | Non
     return expanded
 
 
-def _section_to_question(sec_title: str, doc_title: str) -> str | None:
-    """Converts a clean knowledge base section_title into a natural follow-up question (0 tokens)."""
+# Section titles that are not a topic a student would ask about: course admin, facilitator
+# activities and games, worksheets, or titles cut off by the PDF extraction.
+_SECTION_SKIP = (
+    "materi pokok", "materi umum", "daftar isi", "kata pengantar", "pendahuluan", "penutup", "evaluasi",
+    "lampiran", "kompetensi", "tujuan pembelajaran", "tujuan belajar", "pokok bahasan", "proses pembelajaran",
+    "kurikulum", "formulir", "penugasan", "diskusi", "kuis", "tebak", "permainan", "peta ", "proyek",
+    "kampanye", "ilustrasi", "gambar", "ya atau tidak", "kunci materi", "persiapan pelatihan", "refleksi",
+    "rangkuman", "lembar", "simulasi", "wisata", "disko", "aksi ", "kegiatan", "pleno", "fasilitator",
+    "peserta", "sesi ", "selanjutnya", "ingat", "penting", "catatan", "tanam pohon", "lain", "dll",
+    "bermain", "drama", "album", "mading", "majalah", "kliping", "brosur", "buletin", "komik", "artikel",
+    "bingo", "kartu", "slogan", "panggung", "patung", "kop surat", "jadwal", "bahan bacaan", "kerangka acuan",
+    "daftar", "nonton", "ngobrol", "kunjungan", "tanya jawab", "pengajuan", "manual", "panduan", "modul",
+    "tabel", "sumber bacaan", "sumber belajar", "menggambar", "menjelajah", "lebih suka", "kasus",
+)
+_PRONOUNS = {"aku", "kamu", "kita", "kami", "saya", "anda"}
+# Short words that legitimately end a title; any other word of 1-3 letters there means it was cut off
+_SHORT_TAIL_OK = {"api", "air", "hiv", "tbc", "pmr", "pmi", "apd", "ims", "abc", "itu"}
+# Kept in capitals when an ALL-CAPS title is turned into a sentence
+_ACRONYMS = {
+    "PMR", "PMI", "APD", "AIDS", "HIV", "IMS", "TBC", "NAPZA", "NARKOBA", "P3K", "RJP", "WASH", "ASB",
+    "KSR", "TSR", "UKS", "DBD", "ISPA", "PHBS", "CTPS", "BAB", "SD", "SMP", "SMA",
+}
+_PROPER_WORDS = {"palang", "merah", "bulan", "sabit", "henry", "dunant", "indonesia", "jenewa", "solferino"}
+# Words that look like me- verbs but are nouns/adjectives ("Menstruasi Pertama" is not "cara ...")
+_ME_NOUNS = {"menstruasi", "mental", "merah", "mereka", "menit", "menteri", "merek"}
+# A title ending in one of these was cut off mid-sentence by the PDF extraction
+_DANGLING_WORDS = {
+    "dan", "yang", "untuk", "di", "ke", "dari", "dengan", "atau", "pada", "dalam", "serta", "agar", "ber",
+    "bila", "jika", "apabila", "karena", "bahwa",
+}
+# Ordinary words that happen to end in -lah (not the imperative suffix)
+_LAH_WORDS = {"setelah", "sekolah", "masalah", "jumlah", "telah", "adalah", "salah", "olah", "sebelah", "kelah", "lelah", "wilayah"}
+_IMPERATIVE_WORDS = {"jangan", "lakukan", "ayo", "yuk", "mari", "lingkari", "pilih", "tulis", "buat", "cari", "jadi"}
+_QUESTION_WORDS = ("apa", "apakah", "bagaimana", "bagaimanakah", "mengapa", "kenapa", "siapa", "kapan", "dimana", "di mana")
+_LIST_WORDS = (
+    "syarat", "gejala", "tanda", "ciri", "faktor", "jenis", "macam", "manfaat", "fungsi", "prinsip",
+    "hak", "kewajiban", "contoh", "alat", "peralatan", "bahaya", "risiko", "sumber",
+)
+
+
+def _sentence_case(text: str) -> str:
+    """'TENTANG RONGGA' / 'Tentang pembalut Luka' -> 'tentang rongga' / 'tentang pembalut luka' (acronyms and names kept)."""
+    words = []
+    for word in text.split():
+        bare = re.sub(r"[^\w]", "", word)
+        if bare.upper() in _ACRONYMS or any(part in _ACRONYMS for part in bare.upper().split("_")):
+            words.append(word.upper())
+        elif bare.lower() in _PROPER_WORDS:
+            words.append(word[:1].upper() + word[1:].lower())
+        else:
+            words.append(word.lower())
+    return " ".join(words)
+
+
+def _defines(phrase: str, content: str) -> bool:
+    """True when the section text explains the phrase ("Abrasi adalah ...", "pengertian abrasi")."""
+    p = re.escape(phrase.lower())
+    text = content.lower()
+    return bool(
+        re.search(rf"\b{p}\b[^.\n]{{0,25}}\b(?:adalah|merupakan|ialah|yaitu|yakni|disebut)\b", text)
+        or re.search(rf"\b(?:pengertian|definisi|arti|yang dimaksud dengan)\s+{p}\b", text)
+    )
+
+
+def _section_to_question(sec_title: str, doc_title: str = "", content: str | None = None) -> str | None:
+    """Turns a knowledge base section_title into a short, natural follow-up question (0 tokens).
+
+    Returns None for titles that would make an awkward or meaningless suggestion (activity names,
+    imperatives, titles cut off by the PDF extraction); the caller then uses curated questions.
+    A plain topic title ("Abrasi") only becomes "Apa itu abrasi?" when `content`, the section's
+    own text, actually defines it, so the suggestion is one the chatbot can answer.
+    """
     if not sec_title:
         return None
-    clean = re.sub(r"\s*\(Hal\.\s*[\d\-]+\)", "", sec_title, flags=re.IGNORECASE).strip(" :-•*")
-    clean = re.sub(r"^(?:BAB\s+[IVXLCDM\d]+|MODUL\s+\d+|[A-Z]\.|[0-9]+\.)\s*", "", clean, flags=re.IGNORECASE).strip()
-    if len(clean) < 6 or len(clean) > 58:
-        return None
+    clean = re.sub(r"\(Hal\.[^)]*\)", "", sec_title, flags=re.IGNORECASE)
+    clean = clean.split(" s.d. ")[0]  # merged chunks: "A s.d. B" -> "A"
+    clean = re.sub(r"Palang Merah Remaja", "PMR", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"Palang Merah Indonesia", "PMI", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\([^)]*\)|[\"“”'‘’]", "", clean)  # "(PMI)", "(Gambar a - f)", quotes
+    # Leading numbering: "1.4.", "H.", "IV.", "BAB II", "MODUL 3", "TOPIK 3:"
+    clean = re.sub(
+        r"^(?:(?:BAB|MODUL|TOPIK|SESI)\s+[IVXLCDM\d]+\s*[:.]?|[IVXLCDM]+\.|[A-Z]\.|\d+(?:\.\d+)*\.?)\s*",
+        "", clean.strip(), flags=re.IGNORECASE,
+    )
+    clean = re.sub(r"\.{2,}|…", "", clean)
+    clean = re.sub(r"\s+", " ", clean).strip(" :-•*!,")
+    is_question = clean.endswith("?")
+    clean = clean.rstrip("?").strip()
+    # "Jenis patah tulang juga perlu kita ketahui" -> "Jenis patah tulang"; "... PMR Wira" -> "..."
+    clean = re.sub(r"\s+(?:juga\s+)?perlu\s+(?:kita\s+)?(?:di)?ketahui$", "", clean, flags=re.IGNORECASE)
+    if len(clean.split()) > 2:
+        clean = re.sub(r"\s+PMR(?:\s+(?:Mula|Madya|Wira))?$", "", clean, flags=re.IGNORECASE)
+
     low = clean.lower()
-    if any(skip in low for skip in ("materi pokok", "materi umum", "daftar isi", "kata pengantar", "pendahuluan", "penutup", "evaluasi", "lampiran", "kompetensi", "tujuan pembelajaran", "pokok bahasan")):
+    words = low.split()
+    if not words or len(clean) < 4 or len(words) > 8 or re.search(r"\bhal\b|\d|[&/]", low):
         return None
-    if clean.endswith("?"):
-        return clean
-    if low.startswith(("apa ", "apakah ", "bagaimana ", "mengapa ", "kenapa ", "siapa ", "kapan ")):
-        return f"{clean}?"
-    if low.startswith(("langkah", "cara", "prosedur", "teknik", "penanganan", "pertolongan")):
-        return f"Bagaimana {clean[0].lower() + clean[1:]}?"
-    if low.startswith(("syarat", "gejala", "tanda", "ciri", "faktor", "jenis", "macam", "manfaat", "tujuan", "fungsi", "prinsip", "hak", "kewajiban")):
-        return f"Apa saja {clean[0].lower() + clean[1:]}?"
-    short_doc = doc_title.split("(")[0].replace("Buku Panduan", "").replace("Panduan Fasilitator PMR:", "").strip()
-    return f"Bagaimana penjelasan tentang {clean} pada {short_doc}?"
+    if any(re.search(rf"\b{re.escape(skip.strip())}\b", low) for skip in _SECTION_SKIP):
+        return None
+    # Cut-off titles ("Advokasi &", "Pelajar yang", "Jejaring dan") and imperatives ("Ketahuilah ...")
+    is_imperative = words[0].endswith("lah") and words[0] not in _LAH_WORDS  # "Kenalilah", "Ketahuilah"
+    if words[-1] in _DANGLING_WORDS or is_imperative or words[0] in _IMPERATIVE_WORDS:
+        return None
+    if len(words) > 1 and len(words[-1]) <= 3 and words[-1] not in _SHORT_TAIL_OK:
+        return None  # "... remaja se", "... infeksi me"
+    if words[-1].startswith("me") and len(words[-1]) <= 4:
+        return None  # "... agar tidak meng"
+    if len(words) > 2 and re.match(r"^me(?:m|n|ng|ny)?\w+(?:kan|i)$", words[-1]):
+        return None  # a transitive verb with its object cut off: "... dalam mengembangkan"
+    if len(words) > 2 and words[-2] in ("dapat", "bisa", "akan") and words[-1].startswith("me"):
+        return None  # "... kehamilan dini dapat mendorong"
+    if any(w.endswith("nya") for w in words) or (_PRONOUNS & set(words) and len(words) < 6):
+        return None  # only meaningful next to its page: "Apa yang bisa kamu lakukan", "... lakukannya"
+    for prefix in ("tentang ", "mengenai ", "beberapa ", "lebih tahu tentang "):
+        if low.startswith(prefix) and len(low) > len(prefix):
+            clean = clean[len(prefix):]
+            low = clean.lower()
+            words = low.split()
+
+    phrase = _sentence_case(clean)
+    first = words[0].split("-")[0]  # "jenis-jenis" -> "jenis"
+
+    if is_question or words[0] in _QUESTION_WORDS:
+        # Questions that only make sense next to their page ("Apakah dampaknya ...", "... tersebut?")
+        if words[0] not in _QUESTION_WORDS or "tersebut" in words or len(words) < 3:
+            return None
+        question = phrase
+    elif words[0] in ("cara", "langkah", "langkah-langkah", "prosedur", "teknik", "penanganan", "pertolongan", "pencegahan"):
+        if words[0] == "pertolongan" and len(words) < 3:
+            return None  # "Bagaimana pertolongan pertama?" says nothing
+        question = f"Bagaimana {phrase}"
+    elif words[0] in ("jika", "bila", "apabila") and len(words) > 1:
+        question = f"Apa yang harus dilakukan {phrase}"
+    elif (
+        len(words) > 1
+        and re.match(r"^(?:mem|men|meng|meny|mel|mer)[a-z]{3,}$", words[0])
+        and words[0] not in _ME_NOUNS
+    ):
+        # "Mengatasi Konflik" -> "Bagaimana cara mengatasi konflik"
+        question = f"Bagaimana cara {phrase}"
+    elif words[0] in ("sebelum", "saat", "ketika", "setelah", "sesudah", "selama"):
+        question = f"Apa yang harus dilakukan {phrase}"
+    elif words[0] == "kesiapsiagaan" and len(words) > 1:
+        question = f"Bagaimana kesiapsiagaan menghadapi {phrase.split(' ', 1)[1]}"
+    elif words[0] in ("akibat", "dampak", "penyebab", "pengertian", "definisi") and len(words) > 1:
+        question = f"Apa {phrase}"
+    elif first in _LIST_WORDS and len(words) > 1:
+        question = f"Apa saja {phrase}"
+    elif len(words) <= 4 and content and _defines(clean, content):
+        question = f"Apa itu {phrase}"
+    else:
+        return None
+
+    question = question[0].upper() + question[1:] + "?"
+    return question if len(question) <= 70 else None
 
 
 def generate_followup_suggestions(
@@ -615,7 +749,7 @@ def generate_followup_suggestions(
             if 0 <= neighbor_idx < len(kb):
                 nb = kb[neighbor_idx]
                 if nb.get("doc_title") == top_doc and nb.get("section_title") != top_sec:
-                    dyn_q = _section_to_question(nb.get("section_title", ""), top_doc)
+                    dyn_q = _section_to_question(nb.get("section_title", ""), top_doc, nb.get("content", ""))
                     if dyn_q and dyn_q.lower() not in asked_lower:
                         dyn_words = set(tokenize_id(dyn_q))
                         overlap = len(q_words & dyn_words) / max(len(dyn_words), 1)

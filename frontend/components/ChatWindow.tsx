@@ -27,6 +27,8 @@ type Props = {
 const defaultGreeting = "Halo! Ada yang ingin kamu tanyakan tentang P3K?";
 const defaultSuggestions = ["Cara pakai plester", "Perban?"];
 const MAX_CHIPS = 2;
+// Kegagalan yang berarti server asisten tidak bisa dijangkau (bukan sekadar pertanyaan ditolak)
+const OFFLINE_MODES = new Set(["network_error", "connection_error", "backend_offline"]);
 
 const headerBtn =
   "grid size-[30px] shrink-0 cursor-pointer place-items-center rounded-full bg-white/25 font-black text-white";
@@ -56,6 +58,8 @@ export default function ChatWindow({
   const [chips, setChips] = useState<string[]>(suggestions);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // Status di header mengikuti hasil permintaan terakhir ke backend
+  const [offline, setOffline] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -102,15 +106,18 @@ export default function ChatWindow({
           onDelta: (delta) => patchBot((prev) => ({ content: prev.content + delta })),
         },
       );
+      setOffline(false);
       patchBot((prev) => ({
         status: "done",
         content: prev.content || "Hmm, aku belum punya jawabannya. Coba tanya dengan kata lain ya!",
       }));
     } catch (error) {
       if (controller.signal.aborted) return;
+      const mode = error instanceof ChatRequestError ? error.mode : "network_error";
+      setOffline(OFFLINE_MODES.has(mode));
       patchBot(() => ({
         status: "error",
-        mode: error instanceof ChatRequestError ? error.mode : "network_error",
+        mode,
         content:
           error instanceof ChatRequestError
             ? error.message
@@ -139,8 +146,10 @@ export default function ChatWindow({
         <div className="min-w-0 flex-1">
           <strong className="block font-heading text-[15px] font-black">Tanya Dokter Piko</strong>
           <small className="flex items-center gap-[5px] text-[11px] font-bold opacity-95">
-            <span className="inline-block size-[7px] rounded-full bg-[#ffb300]" />
-            {loading ? "Sedang mengetik…" : "Online, siap membantu"}
+            <span
+              className={`inline-block size-[7px] rounded-full ${offline ? "bg-white/60" : "bg-[#ffb300]"}`}
+            />
+            {loading ? "Sedang mengetik…" : offline ? "Sedang offline, coba lagi nanti" : "Online, siap membantu"}
           </small>
         </div>
         {backHref ? (
