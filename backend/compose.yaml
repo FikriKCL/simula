@@ -5,6 +5,7 @@ services:
       POSTGRES_USER: simula
       POSTGRES_PASSWORD: simula_dev_password
       POSTGRES_DB: simula
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     ports:
       - "127.0.0.1:5433:5432"
     volumes:

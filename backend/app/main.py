@@ -1,3 +1,5 @@
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 import logging
 from contextlib import asynccontextmanager
 from uuid import uuid4
@@ -79,3 +81,5 @@ async def unexpected(request, exc):
         status_code=500,
         content={"detail": "Terjadi kesalahan internal", "reference": reference},
     )
+
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")

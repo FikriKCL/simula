@@ -58,14 +58,15 @@ def path(user=Depends(current_user), db=Depends(get_db)):
 @router.get("/materials", tags=["Materials"], response_model=MaterialCatalogue)
 def catalogue(
     q: str = Query("", max_length=200),
-    kind: Literal["PDF", "VIDEO", "COMIC"] | None = None,
+    kind: Literal["ARTICLE", "PDF", "VIDEO", "COMIC"] | None = None,
     topic_id: int | None = Query(None, gt=0),
+    module_id: int | None = Query(None, gt=0),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     user=Depends(current_user),
     db=Depends(get_db),
 ):
-    return content.library(q, kind, topic_id, limit, offset, user, db)
+    return content.library(q, kind, topic_id, limit, offset, user, db, module_id)
 
 
 @router.get("/materials/{aid}", response_model=MaterialOut, tags=["Materials"])

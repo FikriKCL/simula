@@ -1513,6 +1513,84 @@
         }
       }
     },
+    "/api/v1/chat/test": {
+      "post": {
+        "tags": [
+          "Chatbot"
+        ],
+        "summary": "Test Chat",
+        "operationId": "test_chat_api_v1_chat_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/test/stream": {
+      "post": {
+        "tags": [
+          "Chatbot"
+        ],
+        "summary": "Test Chat Stream",
+        "operationId": "test_chat_stream_api_v1_chat_test_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ui/config": {
       "get": {
         "tags": [
@@ -1676,6 +1754,7 @@
               "anyOf": [
                 {
                   "enum": [
+                    "ARTICLE",
                     "PDF",
                     "VIDEO",
                     "COMIC"
@@ -1704,6 +1783,23 @@
                 }
               ],
               "title": "Topic Id"
+            }
+          },
+          {
+            "name": "module_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Id"
             }
           },
           {
@@ -2801,13 +2897,45 @@
         ],
         "title": "CertificateOut"
       },
+      "ChatHistoryItem": {
+        "properties": {
+          "sender": {
+            "type": "string",
+            "enum": [
+              "user",
+              "bot",
+              "assistant"
+            ],
+            "title": "Sender"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sender",
+          "text"
+        ],
+        "title": "ChatHistoryItem"
+      },
       "ChatInput": {
         "properties": {
           "message": {
             "type": "string",
             "maxLength": 2000,
-            "minLength": 2,
+            "minLength": 1,
             "title": "Message"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ChatHistoryItem"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "History"
           }
         },
         "type": "object",
@@ -2849,6 +2977,18 @@
           "mode": {
             "type": "string",
             "title": "Mode"
+          },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "is_emergency": {
+            "type": "boolean",
+            "title": "Is Emergency",
+            "default": false
           }
         },
         "type": "object",
@@ -3222,6 +3362,17 @@
       },
       "MaterialCard": {
         "properties": {
+          "thumbnail_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Key"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -3249,6 +3400,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "ARTICLE",
               "PDF",
               "VIDEO",
               "COMIC"
@@ -3361,6 +3513,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "ARTICLE",
               "PDF",
               "VIDEO",
               "COMIC"
@@ -3395,9 +3548,54 @@
             ],
             "title": "Thumbnail Url"
           },
+          "thumbnail_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "plaster",
+                  "kit",
+                  "hand",
+                  "heart",
+                  "roll"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Key"
+          },
+          "video_provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "youtube",
+                  "vimeo"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Provider"
+          },
+          "video_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Id"
+          },
           "body": {
             "type": "string",
-            "maxLength": 50000,
+            "maxLength": 1000000,
             "minLength": 10,
             "title": "Body",
             "description": "Teks/transkrip materi untuk pencarian katalog"
@@ -3456,6 +3654,17 @@
       },
       "MaterialOut": {
         "properties": {
+          "module_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Id"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -3493,6 +3702,39 @@
               }
             ],
             "title": "Thumbnail Url"
+          },
+          "thumbnail_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Key"
+          },
+          "video_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Provider"
+          },
+          "video_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Id"
           },
           "body": {
             "type": "string",
@@ -4523,24 +4765,73 @@
       "SourceOut": {
         "properties": {
           "lesson_id": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Lesson Id"
           },
           "module_id": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Module Id"
           },
           "title": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Title"
+          },
+          "doc_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Title"
+          },
+          "section_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Title"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity"
           }
         },
         "type": "object",
-        "required": [
-          "lesson_id",
-          "module_id",
-          "title"
-        ],
         "title": "SourceOut"
       },
       "StaffCreate": {
