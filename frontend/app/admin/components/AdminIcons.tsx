@@ -1,21 +1,38 @@
 import React from "react";
 
-export function SimulaLogo({ className = "" }: { className?: string }) {
+export function SimulaLogo({
+  compact = false,
+  className = "",
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
   return (
-    <div className={`inline-flex items-center gap-2 select-none ${className}`}>
-      {/* Ikon Palang Merah dengan ujung membulat */}
+    <div
+      className={`inline-flex items-center select-none ${
+        compact ? "gap-1.5" : "gap-2.5"
+      } ${className}`}
+    >
+      {/* Palang Merah dengan ujung membulat & titik putih di tengah */}
       <svg
-        width="28"
-        height="28"
+        width={compact ? "22" : "30"}
+        height={compact ? "22" : "30"}
         viewBox="0 0 32 32"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="shrink-0"
       >
-        <rect x="11.5" y="3" width="9" height="26" rx="4.5" fill="#E1252B" />
-        <rect x="3" y="11.5" width="26" height="9" rx="4.5" fill="#E1252B" />
+        <rect x="11" y="2.5" width="10" height="27" rx="5" fill="#E5252A" />
+        <rect x="2.5" y="11" width="27" height="10" rx="5" fill="#E5252A" />
+        <circle cx="16" cy="16" r="3.1" fill="#FFFFFF" />
       </svg>
-      <span className="text-[24px] font-black tracking-tight text-[#E1252B] leading-none">
+
+      {/* Teks simula */}
+      <span
+        className={`font-black tracking-tight text-[#E5252A] leading-none ${
+          compact ? "text-[20px]" : "text-[27px]"
+        }`}
+      >
         simula
       </span>
     </div>
@@ -25,10 +42,10 @@ export function SimulaLogo({ className = "" }: { className?: string }) {
 export function IndonesiaFlagIcon() {
   return (
     <div
-      className="w-6 h-4 rounded-[3px] overflow-hidden border border-slate-200 shadow-2xs shrink-0 flex flex-col"
+      className="w-[24px] h-[16px] rounded-[4px] overflow-hidden border border-[#E2E8F0] shrink-0 flex flex-col"
       title="Bahasa Indonesia"
     >
-      <div className="h-1/2 w-full bg-[#E1252B]" />
+      <div className="h-1/2 w-full bg-[#E5252A]" />
       <div className="h-1/2 w-full bg-white" />
     </div>
   );
@@ -69,31 +86,138 @@ export function MoonIcon({ className = "w-3.5 h-3.5" }: { className?: string }) 
 export function DashboardNavIcon({ active }: { active?: boolean }) {
   return (
     <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
+      width="30"
+      height="30"
+      viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0"
     >
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="13"
-        rx="2"
-        fill={active ? "#FEE2E2" : "#F1F5F9"}
+      {/* Kaki & Penyangga Monitor */}
+      <path
+        d="M13.5 23.5H18.5L19.5 27.5H12.5L13.5 23.5Z"
+        fill="#A199AA"
         stroke="#1E293B"
-        strokeWidth="1.6"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <rect
+        x="10.5"
+        y="27"
+        width="11"
+        height="1.8"
+        rx="0.9"
+        fill="#8E8598"
+        stroke="#1E293B"
+        strokeWidth="1.2"
+      />
+
+      {/* Bezel Luar Monitor */}
+      <rect
+        x="3.5"
+        y="5"
+        width="25"
+        height="18.5"
+        rx="2.2"
+        fill="#B8B0C0"
+        stroke="#1E293B"
+        strokeWidth="1.5"
+      />
+      {/* Layar Dalam */}
+      <rect
+        x="5"
+        y="6.5"
+        width="22"
+        height="14.5"
+        rx="1"
+        fill={active ? "#FFFFFF" : "#F8FAFC"}
+        stroke="#1E293B"
+        strokeWidth="1"
+      />
+
+      {/* Pie Chart Kiri Atas */}
+      <circle
+        cx="10.2"
+        cy="11.2"
+        r="3.2"
+        fill="#38A3F5"
+        stroke="#1E293B"
+        strokeWidth="1"
       />
       <path
-        d="M8 20H16M12 17V20"
+        d="M10.2 11.2V8A3.2 3.2 0 0 1 13.4 11.2H10.2Z"
+        fill="#EF4444"
         stroke="#1E293B"
-        strokeWidth="1.6"
+        strokeWidth="0.9"
+        strokeLinejoin="round"
+      />
+
+      {/* Garis Data Kiri Bawah */}
+      <line
+        x1="7"
+        y1="16.5"
+        x2="13.5"
+        y2="16.5"
+        stroke="#475569"
+        strokeWidth="1.2"
         strokeLinecap="round"
       />
-      <rect x="6.5" y="10" width="2.2" height="4" rx="0.5" fill="#38A3F5" />
-      <rect x="10.2" y="8" width="2.2" height="6" rx="0.5" fill="#22C55E" />
-      <rect x="13.9" y="9" width="2.2" height="5" rx="0.5" fill="#F59E0B" />
+      <line
+        x1="7"
+        y1="18.6"
+        x2="12"
+        y2="18.6"
+        stroke="#475569"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+
+      {/* Panah Tren Naik */}
+      <path
+        d="M16.5 12.2L22.5 8.5M22.5 8.5H20M22.5 8.5V10.8"
+        stroke="#1E293B"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* 4 Batang Grafik Warna (Merah, Kuning, Hijau, Biru) */}
+      <rect
+        x="16.2"
+        y="15.5"
+        width="2"
+        height="4"
+        fill="#EF4444"
+        stroke="#1E293B"
+        strokeWidth="0.8"
+      />
+      <rect
+        x="18.6"
+        y="14.2"
+        width="2"
+        height="5.3"
+        fill="#FACC15"
+        stroke="#1E293B"
+        strokeWidth="0.8"
+      />
+      <rect
+        x="21"
+        y="12.8"
+        width="2"
+        height="6.7"
+        fill="#22C55E"
+        stroke="#1E293B"
+        strokeWidth="0.8"
+      />
+      <rect
+        x="23.4"
+        y="11.2"
+        width="2"
+        height="8.3"
+        fill="#3B82F6"
+        stroke="#1E293B"
+        strokeWidth="0.8"
+      />
     </svg>
   );
 }
@@ -101,36 +225,158 @@ export function DashboardNavIcon({ active }: { active?: boolean }) {
 export function PendaftaranNavIcon({ active }: { active?: boolean }) {
   return (
     <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
+      width="30"
+      height="30"
+      viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0"
     >
+      {/* Lembar Belakang (Miring ke kiri) */}
+      <g transform="rotate(-13 13 16)">
+        <rect
+          x="5.5"
+          y="5.5"
+          width="16"
+          height="21"
+          rx="1.8"
+          fill="#F1F5F9"
+          stroke="#1E293B"
+          strokeWidth="1.4"
+        />
+      </g>
+
+      {/* Lembar Utama Depan */}
       <rect
-        x="4"
-        y="3"
-        width="14"
-        height="18"
-        rx="2"
-        fill={active ? "#FEE2E2" : "#F8FAFC"}
-        stroke="#1E293B"
-        strokeWidth="1.6"
-      />
-      <circle cx="9" cy="8" r="1.8" fill="#F59E0B" />
-      <path
-        d="M7 13H15M7 16H12"
+        x="8.5"
+        y="4.5"
+        width="16.5"
+        height="21.5"
+        rx="1.8"
+        fill={active ? "#FFFFFF" : "#FFFFFF"}
         stroke="#1E293B"
         strokeWidth="1.5"
+      />
+
+      {/* Lingkaran Avatar Profil */}
+      <circle
+        cx="13.5"
+        cy="9.8"
+        r="2.8"
+        fill="#F8FAFC"
+        stroke="#1E293B"
+        strokeWidth="1.3"
+      />
+      <circle cx="13.5" cy="9" r="1" fill="#1E293B" />
+      <path
+        d="M11.7 11.7C12.1 10.9 14.9 10.9 15.3 11.7"
+        stroke="#1E293B"
+        strokeWidth="1.2"
         strokeLinecap="round"
       />
-      <path
-        d="M15.5 14.5L19.5 10.5L21.5 12.5L17.5 16.5L14.5 17.5L15.5 14.5Z"
-        fill="#38A3F5"
+
+      {/* Garis Teks Kanan Atas */}
+      <line
+        x1="18"
+        y1="8.3"
+        x2="22.5"
+        y2="8.3"
         stroke="#1E293B"
-        strokeWidth="1.4"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <line
+        x1="18"
+        y1="10.8"
+        x2="22.5"
+        y2="10.8"
+        stroke="#1E293B"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+
+      {/* Kotak Centang 1 */}
+      <rect
+        x="11"
+        y="15"
+        width="3.2"
+        height="3.2"
+        rx="0.6"
+        stroke="#1E293B"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M11.7 16.6L12.4 17.3L13.7 15.8"
+        stroke="#1E293B"
+        strokeWidth="1.2"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
+      <line
+        x1="16"
+        y1="16.6"
+        x2="20"
+        y2="16.6"
+        stroke="#1E293B"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+
+      {/* Kotak Centang 2 */}
+      <rect
+        x="11"
+        y="20"
+        width="3.2"
+        height="3.2"
+        rx="0.6"
+        stroke="#1E293B"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M11.7 21.6L12.4 22.3L13.7 20.8"
+        stroke="#1E293B"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line
+        x1="16"
+        y1="21.6"
+        x2="18.8"
+        y2="21.6"
+        stroke="#1E293B"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+
+      {/* Pensil Miring di Sudut Kanan Bawah */}
+      <g transform="rotate(32 24.5 17)">
+        <rect
+          x="23"
+          y="9.5"
+          width="3.2"
+          height="13.5"
+          rx="0.8"
+          fill="#FFFFFF"
+          stroke="#1E293B"
+          strokeWidth="1.4"
+        />
+        <line
+          x1="23"
+          y1="12"
+          x2="26.2"
+          y2="12"
+          stroke="#1E293B"
+          strokeWidth="1.2"
+        />
+        <path
+          d="M23 23L24.6 25.8L26.2 23H23Z"
+          fill="#1E293B"
+          stroke="#1E293B"
+          strokeWidth="1"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 }
@@ -138,31 +384,75 @@ export function PendaftaranNavIcon({ active }: { active?: boolean }) {
 export function MateriNavIcon({ active }: { active?: boolean }) {
   return (
     <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
+      width="30"
+      height="30"
+      viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0"
     >
+      {/* Buku Paling Bawah */}
       <path
-        d="M4 16.5L12 20L20 16.5"
+        d="M6.5 21.5L17.5 25L26.5 21"
         stroke="#1E293B"
-        strokeWidth="1.6"
+        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M4 12.5L12 16L20 12.5"
+        d="M6.5 18.5C5.2 18.5 5.2 21.5 6.5 21.5"
         stroke="#1E293B"
-        strokeWidth="1.6"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+
+      {/* Buku Tengah */}
+      <path
+        d="M6.5 18.2L17.5 21.7L26.5 17.7"
+        stroke="#1E293B"
+        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M12 4L4 7.5L12 11L20 7.5L12 4Z"
-        fill={active ? "#FCA5A5" : "#E2E8F0"}
+        d="M6.5 15.2C5.2 15.2 5.2 18.2 6.5 18.2"
         stroke="#1E293B"
-        strokeWidth="1.6"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+
+      {/* Buku Paling Atas */}
+      <path
+        d="M16.5 7.5L6.5 11.8L17.5 15.2L26.5 11.2L16.5 7.5Z"
+        fill={active ? "#FFFFFF" : "#F8FAFC"}
+        stroke="#1E293B"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.5 11.8C5.2 11.8 5.2 14.8 6.5 14.8L17.5 18.2L26.5 14.2"
+        stroke="#1E293B"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Garis Judul di Sampul Atas */}
+      <line
+        x1="15.2"
+        y1="10.6"
+        x2="19.5"
+        y2="12"
+        stroke="#1E293B"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+
+      {/* Pita Pembatas Buku Hitam pada Buku Tengah */}
+      <path
+        d="M9.2 15.8V20.5L10.4 19.6L11.6 20.5V16.5"
+        fill="#1E293B"
+        stroke="#1E293B"
+        strokeWidth="1"
         strokeLinejoin="round"
       />
     </svg>
@@ -172,45 +462,113 @@ export function MateriNavIcon({ active }: { active?: boolean }) {
 export function SoalNavIcon({ active }: { active?: boolean }) {
   return (
     <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
+      width="30"
+      height="30"
+      viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0"
     >
+      {/* Papan Clipboard */}
       <rect
-        x="5"
-        y="4"
-        width="14"
-        height="17"
-        rx="2"
-        fill={active ? "#FEE2E2" : "#F8FAFC"}
-        stroke="#1E293B"
-        strokeWidth="1.6"
+        x="7"
+        y="6.5"
+        width="18"
+        height="21"
+        rx="2.5"
+        fill={active ? "#FFFFFF" : "#F8FAFC"}
+        stroke="#27364F"
+        strokeWidth="1.7"
       />
+
+      {/* Penjepit Atas Clipboard */}
       <path
-        d="M9 4V3C9 2.44772 9.44772 2 10 2H14C14.5523 2 15 2.44772 15 3V4"
-        stroke="#1E293B"
-        strokeWidth="1.6"
+        d="M12.5 6.5V5.5C12.5 4.4 13.4 3.5 14.5 3.5H17.5C18.6 3.5 19.5 4.4 19.5 5.5V6.5H12.5Z"
+        fill="#27364F"
+        stroke="#27364F"
+        strokeWidth="1.4"
       />
+      <rect x="11" y="5.5" width="10" height="2.4" rx="1.2" fill="#27364F" />
+      <circle cx="16" cy="4.8" r="0.8" fill="#FFFFFF" />
+
+      {/* Baris 1: Centang + Garis */}
       <path
-        d="M8.5 9.5L9.8 10.8L12 8.5M8.5 14L9.8 15.3L12 13"
-        stroke="#38A3F5"
-        strokeWidth="1.6"
+        d="M10.2 12.2L11.3 13.3L13.3 11.1"
+        stroke="#27364F"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+      <line
+        x1="15.2"
+        y1="12.3"
+        x2="21.8"
+        y2="12.3"
+        stroke="#27364F"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+
+      {/* Baris 2: Centang + Garis */}
       <path
-        d="M13.5 9.5H16M13.5 14H16"
-        stroke="#1E293B"
+        d="M10.2 16.2L11.3 17.3L13.3 15.1"
+        stroke="#27364F"
         strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line
+        x1="15.2"
+        y1="16.3"
+        x2="21.8"
+        y2="16.3"
+        stroke="#27364F"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+
+      {/* Baris 3: Silang (X) + Garis */}
+      <path
+        d="M10.5 19.6L12.7 21.8M12.7 19.6L10.5 21.8"
+        stroke="#27364F"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="15.2"
+        y1="20.7"
+        x2="21.8"
+        y2="20.7"
+        stroke="#27364F"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+
+      {/* Baris 4: Silang (X) + Garis */}
+      <path
+        d="M10.5 23.4L12.7 25.6M12.7 23.4L10.5 25.6"
+        stroke="#27364F"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="15.2"
+        y1="24.5"
+        x2="21.8"
+        y2="24.5"
+        stroke="#27364F"
+        strokeWidth="1.6"
         strokeLinecap="round"
       />
     </svg>
   );
 }
 
-export function SearchIcon({ className = "w-4 h-4 text-slate-400" }: { className?: string }) {
+export function SearchIcon({
+  className = "w-4 h-4 text-slate-400",
+}: {
+  className?: string;
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -227,7 +585,11 @@ export function SearchIcon({ className = "w-4 h-4 text-slate-400" }: { className
   );
 }
 
-export function ChevronDownIcon({ className = "w-4 h-4 text-slate-600" }: { className?: string }) {
+export function ChevronDownIcon({
+  className = "w-4 h-4 text-slate-600",
+}: {
+  className?: string;
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -296,7 +658,11 @@ export function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-export function CheckIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+export function CheckIcon({
+  className = "w-3.5 h-3.5",
+}: {
+  className?: string;
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -312,7 +678,11 @@ export function CheckIcon({ className = "w-3.5 h-3.5" }: { className?: string })
   );
 }
 
-export function MaterialTypeBadgeIcon({ type }: { type: "PDF" | "VIDEO" | "KOMIK" }) {
+export function MaterialTypeBadgeIcon({
+  type,
+}: {
+  type: "PDF" | "VIDEO" | "KOMIK";
+}) {
   if (type === "PDF") {
     return (
       <div className="w-10 h-10 rounded-[12px] bg-[#EBF5FF] flex items-center justify-center shrink-0 text-[#1E293B]">
