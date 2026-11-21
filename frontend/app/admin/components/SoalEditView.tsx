@@ -2,18 +2,21 @@
 
 import React, { useState } from "react";
 import {
+  ContentTree,
   QuizQuestion,
   QuestionType,
   TopicCode,
   QuestionOption,
 } from "../types";
+import {api,API_URL} from "@/lib/api";
 import { PlusIcon, TrashIcon } from "./AdminIcons";
 
 interface SoalEditViewProps {
+  tree?: ContentTree;
   question: QuizQuestion;
   isNew?: boolean;
   onBack: () => void;
-  onSave: (updated: QuizQuestion) => void;
+  onSave: (updated: QuizQuestion) => Promise<void>;
   onDelete: (id: string) => void;
 }
 
@@ -32,6 +35,7 @@ const TOPIC_OPTIONS = [
 ];
 
 export default function SoalEditView({
+  tree,
   question,
   isNew = false,
   onBack,
@@ -48,7 +52,23 @@ export default function SoalEditView({
     question.correctOptionId
   );
   const [explanation, setExplanation] = useState(question.explanation);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(question.imageUrl?.split("/").pop()||null);
+
+  const [questionImage,setQuestionImage]=useState(question.imageUrl||null);
+  const [quizId,setQuizId]=useState(question.quizId||0);
+  const [saving,setSaving]=useState(false);
+  const [uploading,setUploading]=useState(false);
+  const [saveError,setSaveError]=useState("");
+  const currentCode=topicFull.includes("ASB")?"ASB":topicFull.includes("PRS")?"PRS":"PP";
+  const matchingModule=tree?.modules.find(m=>m.topic_id===tree.topics.find(t=>t.code===currentCode)?.id&&m.level===Number(level.replace(/[^0-9]/g,"")));
+  const availableQuizzes=tree?.quizzes.filter(q=>q.module_id===matchingModule?.id)||[];
+  const selectedQuiz=availableQuizzes.find(q=>q.id===quizId)||availableQuizzes[0];
+  async function uploadImage(file:File,optionId?:string){
+    if(file.size>2*1024*1024){setSaveError("Gambar soal maksimal 2 MB.");return;}
+    setUploading(true);setSaveError("");try{const form=new FormData();form.append("file",file);const result=await api<{path:string}>("/admin/uploads/images",{method:"POST",body:form});const url=new URL(result.path,API_URL).href;
+    if(optionId)handleOptionImageAttach(optionId,url);else{setQuestionImage(url);setUploadedFileName(file.name);}}
+    catch(e){setSaveError((e as Error).message);}finally{setUploading(false);}
+  }
 
   const handleOptionTextChange = (id: string, value: string) => {
     setOptions((prev) =>
@@ -63,11 +83,12 @@ export default function SoalEditView({
   };
 
   const handleAddOption = () => {
+    if(options.length>=6)return;
     const newId = `opt-${Date.now()}`;
     setOptions((prev) => [...prev, { id: newId, text: "" }]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const derivedTopic: TopicCode = topicFull.includes("ASB")
       ? "ASB"
@@ -75,8 +96,11 @@ export default function SoalEditView({
       ? "PRS"
       : "PP";
 
-    onSave({
+    if(saving||uploading)return;setSaving(true);setSaveError("");
+    try {await onSave({
       ...question,
+      quizId:isNew?(quizId<0?quizId:selectedQuiz?.id||(["DRAFT","REJECTED"].includes(matchingModule?.status||"")?-1:undefined)):question.quizId,
+      imageUrl:questionImage,
       topic: derivedTopic,
       topicFull,
       level,
@@ -85,7 +109,7 @@ export default function SoalEditView({
       options,
       correctOptionId,
       explanation,
-    });
+    });}catch(error){setSaveError((error as Error).message);}finally{setSaving(false);}
   };
 
   const breadcrumbTopic = topicFull
@@ -129,6 +153,7 @@ export default function SoalEditView({
             </label>
             <button
               type="button"
+              disabled={!isNew || saving}
               onClick={() => setIsTopicDropdownOpen((prev) => !prev)}
               className="w-full min-h-[48px] md:min-h-[44px] px-3.5 py-2 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-left text-[13px] font-semibold text-[#1E293B] dark:text-white leading-snug cursor-pointer focus:outline-none"
             >
@@ -164,6 +189,7 @@ export default function SoalEditView({
             </label>
             <input
               type="text"
+              readOnly={!isNew}
               value={level}
               onChange={(e) => setLevel(e.target.value)}
               className="w-full h-[48px] md:h-[44px] px-3.5 py-2 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none"
@@ -176,6 +202,13 @@ export default function SoalEditView({
           <label className="block text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-slate-200 mb-2">
             Tipe soal
           </label>
+          <label className="block text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-slate-200 mb-2">Kuis tujuan
+            <select disabled={!isNew||saving} value={isNew?(quizId<0?quizId:selectedQuiz?.id||(["DRAFT","REJECTED"].includes(matchingModule?.status||"")?-1:"")):question.quizId||""} onChange={e=>setQuizId(Number(e.target.value))} className="w-full min-h-[48px] md:min-h-[44px] px-3.5 py-2 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-left text-[13px] font-semibold text-[#1E293B] dark:text-white leading-snug cursor-pointer focus:outline-none">
+            {availableQuizzes.length===0&&!["DRAFT","REJECTED"].includes(matchingModule?.status||"")&&<option value="">Belum ada kuis pada topik/level ini</option>}
+            {(isNew?availableQuizzes:tree?.quizzes.filter(q=>q.id===question.quizId)||[]).map(q=><option key={q.id} value={q.id}>{q.kind} · {q.title}</option>)}
+            {isNew&&["DRAFT","REJECTED"].includes(matchingModule?.status||"")&&<><option value={-1}>Buat kuis PRE baru</option><option value={-2}>Buat kuis POST baru</option></>}
+            </select>
+          </label>
           <div className="flex flex-wrap gap-2">
             {QUESTION_TYPES.map((t) => {
               const isSelected = selectedType === t;
@@ -183,7 +216,9 @@ export default function SoalEditView({
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setSelectedType(t)}
+                  disabled={saving||["Cocokkan","Urutkan"].includes(t)}
+                  title={["Cocokkan","Urutkan"].includes(t)?"Belum didukung penilaian backend":undefined}
+                  onClick={() => {setSelectedType(t);if(t === "Benar / salah"){setOptions([{id:"opt-true",text:"Benar"},{id:"opt-false",text:"Salah"}]);setCorrectOptionId("opt-true");}}}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-colors cursor-pointer ${
                     isSelected
                       ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
@@ -204,6 +239,7 @@ export default function SoalEditView({
               Pertanyaan
             </label>
             <textarea
+              required minLength={3} maxLength={2000}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
@@ -217,12 +253,13 @@ export default function SoalEditView({
             </label>
             <label className="w-full h-24 md:h-[108px] rounded-[14px] border-2 border-dashed border-[#43A8F6] bg-[#EAF5FF] dark:bg-sky-950/30 hover:bg-[#DCEEFF] transition-colors flex items-center justify-center px-6 text-center cursor-pointer">
               <input
+                disabled={uploading||saving}
                 type="file"
                 accept="image/png,image/jpeg"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) setUploadedFileName(file.name);
+                  if (file) void uploadImage(file);
                 }}
               />
               <span className="inline-flex items-center justify-center gap-2 text-xs md:text-[13px] font-extrabold text-[#1D8CF8] leading-snug">
@@ -270,6 +307,7 @@ export default function SoalEditView({
                   {/* Option Text Input */}
                   <input
                     type="text"
+                    required maxLength={500}
                     value={opt.text}
                     onChange={(e) =>
                       handleOptionTextChange(opt.id, e.target.value)
@@ -289,12 +327,13 @@ export default function SoalEditView({
                   >
                     <span>{opt.imageUrl ? "✓ Gambar" : "Gambar"}</span>
                     <input
-                      type="file"
+                      disabled={uploading||saving}
+                type="file"
                       accept="image/png,image/jpeg"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleOptionImageAttach(opt.id, file.name);
+                        if (file) void uploadImage(file,opt.id);
                       }}
                     />
                   </label>
@@ -305,6 +344,7 @@ export default function SoalEditView({
 
           <button
             type="button"
+            disabled={options.length>=6 || saving || uploading}
             onClick={handleAddOption}
             className="mt-3 inline-flex items-center gap-1 text-xs font-extrabold text-[#E5252A] hover:underline cursor-pointer"
           >
@@ -319,6 +359,7 @@ export default function SoalEditView({
             Penjelasan setelah menjawab
           </label>
           <textarea
+            required minLength={3} maxLength={2000}
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
             rows={2}
@@ -326,6 +367,8 @@ export default function SoalEditView({
           />
         </div>
 
+        {uploading&&<p role="status">Mengunggah gambar…</p>}
+        {saveError&&<p role="alert">{saveError}</p>}
         {/* Footer Actions */}
         <div className="pt-4 border-t border-[#EEF2F6] dark:border-slate-800 flex items-center justify-between gap-3">
           <button
@@ -338,6 +381,7 @@ export default function SoalEditView({
           </button>
 
           <button
+            disabled={saving||uploading}
             type="submit"
             className="px-5 py-2.5 rounded-[14px] bg-[#E5252A] hover:bg-[#c81e23] text-white font-extrabold text-xs md:text-[13px] border-b-[3px] border-[#991B1B] transition-transform active:translate-y-0.5 cursor-pointer"
           >

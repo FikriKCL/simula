@@ -67,6 +67,7 @@ function toItem(material: MaterialCard): Item {
       ? "Terkunci · selesaikan level sebelumnya"
       : material.completed
         ? "Selesai"
+        : material.meta ? material.meta
         : kind === "komik"
           ? `${material.page_count || 0} halaman`
           : kind === "video"
@@ -124,15 +125,15 @@ export default function MateriPage() {
     <div className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)_320px] max-[1100px]:grid-cols-[200px_minmax(0,1fr)] max-[720px]:grid-cols-1">
       <Sidebar active="materi" />
 
-      <main className="relative overflow-hidden pb-30 pt-6">
+      <main className="relative overflow-hidden pb-[120px] pt-6">
         <div className={column}>
           {/* Pencarian */}
           <form
             role="search"
             onSubmit={(e) => e.preventDefault()}
-            className={`${banner} gap-3 px-4.5 py-3.5`}
+            className={`${banner} gap-3 px-[18px] py-3.5`}
           >
-            <label className="flex h-12.5 flex-1 items-center gap-3 rounded-full border-[3px] border-[#1c2b3d] bg-white px-4.5 text-[#1c2b3d]">
+            <label className="flex h-[50px] flex-1 items-center gap-3 rounded-full border-[3px] border-[#1c2b3d] bg-white px-[18px] text-[#1c2b3d]">
               <SearchIcon size={24} />
               <input
                 value={query}
@@ -165,7 +166,7 @@ export default function MateriPage() {
                   setTab(t.key);
                   setOffset(0);
                 }}
-                className={`flex items-center justify-center gap-2.5 rounded-t-[14px] px-2 pb-4 pt-4.5 font-heading text-[15px] font-extrabold uppercase tracking-[0.4px] transition-colors ${
+                className={`flex items-center justify-center gap-2.5 rounded-t-[14px] px-2 pb-4 pt-[18px] font-heading text-[15px] font-extrabold uppercase tracking-[0.4px] transition-colors ${
                   tab === t.key
                     ? "bg-brand-soft text-brand shadow-[inset_0_-4px_0_var(--red)]"
                     : "text-muted hover:bg-sky-soft"
@@ -195,12 +196,12 @@ export default function MateriPage() {
               {visible.map((it) => (
                 <article
                   key={it.id}
-                  className="overflow-hidden rounded-[18px] border-2 border-line bg-surface shadow-pop transition hover:-translate-y-0.75 hover:shadow-[0_7px_0_var(--border)]"
+                  className="overflow-hidden rounded-[18px] border-2 border-line bg-surface shadow-pop transition hover:-translate-y-[3px] hover:shadow-[0_7px_0_var(--border)]"
                 >
                   <div
-                    className={`relative grid h-30.5 place-items-center ${tone[it.tone]}`}
+                    className={`relative grid h-[122px] place-items-center ${tone[it.tone]}`}
                   >
-                    <span className="absolute left-3 top-3 rounded-full bg-brand px-2.75 py-0.75 text-[11px] font-black tracking-[0.5px] text-white">
+                    <span className="absolute left-3 top-3 rounded-full bg-brand px-[11px] py-[3px] text-[11px] font-black tracking-[0.5px] text-white">
                       {badge[it.kind]}
                     </span>
                     {it.art}
@@ -209,7 +210,7 @@ export default function MateriPage() {
                         href={it.href}
                         aria-disabled={!it.href}
                         aria-label={`Putar ${it.title}`}
-                        className="absolute bottom-3 right-3 grid size-8.5 place-items-center rounded-full bg-white text-brand shadow-[0_2px_6px_rgba(0,0,0,0.14)]"
+                        className="absolute bottom-3 right-3 grid size-[34px] place-items-center rounded-full bg-white text-brand shadow-[0_2px_6px_rgba(0,0,0,0.14)]"
                       >
                         <PlayIcon size={14} />
                       </a>

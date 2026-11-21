@@ -19,7 +19,8 @@ async function request(
       : sessionStorage.getItem("simula-token");
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (init.body) headers.set("Content-Type", "application/json");
+  if (init.body && !(init.body instanceof FormData))
+    headers.set("Content-Type", "application/json");
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
@@ -64,6 +65,7 @@ export async function downloadCertificate(id: number, code: string) {
 }
 export type Kind = "ARTICLE" | "VIDEO" | "COMIC" | "PDF";
 export type MaterialCard = {
+  meta?: string;
   id: number;
   lesson_id: number;
   module_id: number;
@@ -127,7 +129,7 @@ export type QuizRun = {
   quiz_id: number;
   expires_at: string;
   pass_score: number;
-  questions: { id: number; prompt: string; options: string[] }[];
+  questions: { id: number; prompt: string; options: string[]; image_url?:string|null; option_images?: (string|null)[] }[];
 };
 export type QuizResult = {
   score: number;

@@ -35,10 +35,17 @@ export default function DashboardView({ members }: DashboardViewProps) {
       result.sort((a, b) => b.total - a.total);
     } else if (sortFilter === "name") {
       result.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      result.sort((a,b)=>(b.lastActiveAt||0)-(a.lastActiveAt||0));
     }
 
     return result;
   }, [members, search, progressFilter, sortFilter]);
+
+  const pageCount=Math.max(1,Math.ceil(filteredMembers.length/10));
+  const page=Math.min(currentPage,pageCount);
+  const pageItems=filteredMembers.slice((page-1)*10,page*10);
+  const pageButtons=Array.from(new Set([1,...[page-1,page,page+1].filter(n=>n>1&&n<pageCount)])).sort((a,b)=>a-b);
 
   return (
     <div className="space-y-4">
@@ -109,7 +116,7 @@ export default function DashboardView({ members }: DashboardViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EEF2F6] dark:divide-slate-800 text-[13px]">
-              {filteredMembers.map((member) => (
+              {pageItems.map((member) => (
                 <tr
                   key={member.id}
                   className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
@@ -189,7 +196,7 @@ export default function DashboardView({ members }: DashboardViewProps) {
 
         {/* MOBILE CARD LIST VIEW */}
         <div className="md:hidden divide-y divide-[#EEF2F6] dark:divide-slate-800">
-          {filteredMembers.map((member) => (
+          {pageItems.map((member) => (
             <div key={member.id} className="py-3.5 first:pt-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -280,16 +287,16 @@ export default function DashboardView({ members }: DashboardViewProps) {
         {/* Pagination Footer */}
         <div className="mt-5 pt-4 border-t border-[#EEF2F6] dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-xs font-bold text-[#64748B]">
-            Menampilkan 1–{filteredMembers.length} dari 124 anggota
+            Menampilkan {filteredMembers.length ? (page-1)*10+1 : 0}–{Math.min(page*10,filteredMembers.length)} dari {filteredMembers.length} anggota
           </p>
 
           <div className="flex items-center gap-1.5">
-            {[1, 2, 3].map((page) => (
+            {pageButtons.map((page) => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
                 className={`w-8 h-8 rounded-[10px] text-xs font-extrabold transition-colors cursor-pointer ${
-                  currentPage === page
+                  Math.min(currentPage,pageCount) === page
                     ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
                     : "bg-white dark:bg-slate-800 border border-[#DCE3EC] dark:border-slate-700 text-[#475569] dark:text-slate-300 hover:bg-slate-50"
                 }`}
@@ -297,19 +304,21 @@ export default function DashboardView({ members }: DashboardViewProps) {
                 {page}
               </button>
             ))}
+            {pageCount > 1 && <>
             <span className="w-8 h-8 rounded-[10px] border border-[#DCE3EC] dark:border-slate-700 text-xs font-extrabold text-[#94A3B8] flex items-center justify-center">
               ...
             </span>
             <button
-              onClick={() => setCurrentPage(16)}
+              onClick={() => setCurrentPage(pageCount)}
               className={`w-8 h-8 rounded-[10px] text-xs font-extrabold transition-colors cursor-pointer ${
-                currentPage === 16
+                currentPage === pageCount
                   ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
                   : "bg-white dark:bg-slate-800 border border-[#DCE3EC] dark:border-slate-700 text-[#475569] dark:text-slate-300 hover:bg-slate-50"
               }`}
             >
-              16
+              {pageCount}
             </button>
+            </>}
           </div>
         </div>
       </div>

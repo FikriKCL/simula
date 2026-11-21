@@ -1,10 +1,13 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, HttpUrl, model_validator
 
 
 class QuestionCreate(BaseModel):
+    question_type: Literal["SINGLE_CHOICE", "IMAGE_CHOICE", "TRUE_FALSE"] = "SINGLE_CHOICE"
+    image_url: HttpUrl | None = None
+    option_images: list[HttpUrl | None] = Field(default_factory=list, max_length=6)
     prompt: str = Field(min_length=3, max_length=2000)
     options: list[str] = Field(min_length=2, max_length=6)
     correct_index: int = Field(ge=0)
@@ -12,6 +15,10 @@ class QuestionCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_options(self):
+        if self.question_type == "TRUE_FALSE" and len(self.options) != 2:
+            raise ValueError("Soal benar/salah memerlukan dua opsi")
+        if self.option_images and len(self.option_images) != len(self.options):
+            raise ValueError("Jumlah gambar opsi harus sama dengan jumlah opsi")
         if self.correct_index >= len(self.options) or any(
             not s.strip() or len(s) > 500 for s in self.options
         ):
@@ -41,6 +48,9 @@ class QuizOut(BaseModel):
 
 
 class QuestionOut(BaseModel):
+    question_type: str = "SINGLE_CHOICE"
+    image_url: str | None = None
+    option_images: list[str | None] = Field(default_factory=list)
     id: int
     prompt: str
     options: list[str]

@@ -7,7 +7,7 @@ from .common import ServiceError, add, record, require, transactional
 
 
 @transactional
-def create_user(data, role, db):
+def create_user(data, role, db, registration_status="APPROVED"):
     if db.scalar(select(User.id).where(User.username == data.username)):
         raise ServiceError(409, "Username sudah terdaftar")
     if data.email and db.scalar(
@@ -23,6 +23,7 @@ def create_user(data, role, db):
             email=str(data.email).lower() if data.email else None,
             school_id=data.school_id,
             role=role,
+            registration_status=registration_status,
         ),
     )
     # Always serialize through an allow-list to keep password_hash private.

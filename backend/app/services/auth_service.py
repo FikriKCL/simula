@@ -9,7 +9,7 @@ from .user_service import create_user
 
 
 def register(data, db):
-    return create_user(data, "STUDENT", db)
+    return create_user(data, "STUDENT", db, "PENDING" if settings().registration_approval_required else "APPROVED")
 
 
 def login(data, db):
@@ -20,6 +20,8 @@ def login(data, db):
     valid = hasher.verify(data.password, user.password_hash if user else DUMMY_HASH)
     if not user or not valid or not user.active:
         raise ServiceError(401, "Username atau password salah")
+    if user.registration_status != "APPROVED":
+        raise ServiceError(403, "Pendaftaran belum disetujui atau telah ditolak")
     return {
         "access_token": token_for(user.id),
         "token_type": "bearer",

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(_ENV_FILE, ".env", "../.env"), extra="ignore"
     )
+    registration_approval_required: bool = False
+    upload_dir: str | None = None
     contact_email: str | None = None
     guide_url: str | None = None
     database_url: str

@@ -11,6 +11,7 @@ export interface MemberProgress {
   prs: number;
   total: number;
   lastActive: string;
+  lastActiveAt?: number;
 }
 
 export type RegistrationStatus = "menunggu" | "diterima" | "ditolak";
@@ -26,7 +27,7 @@ export interface AccountRegistration {
   status: RegistrationStatus;
 }
 
-export type MaterialType = "PDF" | "VIDEO" | "KOMIK";
+export type MaterialType = "ARTICLE" | "PDF" | "VIDEO" | "KOMIK";
 export type TopicCode = "PP" | "ASB" | "PRS";
 
 export interface LearningMaterial {
@@ -35,6 +36,19 @@ export interface LearningMaterial {
   type: MaterialType;
   topic: TopicCode;
   size: string;
+  lessonId?: number;
+  moduleId?: number;
+  moduleStatus?: string;
+  body?: string;
+  thumbnailKey?: string | null;
+  thumbnailUrl?: string | null;
+  url?: string | null;
+  pages?: {image_url:string;alt:string;text:string}[];
+  videoProvider?: "youtube"|"vimeo"|null;
+  videoId?: string|null;
+  durationSeconds?: number|null;
+  position?: number;
+  required?: boolean;
 }
 
 export type QuestionType =
@@ -59,6 +73,10 @@ export interface QuizQuestion {
   type: QuestionType;
   level: string;
   options: QuestionOption[];
+  quizId?: number;
+  imageUrl?: string | null;
   correctOptionId: string;
   explanation: string;
 }
+// Backend fields extend the original view models; presentation fields remain local.
+export type {ContentTree, Module, Lesson, Material, Page, BankQuestion, QuestionDraft} from "./backend-types";

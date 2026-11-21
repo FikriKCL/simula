@@ -681,9 +681,9 @@ export function CheckIcon({
 export function MaterialTypeBadgeIcon({
   type,
 }: {
-  type: "PDF" | "VIDEO" | "KOMIK";
+  type: "ARTICLE" | "PDF" | "VIDEO" | "KOMIK";
 }) {
-  if (type === "PDF") {
+  if (type === "PDF" || type === "ARTICLE") {
     return (
       <div className="w-10 h-10 rounded-[12px] bg-[#EBF5FF] flex items-center justify-center shrink-0 text-[#1E293B]">
         <svg

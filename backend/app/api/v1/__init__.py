@@ -28,3 +28,6 @@ router.include_router(chat.router)
 from . import content
 
 router.include_router(content.router)
+
+from . import administration
+router.include_router(administration.router)

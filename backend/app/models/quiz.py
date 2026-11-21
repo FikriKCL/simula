@@ -21,6 +21,9 @@ class Quiz(Base):
 
 
 class Question(Base):
+    question_type: Mapped[str] = mapped_column(Text, default="SINGLE_CHOICE", server_default="SINGLE_CHOICE")
+    image_url: Mapped[str | None] = mapped_column(Text)
+    option_images: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"), default=list, server_default="[]")
     __tablename__ = "Question"
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

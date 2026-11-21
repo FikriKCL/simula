@@ -37,7 +37,7 @@ def current_user(token: str = Depends(bearer), db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     user = db.get(User, uid)
-    if not user or not user.active:
+    if not user or not user.active or user.registration_status != "APPROVED":
         raise HTTPException(401, "Akun tidak aktif")
     return {
         "id": user.id,

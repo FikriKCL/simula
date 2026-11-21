@@ -25,6 +25,7 @@ class Topic(Base):
 
 
 class Material(Base):
+    meta: Mapped[str] = mapped_column(Text, default="", server_default="")
     __tablename__ = "Material"
     __table_args__ = (UniqueConstraint("lesson_id", "position"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

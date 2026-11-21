@@ -132,6 +132,7 @@ def library(q, kind, topic_id, limit, offset, user, db, module_id=None):
                 "kind": mat.kind,
                 "thumbnail_url": mat.thumbnail_url,
                 "thumbnail_key": mat.thumbnail_key,
+                "meta": mat.meta,
                 "page_count": mat.page_count,
                 "duration_seconds": mat.duration_seconds,
                 "locked": locked,

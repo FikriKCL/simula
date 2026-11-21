@@ -1,19 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AdminTab,
-  AccountRegistration,
   LearningMaterial,
   QuizQuestion,
   RegistrationStatus,
 } from "./types";
-import {
-  INITIAL_MEMBERS,
-  INITIAL_REGISTRATIONS,
-  INITIAL_MATERIALS,
-  INITIAL_QUESTIONS,
-} from "./mockData";
+import {api} from "@/lib/api";
+import ApiState from "@/components/ApiState";
+import {mapWorkspace, type Workspace} from "./adapter";
 import {
   SimulaLogo,
   IndonesiaFlagIcon,
@@ -23,7 +19,7 @@ import {
   PendaftaranNavIcon,
   MateriNavIcon,
   SoalNavIcon,
-} from "./components/AdminIcons";
+} from "../../components/Icons";
 import DashboardView from "./components/DashboardView";
 import PendaftaranView from "./components/PendaftaranView";
 import MateriView from "./components/MateriView";
@@ -34,14 +30,17 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [darkMode, setDarkMode] = useState(false);
 
-  const [members] = useState(INITIAL_MEMBERS);
-  const [registrations, setRegistrations] = useState<AccountRegistration[]>(
-    INITIAL_REGISTRATIONS
-  );
-  const [materials, setMaterials] =
-    useState<LearningMaterial[]>(INITIAL_MATERIALS);
-  const [questions, setQuestions] = useState<QuizQuestion[]>(INITIAL_QUESTIONS);
-
+  const [data,setData] = useState<Workspace|null>(null);
+  const [error,setError] = useState("");
+  const [loading,setLoading] = useState(true);
+  const [busy,setBusy] = useState(false);
+  const pending = useRef(false);
+  const [version,setVersion] = useState(0);
+  const [account,setAccount] = useState<{display_name:string}|null>(null);
+  const reload = () => setVersion(v=>v+1);
+  useEffect(()=>{let active=true;Promise.all([api<Workspace>("/admin/workspace"),api<{display_name:string}>("/users/me")]).then(([value,user])=>{if(active){setData(value);setAccount(user);setError("");}}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[version]);
+  useEffect(()=>{document.documentElement.dataset.theme=darkMode?"dark":"light";},[darkMode]);
+  const {members,registrations,materials,questions}=useMemo(()=>data?mapWorkspace(data):{members:[],registrations:[],materials:[],questions:[]},[data]);
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(
     null
   );
@@ -55,29 +54,34 @@ export default function AdminPage() {
     }, 2800);
   };
 
-  const handleUpdateRegistration = (id: string, status: RegistrationStatus) => {
-    setRegistrations((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status } : item))
-    );
-    if (status === "diterima") showToast("Akun anggota berhasil diterima.");
-    if (status === "ditolak") showToast("Pendaftaran akun ditolak.");
+  async function mutate(action:()=>Promise<unknown>,message:string){
+    if(pending.current)throw new Error("Tunggu sampai penyimpanan selesai.");
+    pending.current=true;setBusy(true);setError("");
+    try{await action();showToast(message);reload();}catch(e){setError((e as Error).message);throw e;}finally{pending.current=false;setBusy(false);}
+  }
+  const handleUpdateRegistration=async(id:string,status:RegistrationStatus)=>{
+    if(status!=="diterima"&&!window.confirm(status==="menunggu"?"Kembalikan akun ke menunggu? Akun tidak dapat login sampai disetujui kembali.":"Tolak/nonaktifkan akun ini?"))return;
+    try{await mutate(()=>api(`/admin/registrations/${id}`,{method:"PATCH",body:JSON.stringify({status:status==="diterima"?"APPROVED":status==="menunggu"?"PENDING":"REJECTED"})}),"Status akun disimpan.");}catch{}
   };
-
-  const handleAddMaterial = (newMat: Omit<LearningMaterial, "id">) => {
-    setMaterials((prev) => [{ ...newMat, id: `mat-${Date.now()}` }, ...prev]);
-    showToast("Materi baru berhasil diunggah.");
+  function materialPayload(m:Omit<LearningMaterial,"id">){return {title:m.title,kind:m.type==="KOMIK"?"COMIC":m.type,meta:m.size,body:m.body||"",thumbnail_key:m.thumbnailKey||null,thumbnail_url:m.thumbnailUrl||null,url:m.url||null,pages:m.type==="KOMIK"?m.pages||[]:[],video_provider:m.type==="VIDEO"?m.videoProvider||null:null,video_id:m.type==="VIDEO"?m.videoId||null:null,duration_seconds:m.type==="VIDEO"?m.durationSeconds||null:null,position:m.position||1,required:m.required??true};}
+  const handleAddMaterial=async(m:Omit<LearningMaterial,"id">)=>{
+    if(!m.lessonId)throw new Error("Pilih pelajaran terlebih dahulu.");
+    const selected=data?.modules.find(v=>v.id===data.lessons.find(l=>l.id===m.lessonId)?.module_id);
+    const withdraw=selected?.status==="PUBLISHED";
+    if(withdraw&&!window.confirm("Menambahkan materi akan menarik modul terbit ke DRAFT untuk ditinjau ulang. Lanjutkan?"))throw new Error("Penyimpanan dibatalkan.");
+    const position=m.position||Math.max(0,...materials.filter(v=>v.lessonId===m.lessonId).map(v=>v.position||0))+1;
+    await mutate(()=>api(`/admin/lessons/${m.lessonId}/materials?withdraw=${withdraw}`,{method:"POST",body:JSON.stringify(materialPayload({...m,position}))}),"Materi tersimpan.");
   };
-
-  const handleUpdateMaterial = (updated: LearningMaterial) => {
-    setMaterials((prev) =>
-      prev.map((m) => (m.id === updated.id ? updated : m))
-    );
-    showToast("Perubahan materi disimpan.");
+  const handleUpdateMaterial=async(m:LearningMaterial)=>{
+    const current=materials.find(v=>v.id===m.id);
+    const withdraw=current?.moduleStatus==="PUBLISHED";
+    if(withdraw&&!window.confirm("Materi sudah terbit. Menyimpan revisi akan menarik seluruh modul ke DRAFT sampai ditinjau dan diterbitkan kembali. Progres siswa tetap disimpan. Lanjutkan?"))throw new Error("Penyimpanan dibatalkan.");
+    await mutate(()=>api(`/admin/materials/${m.id}?withdraw=${withdraw}`,{method:"PUT",body:JSON.stringify(materialPayload(m))}),withdraw?"Revisi disimpan; modul kembali DRAFT.":"Materi diperbarui.");
   };
-
-  const handleDeleteMaterial = (id: string) => {
-    setMaterials((prev) => prev.filter((m) => m.id !== id));
-    showToast("Materi berhasil dihapus.");
+  const handleDeleteMaterial=async(id:string)=>{
+    const m=materials.find(v=>v.id===id);const withdraw=m?.moduleStatus==="PUBLISHED";
+    if(!window.confirm(withdraw?"Hapus materi ini dan tarik seluruh modul dari publikasi ke DRAFT?":"Hapus materi ini?"))return;
+    try{await mutate(()=>api(`/admin/materials/${id}?withdraw=${withdraw}`,{method:"DELETE"}),"Materi dihapus.");}catch{}
   };
 
   const handleCreateQuestion = () => {
@@ -88,7 +92,7 @@ export default function AdminPage() {
       question: "",
       topic: "PP",
       topicFull: "Pertolongan Pertama (PP)",
-      type: "Pilihan bergambar",
+      type: "Pilihan ganda",
       level: "Level 1",
       options: [
         { id: "opt-1", text: "" },
@@ -101,31 +105,33 @@ export default function AdminPage() {
     });
   };
 
-  const handleSaveQuestion = (saved: QuizQuestion) => {
-    if (isCreatingQuestion) {
-      setQuestions((prev) => [...prev, saved]);
-      showToast("Soal baru berhasil ditambahkan.");
-    } else {
-      setQuestions((prev) =>
-        prev.map((q) => (q.id === saved.id ? saved : q))
-      );
-      showToast("Perubahan soal berhasil disimpan.");
-    }
-    setEditingQuestion(null);
-    setIsCreatingQuestion(false);
+  const handleSaveQuestion=async(saved:QuizQuestion)=>{
+    if(!saved.quizId)throw new Error("Pilih kuis tujuan.");
+    if(["Cocokkan","Urutkan"].includes(saved.type))throw new Error("Tipe soal ini belum didukung penilaian backend.");
+    const payload={question_type:saved.type==="Benar / salah"?"TRUE_FALSE":saved.type==="Pilihan bergambar"?"IMAGE_CHOICE":"SINGLE_CHOICE",prompt:saved.question,options:saved.options.map(o=>o.text),correct_index:saved.options.findIndex(o=>o.id===saved.correctOptionId),explanation:saved.explanation,image_url:saved.imageUrl||null,option_images:saved.options.map(o=>o.imageUrl||null)};
+    if(isCreatingQuestion&&saved.quizId<0){
+      const topicId=data?.topics.find(t=>t.code===saved.topic)?.id;
+      const selected=data?.modules.find(m=>m.topic_id===topicId&&m.level===Number(saved.level.replace(/[^0-9]/g,"")));
+      if(!selected)throw new Error("Modul tujuan tidak ditemukan.");
+      await mutate(()=>api(`/modules/${selected.id}/quizzes`,{method:"POST",body:JSON.stringify({title:`${saved.quizId===-1?"Latihan awal":"Tes akhir"} ${selected.title}`,kind:saved.quizId===-1?"PRE":"POST",pass_score:70,questions:[payload]})}),"Kuis dan soal pertama disimpan.");
+    }else await mutate(()=>api(isCreatingQuestion?`/admin/quizzes/${saved.quizId}/questions`:`/admin/quizzes/${saved.quizId}/questions/${saved.id}`,{method:isCreatingQuestion?"POST":"PUT",body:JSON.stringify(payload)}),"Soal disimpan.");setEditingQuestion(null);setIsCreatingQuestion(false);
   };
-
-  const handleDeleteQuestion = (id: string) => {
-    setQuestions((prev) => prev.filter((q) => q.id !== id));
-    setEditingQuestion(null);
-    setIsCreatingQuestion(false);
-    showToast("Soal berhasil dihapus.");
+  const handleDeleteQuestion=async(id:string)=>{
+    if(isCreatingQuestion&&id===editingQuestion?.id){setEditingQuestion(null);setIsCreatingQuestion(false);return;}
+    const q=questions.find(v=>v.id===id);if(!q?.quizId)return;
+    if(!window.confirm("Arsipkan soal ini? Riwayat hasil dan sesi tes yang sudah dimulai tetap disimpan."))return;
+    try{await mutate(()=>api(`/admin/quizzes/${q.quizId}/questions/${id}/active`,{method:"PATCH",body:JSON.stringify({active:false})}),"Soal diarsipkan.");setEditingQuestion(null);setIsCreatingQuestion(false);}catch{}
   };
 
   const handleSwitchTab = (tab: AdminTab) => {
     setActiveTab(tab);
     setEditingQuestion(null);
     setIsCreatingQuestion(false);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("simula-token");
+    window.location.replace("/login");
   };
 
   const navItems: {
@@ -161,7 +167,7 @@ export default function AdminPage() {
         {/* DESKTOP LEFT SIDEBAR */}
         <aside className="hidden md:flex md:w-[225px] md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-slate-900 border-r border-[#E2E8F0] dark:border-slate-800 px-3.5 py-6 z-30">
           <div className="px-2.5 mb-7">
-            <SimulaLogo />
+            <button type="button" aria-label="Kembali ke dashboard admin" onClick={() => handleSwitchTab("dashboard")} className="cursor-pointer"><SimulaLogo /></button>
           </div>
 
           <nav className="space-y-2.5">
@@ -192,7 +198,7 @@ export default function AdminPage() {
           <header className="w-full px-4 md:px-7 pt-3.5 pb-2.5 flex items-center justify-between md:justify-end">
             {/* Compact Logo on Mobile Header */}
             <div className="md:hidden">
-              <SimulaLogo compact />
+              <button type="button" aria-label="Kembali ke dashboard admin" onClick={() => handleSwitchTab("dashboard")} className="cursor-pointer"><SimulaLogo compact /></button>
             </div>
 
             {/* Right Controls: Flag + Theme Toggle + Admin Pill */}
@@ -226,20 +232,23 @@ export default function AdminPage() {
                 </span>
               </button>
 
+              <button type="button" onClick={handleLogout} className="rounded-[12px] border border-[#DCE3EC] dark:border-slate-700 px-3 py-2 text-xs font-extrabold text-[#E5252A] hover:bg-[#FEECEB] cursor-pointer">Keluar</button>
               {/* Admin Profile Pill */}
               <div className="bg-white dark:bg-slate-900 border border-[#DCE3EC] dark:border-slate-800 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5">
                 <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-[#FEF3C7] text-[#1E293B] text-[10px] md:text-[11px] font-black flex items-center justify-center">
                   AD
                 </div>
                 <span className="text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-white">
-                  Admin
+                  {account?.display_name || "Admin"}
                 </span>
               </div>
             </div>
           </header>
 
           {/* DYNAMIC VIEW CONTENT */}
-          <main className="flex-1 w-full max-w-[1180px] mx-auto px-4 md:px-7 pt-1">
+          <main aria-busy={busy} className="flex-1 w-full max-w-[1180px] mx-auto px-4 md:px-7 pt-1">
+            <ApiState loading={loading} error={error} retry={reload}/>
+            {busy && <p role="status">Menyimpan perubahan…</p>}
             {activeTab === "dashboard" && <DashboardView members={members} />}
 
             {activeTab === "pendaftaran" && (
@@ -251,6 +260,8 @@ export default function AdminPage() {
 
             {activeTab === "materi" && (
               <MateriView
+                tree={data || undefined}
+                onContentChange={reload}
                 materials={materials}
                 onAddMaterial={handleAddMaterial}
                 onUpdateMaterial={handleUpdateMaterial}
@@ -272,6 +283,8 @@ export default function AdminPage() {
 
             {activeTab === "soal" && editingQuestion && (
               <SoalEditView
+                key={editingQuestion.id}
+                tree={data || undefined}
                 question={editingQuestion}
                 isNew={isCreatingQuestion}
                 onBack={() => {

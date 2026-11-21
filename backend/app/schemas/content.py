@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl, model_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 from .quiz import QuestionOut
 
@@ -23,6 +23,7 @@ class ComicPage(BaseModel):
 
 
 class MaterialCreate(BaseModel):
+    meta: str = Field(default="", max_length=200)
     title: str = Field(min_length=3, max_length=200)
     kind: Literal["ARTICLE", "PDF", "VIDEO", "COMIC"]
     url: HttpUrl | None = None
@@ -40,6 +41,32 @@ class MaterialCreate(BaseModel):
     duration_seconds: int | None = Field(default=None, gt=0)
     position: int = Field(gt=0)
     required: bool = True
+
+    @field_validator("video_id", mode="before")
+    @classmethod
+    def normalize_video_id(cls, value):
+        if not isinstance(value, str):
+            return value
+        value = value.strip()
+        if "://" not in value and not value.startswith(("www.", "youtube.com/", "m.youtube.com/", "youtu.be/")):
+            return value
+        from urllib.parse import parse_qs, urlsplit
+        import re
+        parsed = urlsplit(value if "://" in value else "https://" + value)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme not in ("http", "https") or parsed.username or parsed.password:
+            raise ValueError("URL video tidak valid")
+        parts = parsed.path.strip("/").split("/")
+        if host in ("youtu.be", "www.youtu.be"):
+            candidate = parts[0]
+        elif host in ("youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"):
+            candidate = (parse_qs(parsed.query).get("v", [""])[0] if parsed.path.rstrip("/") == "/watch"
+                         else parts[1] if len(parts) == 2 and parts[0] in ("shorts", "embed", "live") else "")
+        else:
+            raise ValueError("Gunakan URL YouTube atau ID video")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate):
+            raise ValueError("URL YouTube tidak memiliki ID video yang valid")
+        return candidate
 
     @model_validator(mode="after")
     def format_rules(self):
@@ -66,6 +93,7 @@ class MaterialCreate(BaseModel):
 
 
 class MaterialOut(BaseModel):
+    meta: str = ""
     module_id: int | None = None
     id: int
     lesson_id: int
@@ -166,6 +194,7 @@ class QuestionEdit(BaseModel):
 
 
 class MaterialCard(BaseModel):
+    meta: str = ""
     thumbnail_key: str | None = None
     id: int
     lesson_id: int
@@ -203,6 +232,9 @@ class CertificateOut(BaseModel):
 
 
 class BankQuestionOut(BaseModel):
+    question_type: str = "SINGLE_CHOICE"
+    image_url: str | None = None
+    option_images: list[str | None] = Field(default_factory=list)
     id: int
     quiz_id: int
     prompt: str

@@ -8,6 +8,7 @@ from app.database import Base
 
 class User(Base):
     __tablename__ = "User"
+    registration_status: Mapped[str] = mapped_column(Text, default="APPROVED", server_default="APPROVED")
     email: Mapped[str | None] = mapped_column(Text, unique=True)
     avatar_url: Mapped[str | None] = mapped_column(Text)
     locale: Mapped[str] = mapped_column(Text, default="id", server_default="id")

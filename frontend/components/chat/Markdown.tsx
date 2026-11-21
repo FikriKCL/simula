@@ -106,18 +106,7 @@ function startsBlock(line: string) {
   );
 }
 
-const DEFAULT_WRAPPER = "space-y-3 break-words text-[15px] leading-7 text-slate-800 dark:text-slate-200";
-
-export default function Markdown({
-  text,
-  streaming = false,
-  className = DEFAULT_WRAPPER,
-}: {
-  text: string;
-  streaming?: boolean;
-  /** Overrides the wrapper's spacing, size and color (e.g. the compact dashboard chat). */
-  className?: string;
-}) {
+export default function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
   const lines = normalizeMath(text).replace(/\r\n?/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -306,7 +295,7 @@ export default function Markdown({
   }
 
   return (
-    <div className={className}>
+    <div className="space-y-3 break-words text-[15px] leading-7 text-slate-800 dark:text-slate-200">
       {blocks}
       {streaming && (
         <span

@@ -14,6 +14,8 @@ model School {
 }
 
 model User {
+  registration_status String @default("APPROVED")
+  @@index([registration_status])
   email String? @unique
   avatar_url String?
   locale String @default("id")
@@ -105,6 +107,9 @@ model Quiz {
 }
 
 model Question {
+  question_type String @default("SINGLE_CHOICE")
+  image_url String?
+  option_images Json @default("[]")
   active Boolean @default(true)
   id Int @id @default(autoincrement())
   quiz_id Int 
@@ -183,6 +188,7 @@ model Topic {
  modules Module[]
 }
 model Material {
+ meta String @default("")
  id Int @id @default(autoincrement())
  lesson_id Int
  title String
