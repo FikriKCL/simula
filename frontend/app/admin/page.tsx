@@ -159,19 +159,20 @@ export default function AdminPage() {
     <div className={darkMode ? "dark" : ""}>
       <div className="min-h-screen bg-[#F7F9FC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 flex flex-col md:flex-row">
         {/* DESKTOP LEFT SIDEBAR */}
-        <aside className="hidden md:flex md:w-[215px] md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-slate-900 border-r border-[#E2E8F0] dark:border-slate-800 px-3.5 py-6 z-30">
+        <aside className="hidden md:flex md:w-[225px] md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-slate-900 border-r border-[#E2E8F0] dark:border-slate-800 px-3.5 py-6 z-30">
           <div className="px-2.5 mb-7">
             <SimulaLogo />
           </div>
 
-          <nav className="space-y-2">
+          <nav className="space-y-2.5">
             {navItems.map((item) => {
               const isActive = activeTab === item.key;
               return (
                 <button
                   key={item.key}
+                  type="button"
                   onClick={() => handleSwitchTab(item.key)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] text-[12px] font-extrabold tracking-wider transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-[16px] text-[12px] font-extrabold tracking-wider transition-all cursor-pointer ${
                     isActive
                       ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
                       : "text-[#64748B] dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-[1.5px] border-transparent"
@@ -186,16 +187,16 @@ export default function AdminPage() {
         </aside>
 
         {/* MAIN CONTENT SHELL */}
-        <div className="flex-1 md:pl-[215px] flex flex-col min-h-screen pb-24 md:pb-10">
+        <div className="flex-1 md:pl-[225px] flex flex-col min-h-screen pb-24 md:pb-10">
           {/* TOP HEADER BAR */}
-          <header className="w-full px-4 md:px-7 pt-4 pb-3 flex items-center justify-between md:justify-end">
-            {/* Logo on Mobile */}
+          <header className="w-full px-4 md:px-7 pt-3.5 pb-2.5 flex items-center justify-between md:justify-end">
+            {/* Compact Logo on Mobile Header */}
             <div className="md:hidden">
-              <SimulaLogo />
+              <SimulaLogo compact />
             </div>
 
             {/* Right Controls: Flag + Theme Toggle + Admin Pill */}
-            <div className="flex items-center gap-2.5 md:gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <IndonesiaFlagIcon />
 
               {/* Theme Toggle Switch */}
@@ -203,7 +204,7 @@ export default function AdminPage() {
                 type="button"
                 onClick={() => setDarkMode(!darkMode)}
                 aria-label="Ubah tema tampilan"
-                className="bg-[#F1F5F9] dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 rounded-full p-1 flex items-center gap-1 cursor-pointer"
+                className="bg-[#EEF2F6] dark:bg-slate-800 border border-[#DCE3EC] dark:border-slate-700 rounded-full p-0.5 flex items-center gap-0.5 cursor-pointer"
               >
                 <span
                   className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
@@ -226,11 +227,11 @@ export default function AdminPage() {
               </button>
 
               {/* Admin Profile Pill */}
-              <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-full pl-1.5 pr-3.5 py-1 flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-[#FEF3C7] text-[#92400E] text-[11px] font-black flex items-center justify-center">
+              <div className="bg-white dark:bg-slate-900 border border-[#DCE3EC] dark:border-slate-800 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5">
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-[#FEF3C7] text-[#1E293B] text-[10px] md:text-[11px] font-black flex items-center justify-center">
                   AD
                 </div>
-                <span className="text-[13px] font-extrabold text-[#1E293B] dark:text-white">
+                <span className="text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-white">
                   Admin
                 </span>
               </div>
@@ -291,15 +292,16 @@ export default function AdminPage() {
             return (
               <button
                 key={item.key}
+                type="button"
                 onClick={() => handleSwitchTab(item.key)}
-                className={`flex flex-col items-center justify-center gap-1 min-w-[74px] py-1.5 px-2.5 rounded-[14px] transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 min-w-[78px] py-1.5 px-2.5 rounded-[16px] transition-all cursor-pointer ${
                   isActive
                     ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
                     : "text-[#64748B] dark:text-slate-400 border-[1.5px] border-transparent"
                 }`}
               >
                 {item.renderIcon(isActive)}
-                <span className="text-[9px] font-extrabold tracking-wide leading-none uppercase">
+                <span className="text-[9.5px] font-extrabold tracking-wide leading-none uppercase">
                   {item.label}
                 </span>
               </button>
