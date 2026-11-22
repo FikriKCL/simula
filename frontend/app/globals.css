@@ -159,3 +159,93 @@
     scrollbar-color: rgba(100, 116, 139, 0.85) rgba(30, 41, 59, 0.85);
   }
 }
+
+/* ---------- Animasi Dokter Piko (kartu di panel kanan dashboard) ---------- */
+.piko-animated .piko-figure {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: piko-float 3.2s ease-in-out infinite;
+}
+.piko-animated .piko-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: piko-shadow 3.2s ease-in-out infinite;
+}
+.piko-animated .piko-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: piko-blink 4.6s ease-in-out infinite;
+}
+.piko-animated .piko-cross {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: piko-pulse 2.4s ease-in-out infinite;
+}
+.piko-animated .piko-arm-left {
+  transform-box: fill-box;
+  transform-origin: 50% 8%;
+}
+/* Melambai: saat jawaban baru datang, atau saat kartu disentuh kursor */
+.piko-happy .piko-arm-left,
+.piko-card:hover .piko-animated .piko-arm-left {
+  animation: piko-wave 0.8s ease-in-out 3;
+}
+.piko-thinking .piko-figure {
+  animation: piko-float 1.4s ease-in-out infinite;
+}
+.piko-think-dots {
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.piko-thinking .piko-think-dots {
+  opacity: 1;
+}
+.piko-thinking .piko-think-dots circle {
+  animation: piko-dot 1.2s ease-in-out infinite;
+}
+.piko-thinking .piko-think-dots circle:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.piko-thinking .piko-think-dots circle:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.piko-bubble-text {
+  animation: piko-bubble-in 0.35s ease-out both;
+}
+
+@keyframes piko-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes piko-shadow {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(0.86); opacity: 0.7; }
+}
+@keyframes piko-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+@keyframes piko-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+@keyframes piko-wave {
+  0%, 100% { transform: rotate(0deg); }
+  35% { transform: rotate(-38deg); }
+  70% { transform: rotate(-18deg); }
+}
+@keyframes piko-dot {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+@keyframes piko-bubble-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piko-animated *,
+  .piko-bubble-text {
+    animation: none !important;
+  }
+}
