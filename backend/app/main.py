@@ -83,3 +83,7 @@ async def unexpected(request, exc):
     )
 
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+
+# Writable uploads stay outside the application source and can be mounted as a volume.
+from app.uploads import upload_root
+app.mount("/uploads", StaticFiles(directory=upload_root()), name="uploads")

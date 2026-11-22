@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type AnimationEventHandler } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type AnimationEventHandler } from "react";
 import { CloseIcon, SendIcon } from "./Icons";
 import { PikoAvatar } from "./PikoAvatar";
 import Markdown from "./chat/Markdown";
@@ -12,10 +12,14 @@ import type { Message } from "../lib/chat/types";
 type Props = {
   /** Tampilan halaman penuh (tinggi 100%, pesan lebih besar). */
   full?: boolean;
-  /** Tombol tutup (mode panel). */
+  /** Tombol tutup/kecilkan (mode panel). */
   onClose?: () => void;
   /** Kalau diisi, tombol di header jadi link kembali (mode halaman). */
   backHref?: string;
+  /** Kalau diisi, header punya tombol untuk membuka halaman chat penuh. */
+  expandHref?: string;
+  /** Dipanggil setiap Dokter Piko selesai menjawab (dipakai untuk badge saat panel dikecilkan). */
+  onReply?: () => void;
   className?: string;
   onAnimationEnd?: AnimationEventHandler<HTMLElement>;
   /** Sapaan pertama Dokter Piko. */
@@ -29,17 +33,38 @@ const defaultSuggestions = ["Cara pakai plester", "Perban?"];
 const MAX_CHIPS = 2;
 // Kegagalan yang berarti server asisten tidak bisa dijangkau (bukan sekadar pertanyaan ditolak)
 const OFFLINE_MODES = new Set(["network_error", "connection_error", "backend_offline"]);
+// Jarak dari dasar daftar pesan yang masih dianggap "sedang membaca pesan terbaru"
+const STICK_TO_BOTTOM_PX = 80;
+const INPUT_MAX_HEIGHT_PX = 96; // sekitar 4 baris
 
 const headerBtn =
-  "grid size-[30px] shrink-0 cursor-pointer place-items-center rounded-full bg-white/25 font-black text-white";
+  "grid size-[30px] shrink-0 cursor-pointer place-items-center rounded-full bg-white/25 font-black text-white hover:bg-white/35";
 
 let idCounter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now()}-${++idCounter}`;
+
+function ExpandIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="5" width="14" height="14" rx="3" fill="currentColor" />
+    </svg>
+  );
+}
 
 export default function ChatWindow({
   full = false,
   onClose,
   backHref,
+  expandHref,
+  onReply,
   className = "",
   onAnimationEnd,
   greeting = defaultGreeting,
@@ -61,14 +86,33 @@ export default function ChatWindow({
   // Status di header mengikuti hasil permintaan terakhir ke backend
   const [offline, setOffline] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const stickToBottom = useRef(true);
 
+  // Ikuti pesan terbaru hanya kalau pengguna memang sedang di bawah; kalau ia menggulir ke atas
+  // untuk membaca jawaban sebelumnya, stream jawaban baru tidak menariknya kembali ke bawah.
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+    const list = listRef.current;
+    if (list && stickToBottom.current) list.scrollTo({ top: list.scrollHeight });
   }, [messages]);
 
-  // Panel ditutup / halaman ditinggal: hentikan stream ke backend (dan Gemini)
+  // Kotak ketik tumbuh mengikuti isi sampai ±4 baris, lalu bisa digulir
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT_PX)}px`;
+  }, [input]);
+
+  // Halaman ditinggal: hentikan stream ke backend (dan Gemini)
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  function handleScroll() {
+    const list = listRef.current;
+    if (!list) return;
+    stickToBottom.current = list.scrollHeight - list.scrollTop - list.clientHeight < STICK_TO_BOTTOM_PX;
+  }
 
   async function ask(text: string) {
     const q = text.trim().slice(0, MAX_INPUT_CHARS);
@@ -77,6 +121,7 @@ export default function ChatWindow({
     const history = buildHistory(messages);
     const botId = newId("bot");
     const now = Date.now();
+    stickToBottom.current = true; // pertanyaan baru: tampilkan dari bawah
     setMessages((m) => [
       ...m,
       { id: newId("me"), role: "user", content: q, createdAt: now, status: "done" },
@@ -84,6 +129,7 @@ export default function ChatWindow({
     ]);
     setInput("");
     setLoading(true);
+    inputRef.current?.focus();
 
     const patchBot = (patch: (prev: Message) => Partial<Message>) =>
       setMessages((m) => m.map((msg) => (msg.id === botId ? { ...msg, ...patch(msg) } : msg)));
@@ -111,8 +157,16 @@ export default function ChatWindow({
         status: "done",
         content: prev.content || "Hmm, aku belum punya jawabannya. Coba tanya dengan kata lain ya!",
       }));
+      onReply?.();
     } catch (error) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) {
+        // Dihentikan lewat tombol stop: simpan yang sudah tertulis
+        patchBot((prev) => ({
+          status: "stopped",
+          content: prev.content ? `${prev.content}\n\n*(dihentikan)*` : "*(dihentikan)*",
+        }));
+        return;
+      }
       const mode = error instanceof ChatRequestError ? error.mode : "network_error";
       setOffline(OFFLINE_MODES.has(mode));
       patchBot(() => ({
@@ -129,9 +183,7 @@ export default function ChatWindow({
     }
   }
 
-  const bubble = `max-w-[82%] rounded-xl px-3 py-[9px] font-semibold leading-[1.4] ${
-    full ? "text-sm" : "text-[13px]"
-  }`;
+  const bubble = `rounded-xl px-3 py-[9px] font-semibold leading-[1.45] ${full ? "text-sm" : "text-[13px]"}`;
 
   return (
     <section
@@ -152,12 +204,17 @@ export default function ChatWindow({
             {loading ? "Sedang mengetik…" : offline ? "Sedang offline, coba lagi nanti" : "Online, siap membantu"}
           </small>
         </div>
+        {expandHref && (
+          <Link href={expandHref} className={headerBtn} aria-label="Buka halaman chat penuh" title="Buka layar penuh">
+            <ExpandIcon />
+          </Link>
+        )}
         {backHref ? (
           <Link href={backHref} className={headerBtn} aria-label="Kembali ke pembelajaran">
             ←
           </Link>
         ) : (
-          <button type="button" className={headerBtn} onClick={onClose} aria-label="Tutup chat">
+          <button type="button" className={headerBtn} onClick={onClose} aria-label="Kecilkan chat" title="Kecilkan">
             <CloseIcon />
           </button>
         )}
@@ -165,20 +222,21 @@ export default function ChatWindow({
 
       <div
         ref={listRef}
+        onScroll={handleScroll}
         aria-live="polite"
-        className={`custom-scrollbar flex flex-col gap-2 overflow-y-auto ${
-          full ? "min-h-0 flex-1 p-[18px]" : "max-h-[230px] p-3"
+        className={`custom-scrollbar flex min-h-[140px] flex-1 flex-col gap-2 overflow-y-auto ${
+          full ? "p-[18px]" : "p-3"
         }`}
       >
         {messages.map((m) =>
           m.role === "user" ? (
-            <div key={m.id} className={`${bubble} self-end whitespace-pre-wrap bg-brand-soft text-brand`}>
+            <div key={m.id} className={`${bubble} max-w-[85%] self-end whitespace-pre-wrap bg-brand-soft text-brand`}>
               {m.content}
             </div>
           ) : (
             <div
               key={m.id}
-              className={`${bubble} self-start ${
+              className={`${bubble} max-w-[94%] self-start ${
                 m.status === "error" ? "bg-brand-soft text-brand" : "bg-sky-soft"
               }`}
             >
@@ -201,46 +259,68 @@ export default function ChatWindow({
             </div>
           ),
         )}
-      </div>
 
-      <div className="flex flex-wrap gap-1.5 px-3 pb-3">
-        {chips.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => ask(s)}
-            disabled={loading}
-            className="rounded-full border-[1.5px] border-brand px-3 py-[3px] text-left text-xs font-extrabold text-brand hover:bg-brand-soft disabled:opacity-50"
-          >
-            {s}
-          </button>
-        ))}
+        {/* Saran ikut digulir bersama percakapan, jadi tidak menutupi jawaban di atasnya */}
+        {!loading && chips.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Saran pertanyaan">
+            {chips.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => ask(s)}
+                className="rounded-full border-[1.5px] border-brand px-3 py-[3px] text-left text-xs font-extrabold leading-[1.35] text-brand hover:bg-brand-soft"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <form
-        className="flex gap-2 border-t border-line px-3 py-2.5"
+        className="flex items-end gap-2 border-t border-line px-3 py-2.5"
         onSubmit={(e) => {
           e.preventDefault();
           ask(input);
         }}
       >
-        <input
+        <textarea
+          ref={inputRef}
+          rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter mengirim; Shift+Enter membuat baris baru (dan jangan kirim saat memilih kata IME)
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              ask(input);
+            }
+          }}
           placeholder="Tulis pertanyaanmu..."
           aria-label="Pertanyaan"
           maxLength={MAX_INPUT_CHARS}
-          disabled={loading}
-          className="min-w-0 flex-1 rounded-full bg-line px-3.5 py-2.5 text-[13px] font-semibold text-ink outline-none placeholder:text-muted disabled:opacity-60"
+          className="custom-scrollbar min-w-0 flex-1 resize-none rounded-[19px] bg-line px-3.5 py-2.5 text-[13px] font-semibold leading-[1.4] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-brand/30"
         />
-        <button
-          type="submit"
-          aria-label="Kirim"
-          disabled={loading || !input.trim()}
-          className="grid size-[38px] shrink-0 place-items-center rounded-full bg-brand text-white disabled:opacity-60"
-        >
-          <SendIcon />
-        </button>
+        {loading ? (
+          <button
+            type="button"
+            onClick={() => abortRef.current?.abort()}
+            aria-label="Hentikan jawaban"
+            title="Hentikan"
+            className="grid size-[38px] shrink-0 place-items-center rounded-full bg-brand text-white"
+          >
+            <StopIcon />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            aria-label="Kirim"
+            disabled={!input.trim()}
+            className="grid size-[38px] shrink-0 place-items-center rounded-full bg-brand text-white disabled:opacity-60"
+          >
+            <SendIcon />
+          </button>
+        )}
       </form>
     </section>
   );

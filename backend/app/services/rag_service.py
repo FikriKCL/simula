@@ -437,6 +437,17 @@ SHORT_FOLLOWUP_STARTERS = re.compile(
     re.IGNORECASE,
 )
 
+DEFINITION_ITU_PATTERN = re.compile(
+    r"\bapa(?:kah)?\s+(?:yang\s+dimaksud\s+(?:dengan\s+)?)?itu\b|\bitu\s*\??\s*$",
+    re.IGNORECASE,
+)
+
+GENERIC_FOLLOWUP_WORDS = {
+    "jelaskan", "jelasin", "lebih", "lanjut", "detail", "rinci", "lengkap", "singkat", "contoh", "lagi",
+    "dong", "tolong", "maksud", "maksudnya", "artinya", "gimana", "bagaimana", "kenapa", "mengapa",
+    "kalau", "terus", "lalu", "kemudian", "oke", "iya", "sip", "terima", "kasih", "makasih",
+}
+
 ORDINAL_MAP = {
     "pertama": 1,
     "kesatu": 1,
@@ -507,12 +518,19 @@ def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | Non
         if target_num:
             ordinal_topic = _extract_numbered_point_from_bot(bot_turns[0], target_num)
 
-    has_pronoun = bool(FOLLOWUP_PRONOUN_PATTERN.search(q_strip)) or bool(ord_match)
+    # "Apa itu kekeringan?" / "Apakah TBC itu?" ask for a definition: that "itu" is not a reference
+    # back to the previous answer, so it must not pull the previous topic into the search.
+    q_for_refs = DEFINITION_ITU_PATTERN.sub(" ", q_strip)
+    has_pronoun = bool(FOLLOWUP_PRONOUN_PATTERN.search(q_for_refs)) or bool(ord_match)
     has_followup_starter = bool(SHORT_FOLLOWUP_STARTERS.search(q_strip))
-    is_short_query = len(content_tokens) <= 2
+    # Words that ask for "more" without naming a topic ("jelaskan lebih detail")
+    topic_tokens = [w for w in content_tokens if w not in GENERIC_FOLLOWUP_WORDS]
 
-    # If the query is already self-contained and has no anaphora/pronouns, do not modify it!
-    if not has_pronoun and not is_short_query and not (has_followup_starter and len(content_tokens) <= 3):
+    # A question that names its own topic and does not point back is self-contained: searching it
+    # together with the previous topic ("Apa itu kekeringan? (luka bakar)") retrieves the wrong
+    # material and can even flag an emergency that the new question is not about.
+    needs_context = has_pronoun or (has_followup_starter and len(content_tokens) <= 3) or not topic_tokens
+    if not needs_context:
         return query
 
     anchor_tokens: List[str] = []
@@ -538,7 +556,9 @@ def resolve_conversational_query(query: str, history: List[Dict[str, Any]] | Non
                 seen.add(w)
             if len(anchor_tokens) >= 6:
                 break
-        if len(anchor_tokens) >= 4:
+        # The latest question already names the topic: an older turn ("luka bakar") would drag a
+        # finished topic back in, and with it a false emergency flag
+        if anchor_tokens:
             break
 
     # Fallback: extract bolded key concepts from the last bot message if user history was too generic

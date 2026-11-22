@@ -12,3 +12,5 @@ google-genai==2.28.0
 pgvector==0.5.0
 pymupdf==1.28.2
 rank-bm25==0.2.2
+
+Pillow>=11.0,<14

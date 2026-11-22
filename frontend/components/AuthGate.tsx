@@ -8,6 +8,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<
     "loading" | "signed-in" | "guest" | "error"
   >("loading");
+  const [role, setRole] = useState("");
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let active = true;
@@ -18,9 +19,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         if (active) setState("guest");
       });
     else
-      api("/users/me")
-        .then(() => {
-          if (active) setState("signed-in");
+      api<{ role: string }>("/users/me")
+        .then((user) => {
+          if (active) {
+            setRole(user.role);
+            setState("signed-in");
+          }
         })
         .catch((e) => {
           if (active) setState(e.status === 401 ? "guest" : "error");
@@ -30,9 +34,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       window.removeEventListener("simula-auth-expired", expire);
     };
   }, [pathname, retry]);
-  const protectedPage = /^\/(dashboard|materi|profil|belajar|kuis)(\/|$)/.test(
-    pathname,
-  );
+  const protectedPage =
+    /^\/(dashboard|materi|profil|belajar|kuis|admin)(\/|$)/.test(pathname);
   if (!protectedPage) return children;
   if (state === "loading")
     return (
@@ -59,6 +62,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           href={`/login?next=${encodeURIComponent(pathname)}`}
         >
           Buka halaman masuk
+        </Link>
+      </main>
+    );
+  if (pathname.startsWith("/admin") && role !== "ADMIN")
+    return (
+      <main className="p-10">
+        <h1 className="text-2xl font-bold">Akses admin diperlukan</h1>
+        <p>Akun ini tidak memiliki izin mengelola situs.</p>
+        <Link href="/dashboard" className="underline">
+          Kembali ke pembelajaran
         </Link>
       </main>
     );

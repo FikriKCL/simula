@@ -20,7 +20,7 @@ def quiz_create(mid, data, user, db):
         ),
     )
     for question in data.questions:
-        add(db, Question(quiz_id=quiz.id, **question.model_dump()))
+        add(db, Question(quiz_id=quiz.id, **question.model_dump(mode="json")))
     return record(quiz)
 
 
@@ -36,7 +36,7 @@ def snapshot(db, qid):
 
 
 def public_questions(questions):
-    return [{k: q[k] for k in ("id", "prompt", "options")} for q in questions]
+    return [dict({k: q[k] for k in ("id", "prompt", "options")}, question_type=q.get("question_type", "SINGLE_CHOICE"), image_url=q.get("image_url"), option_images=q.get("option_images", [])) for q in questions]
 
 
 def quiz_detail(qid, user, db):
@@ -205,7 +205,7 @@ def check_bank_capacity(qid, db):
 def question_add(qid, data, db):
     require(db.scalar(select(Quiz).where(Quiz.id == qid).with_for_update()))
     check_bank_capacity(qid, db)
-    return record(add(db, Question(quiz_id=qid, **data.model_dump())))
+    return record(add(db, Question(quiz_id=qid, **data.model_dump(mode="json"))))
 
 
 @transactional
@@ -216,7 +216,7 @@ def question_update(qid, question_id, data, db):
             select(Question).where(Question.id == question_id, Question.quiz_id == qid)
         )
     )
-    for k, v in data.model_dump().items():
+    for k, v in data.model_dump(mode="json").items():
         setattr(question, k, v)
     db.flush()
     return record(question)

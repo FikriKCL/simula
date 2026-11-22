@@ -1,3 +1,5 @@
+> Pembaruan 22 November 2026: lihat `../README-ADMIN-TERBARU.md` untuk admin terbaru, revisi materi, dan gambar soal.
+
 # SIMULA Backend
 
 Panduan backend SIMULA setelah integrasi frontend, pembaruan struktur materi, dan penambahan seed data dummy. Diperbarui 13 November 2026 berdasarkan kode dalam paket `SIMULA-integrated.zip`.
@@ -16,7 +18,7 @@ Backend menggunakan FastAPI, SQLAlchemy, dan PostgreSQL. Prisma dipakai untuk me
 | Pelajaran dan jalur level | Mengikuti progres dan aturan akses backend |
 | Kuis PRE/POST | Soal dari API; nilai dihitung di backend |
 | XP, lencana, dan sertifikat | Terhubung ke progres siswa dan profil |
-| Pengelolaan konten/staf | Endpoint sesuai role tersedia; website admin belum dibuat |
+| Pengelolaan konten/staf | Website admin tersedia pada `/admin`; lihat `../README-ADMIN.md` |
 | Chatbot | Endpoint lama dipertahankan; memerlukan konfigurasi Gemini dan knowledge base tersendiri |
 
 ## 2. Prasyarat
@@ -269,7 +271,7 @@ Seed tidak membuat admin. Isi `ADMIN_USERNAME` dan `ADMIN_PASSWORD` yang valid d
 python -m app.bootstrap
 ```
 
-Password admin harus 10–128 karakter dan tidak berawalan `replace-`. Perintah ini tidak mengganti akun dengan username yang sudah ada. Halaman website admin belum termasuk paket integrasi.
+Password admin harus 10–128 karakter dan tidak berawalan `replace-`. Perintah ini tidak mengganti akun dengan username yang sudah ada. Halaman website admin kini tersedia pada `/admin`; gunakan akun dengan role `ADMIN`.
 
 ## 7. Struktur materi terbaru
 
@@ -287,7 +289,7 @@ Password admin harus 10–128 karakter dan tidak berawalan `replace-`. Perintah 
 
 API menerima `body` 10–1.000.000 karakter. Komik memerlukan minimal satu halaman, maksimal 100 halaman. URL gambar pada skema API menggunakan URL HTTP/HTTPS lengkap. Urutan array adalah urutan baca; `page_count` komik mengikuti jumlah halaman.
 
-Artikel tidak memerlukan PDF. File gambar disimpan di penyimpanan file, sedangkan database menyimpan referensinya. JSX, komponen React, serta kelas warna tidak disimpan dalam database. Upload file dan editor konten admin belum dibuat.
+Artikel tidak memerlukan PDF. File gambar disimpan di penyimpanan file, sedangkan database menyimpan referensinya. JSX, komponen React, serta kelas warna tidak disimpan dalam database. Editor artikel, komik, video dan upload gambar komik kini tersedia pada `/admin`; lihat `../README-ADMIN.md`.
 
 ## 8. Endpoint utama
 
@@ -453,7 +455,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-Hasil verifikasi paket integrasi sebelumnya: **23 passed, 9 skipped**. Tes integrasi portabel menggunakan SQLite in-memory dan FastAPI TestClient. Migration SQL dan bentuk data seed juga telah diperiksa dengan PostgreSQL 16 single-user mode; ini bukan pengujian concurrency melalui server PostgreSQL.
+Hasil verifikasi paket integrasi sebelumnya: **27 passed, 9 skipped**. Tes integrasi portabel menggunakan SQLite in-memory dan FastAPI TestClient. Migration SQL dan bentuk data seed juga telah diperiksa dengan PostgreSQL 16 single-user mode; ini bukan pengujian concurrency melalui server PostgreSQL.
 
 Tes PostgreSQL memerlukan database disposable bernama **`simula_test`**. Terapkan migration pada database test terlebih dahulu, misalnya melalui Prisma lokal:
 
@@ -484,3 +486,12 @@ docker compose down
 ```
 
 Named volume database tetap dipertahankan secara default. **`docker compose down -v` menghapus volume dan dapat menghilangkan akun, materi, serta progres.** Simpan `.env` di luar version control dan gunakan backup database untuk data yang perlu dipertahankan.
+
+
+## Pembaruan integrasi admin — 15 November 2026
+
+Halaman admin sekarang tersedia di frontend pada `/admin`. Gunakan akun `ADMIN` dari `python -m app.bootstrap`, bukan akun demo siswa/pengajar. Terapkan migration `20261115000000_admin_accounts` sebelum menjalankan versi ini. Detail pemasangan, role, antrean pendaftaran opsional, pengelolaan draft, bank soal, dan upload ada di `../README-ADMIN.md`; bagian status admin lama pada dokumen ini merujuk paket sebelum pembaruan ini.
+
+`REGISTRATION_APPROVAL_REQUIRED=false` menjaga register publik tetap langsung disetujui. Set `true` untuk akun publik baru yang memerlukan persetujuan. Akun lama tetap disetujui. Endpoint dashboard, daftar siswa, persetujuan, dan upload berada di `/api/v1/admin`; hanya role `ADMIN` yang dapat mengaksesnya. Password hash tidak dikirim dalam respons admin.
+
+Upload gambar disimpan pada `backend/uploads` secara lokal, atau volume Docker `simula_uploads` pada `/data/uploads`. `UPLOAD_DIR` dapat dikonfigurasi. Upload dibatasi PNG/JPEG/WebP 10 MB dan 20 megapiksel, lalu dikodekan ulang menjadi WebP. Gambar komik yang diunggah bersifat publik.

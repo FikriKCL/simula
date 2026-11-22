@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BooksIcon, Cross, ProfileIcon } from "./Icons";
+import { BooksIcon, Cross, ProfileIcon, SimulaLogo } from "./Icons";
 
 export type NavKey = "pembelajaran" | "materi" | "profil";
 
@@ -17,14 +17,15 @@ export default function Sidebar({ active }: { active: NavKey }) {
         max-[720px]:h-auto max-[720px]:flex-row max-[720px]:justify-around max-[720px]:border-r-0
         max-[720px]:border-t-2 max-[720px]:bg-page max-[720px]:p-2"
     >
-      <Link
-        href="/dashboard"
-        aria-label="Simula, ke beranda"
-        className="flex items-center gap-2 px-3 pb-5 font-heading text-[34px] font-black tracking-[-1px] text-brand max-[720px]:hidden"
-      >
-        <Cross size={30} />
-        simula
-      </Link>
+      <div className="flex items-center gap-2 px-3 pb-5 font-heading text-[34px] font-black tracking-[-1px] text-brand max-[720px]:hidden">
+          <Link
+              href="/dashboard"
+              aria-label="Kembali ke dashboard"
+              className="inline-flex shrink-0"
+            >
+              <SimulaLogo className="[&>svg]:size-10 [&>span]:text-[36px]" />
+            </Link>
+      </div>
 
       {items.map((item) => {
         const isActive = item.key === active;
@@ -33,10 +34,11 @@ export default function Sidebar({ active }: { active: NavKey }) {
             key={item.key}
             href={item.href}
             aria-current={isActive ? "page" : undefined}
-            className={`flex items-center gap-4 rounded-[14px] border-2 px-4 py-3.5 font-heading text-sm font-extrabold uppercase tracking-[0.8px] transition-colors [&_svg]:shrink-0 [&_svg]:text-ink ${isActive
+            className={`flex items-center gap-4 rounded-[14px] border-2 px-4 py-3.5 font-heading text-sm font-extrabold uppercase tracking-[0.8px] transition-colors [&_svg]:shrink-0 [&_svg]:text-ink ${
+              isActive
                 ? "border-brand bg-brand-soft text-brand"
                 : "border-transparent text-muted hover:bg-sky-soft"
-              }`}
+            }`}
           >
             {item.icon}
             <span className="max-[720px]:hidden">{item.label}</span>

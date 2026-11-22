@@ -1,3 +1,7 @@
+> Pembaruan 22 November 2026: gunakan `README-ADMIN-TERBARU.md` di root paket untuk integrasi desain admin terbaru, revisi materi terbit, dan gambar soal.
+
+> Pembaruan 15 November 2026: admin kini sudah diintegrasikan. Baca `README-ADMIN.md` untuk pemasangan dan penggunaan admin.
+
 # SIMULA — integrasi frontend dan backend
 
 Paket ini berisi frontend Next.js dan backend FastAPI yang sudah disambungkan untuk login, profil, katalog materi, pembelajaran, kuis, progres, XP, lencana, dan sertifikat. Desain halaman utama dipertahankan. Backend mengakses PostgreSQL dengan SQLAlchemy; migration skema dikelola Prisma.
@@ -127,7 +131,7 @@ Frontend menampilkan loading, error dengan tombol coba lagi, daftar kosong, dan 
 ## Verifikasi
 
 - Frontend: TypeScript dan production build berhasil; ESLint bersih.
-- Backend: `python -m pytest -q` menghasilkan **23 passed, 9 skipped**.
+- Backend: `python -m pytest -q` menghasilkan **27 passed, 9 skipped**.
 - Pengujian integrasi baru memakai SQLite in-memory + FastAPI TestClient: seed berulang, profil, filter materi, kunci level, penyelesaian materi/pelajaran, penilaian snapshot, XP idempotent, lencana, dan PDF sertifikat.
 - Seluruh migration SQL berhasil dijalankan pada PostgreSQL 16 dalam single-user mode; bentuk data seed juga berhasil dimasukkan, dengan 2 akun, 27 materi, dan 54 soal.
 - Sembilan pengujian lama yang memerlukan koneksi PostgreSQL server dilewati karena `TEST_DATABASE_URL` tidak tersedia. Pengujian ini tidak menggantikan verifikasi locking/concurrency PostgreSQL.
@@ -137,4 +141,4 @@ Untuk menjalankan suite PostgreSQL, sediakan database disposable bernama `simula
 
 ## Batas pekerjaan
 
-Website admin dan upload/editor konten belum dibuat. Endpoint pengelolaan yang sebelumnya ada tetap tersedia sesuai role. Chatbot dan integrasi AI sebelumnya dipertahankan; pengujian ini berfokus pada pembelajaran, bukan validasi Gemini atau knowledge base yang tidak disertakan dalam ZIP. Data materi sesungguhnya dan video kurikulum perlu menggantikan contoh setelah konten tersedia.
+Website admin, editor materi, upload komik, dan bank soal kini tersedia; baca `README-ADMIN.md`. Endpoint pengelolaan tetap dibatasi sesuai role. Chatbot dan integrasi AI sebelumnya dipertahankan; pengujian ini berfokus pada pembelajaran, bukan validasi Gemini atau knowledge base yang tidak disertakan dalam ZIP. Data materi sesungguhnya dan video kurikulum perlu menggantikan contoh setelah konten tersedia.
