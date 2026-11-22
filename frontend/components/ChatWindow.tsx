@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState, type AnimationEventHandler } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type AnimationEventHandler,
+  type CSSProperties,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { CloseIcon, SendIcon } from "./Icons";
 import { PikoAvatar } from "./PikoAvatar";
 import Markdown from "./chat/Markdown";
@@ -18,6 +27,13 @@ type Props = {
   backHref?: string;
   /** Kalau diisi, header punya tombol untuk membuka halaman chat penuh. */
   expandHref?: string;
+  /** Kalau diisi, tombol di header membesarkan chat ke ukuran maksimal (menggantikan expandHref). */
+  onToggleMaximize?: () => void;
+  maximized?: boolean;
+  /** Elemen di tepi atas kartu, misalnya pegangan untuk mengubah tinggi. */
+  topSlot?: ReactNode;
+  style?: CSSProperties;
+  ref?: Ref<HTMLElement>;
   /** Dipanggil setiap Dokter Piko selesai menjawab (dipakai untuk badge saat panel dikecilkan). */
   onReply?: () => void;
   className?: string;
@@ -51,6 +67,14 @@ function ExpandIcon() {
   );
 }
 
+function RestoreIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
+    </svg>
+  );
+}
+
 function StopIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -64,6 +88,11 @@ export default function ChatWindow({
   onClose,
   backHref,
   expandHref,
+  onToggleMaximize,
+  maximized = false,
+  topSlot,
+  style,
+  ref,
   onReply,
   className = "",
   onAnimationEnd,
@@ -188,11 +217,14 @@ export default function ChatWindow({
   return (
     <section
       aria-label="Tanya Dokter Piko"
+      ref={ref}
       onAnimationEnd={onAnimationEnd}
-      className={`flex origin-bottom-right flex-col overflow-hidden rounded-[20px] bg-surface shadow-float ${
+      style={style}
+      className={`relative flex origin-bottom-right flex-col overflow-hidden rounded-[20px] bg-surface shadow-float ${
         full ? "h-full w-[min(820px,100%)]" : ""
       } ${className}`}
     >
+      {topSlot}
       <header className="flex items-center gap-2.5 bg-brand px-3.5 py-3 text-white">
         <PikoAvatar size={38} />
         <div className="min-w-0 flex-1">
@@ -204,7 +236,18 @@ export default function ChatWindow({
             {loading ? "Sedang mengetik…" : offline ? "Sedang offline, coba lagi nanti" : "Online, siap membantu"}
           </small>
         </div>
-        {expandHref && (
+        {onToggleMaximize ? (
+          <button
+            type="button"
+            className={headerBtn}
+            onClick={onToggleMaximize}
+            aria-pressed={maximized}
+            aria-label={maximized ? "Kembalikan ukuran chat" : "Perbesar chat ke ukuran maksimal"}
+            title={maximized ? "Kembalikan ukuran" : "Perbesar"}
+          >
+            {maximized ? <RestoreIcon /> : <ExpandIcon />}
+          </button>
+        ) : expandHref && (
           <Link href={expandHref} className={headerBtn} aria-label="Buka halaman chat penuh" title="Buka layar penuh">
             <ExpandIcon />
           </Link>
@@ -224,7 +267,7 @@ export default function ChatWindow({
         ref={listRef}
         onScroll={handleScroll}
         aria-live="polite"
-        className={`custom-scrollbar flex min-h-[140px] flex-1 flex-col gap-2 overflow-y-auto ${
+        className={`custom-scrollbar flex min-h-[72px] flex-1 flex-col gap-2 overflow-y-auto ${
           full ? "p-[18px]" : "p-3"
         }`}
       >
