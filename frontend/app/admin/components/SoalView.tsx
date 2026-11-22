@@ -93,7 +93,7 @@ export default function SoalView({
               <option value="all">Semua materi</option>
               <option value="PP">PP</option>
               <option value="ASB">ASB</option>
-              <option value="PRS">PRS</option>
+              <option value="KR">KR</option>
             </select>
 
             <select

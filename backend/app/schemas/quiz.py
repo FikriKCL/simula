@@ -39,6 +39,19 @@ class Submission(BaseModel):
     answers: dict[int, int] = Field(min_length=1, max_length=50)
 
 
+class AnswerCheck(BaseModel):
+    question_id: int
+    answer: int = Field(ge=0, le=20)
+
+
+class AnswerCheckOut(BaseModel):
+    question_id: int
+    answer: int
+    correct: bool
+    correct_index: int
+    explanation: str
+
+
 class QuizOut(BaseModel):
     id: int
     module_id: int

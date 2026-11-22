@@ -36,7 +36,7 @@ def client(monkeypatch):
                 [
                     Topic(id=1, code="PP", name="Pertolongan Pertama", position=1),
                     Topic(id=2, code="ASB", name="ASB", position=2),
-                    Topic(id=3, code="PRS", name="PRS", position=3),
+                    Topic(id=3, code="KR", name="Kesehatan Remaja", position=3),
                 ]
             )
             db.flush()

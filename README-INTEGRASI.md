@@ -142,3 +142,13 @@ Untuk menjalankan suite PostgreSQL, sediakan database disposable bernama `simula
 ## Batas pekerjaan
 
 Website admin, editor materi, upload komik, dan bank soal kini tersedia; baca `README-ADMIN.md`. Endpoint pengelolaan tetap dibatasi sesuai role. Chatbot dan integrasi AI sebelumnya dipertahankan; pengujian ini berfokus pada pembelajaran, bukan validasi Gemini atau knowledge base yang tidak disertakan dalam ZIP. Data materi sesungguhnya dan video kurikulum perlu menggantikan contoh setelah konten tersedia.
+
+## Impor buku materi & komik (PDF dari Drive)
+
+1. Unduh folder Drive "Materi sama Komik" lalu susun: `<sumber>/pp`, `<sumber>/asb`, `<sumber>/prs`.
+   Tiap folder berisi `materi.pdf` (buku materi) + PDF komik (judul = nama file).
+2. Jalankan dari `backend/`: `python -m app.import_modules <sumber>` (butuh topik + modul Level 1, mis. dari `python -m app.seed`).
+   Tiap topik (PP, ASB, KR) dibagi 3 level: bagian buku (wajib dibaca), komik, kuis PRE/POST, dan badge.
+   Pembagian halaman, komik, soal, dan badge diatur di `backend/app/module_levels.py`; bank soal di `module_quizzes.py`.
+   Script juga menghapus topik demo PRS dan materi demo seed di modul tersebut. Aman diulang.
+3. Jika API jalan di Docker, salin gambar ke volume: `docker cp uploads/modul backend-api-1:/data/uploads/`.

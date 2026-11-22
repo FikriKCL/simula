@@ -154,10 +154,22 @@ def test_material_run_snapshot_certificate_and_profile(client, auth):
         },
     )
     assert changed.status_code == 200, changed.text
+    check_url = P + f"/quizzes/{qid}/runs/{run['id']}/check"
+    assert (
+        client.post(check_url, headers=teacher, json={"question_id": question_id, "answer": 0}).status_code
+        == 404
+    )
+    checked = client.post(check_url, headers=student, json={"question_id": question_id, "answer": 0})
+    assert checked.status_code == 200, checked.text
+    # Feedback follows the run snapshot, not the edited bank.
+    assert checked.json()["correct"] and checked.json()["correct_index"] == 0
+    # First checked answer is locked; a retry cannot change it.
+    again = client.post(check_url, headers=student, json={"question_id": question_id, "answer": 1})
+    assert again.json()["answer"] == 0 and again.json()["correct"]
     r = client.post(
         P + f"/quizzes/{qid}/runs/{run['id']}/submit",
         headers=student,
-        json={"answers": {str(question_id): 0}},
+        json={"answers": {str(question_id): 1}},  # locked answer (0) wins
     )
     assert r.status_code == 201 and r.json()["score"] == 100, r.text
     assert "question_snapshot" not in r.json()

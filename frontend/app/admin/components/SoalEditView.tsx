@@ -31,7 +31,7 @@ const QUESTION_TYPES: QuestionType[] = [
 const TOPIC_OPTIONS = [
   "Pertolongan Pertama (PP)",
   "Ayo Siaga Bencana (ASB)",
-  "Pendidikan Remaja Sebaya (PRS)",
+  "Kesehatan Remaja (KR)",
 ];
 
 export default function SoalEditView({
@@ -59,7 +59,7 @@ export default function SoalEditView({
   const [saving,setSaving]=useState(false);
   const [uploading,setUploading]=useState(false);
   const [saveError,setSaveError]=useState("");
-  const currentCode=topicFull.includes("ASB")?"ASB":topicFull.includes("PRS")?"PRS":"PP";
+  const currentCode=topicFull.includes("ASB")?"ASB":topicFull.includes("(KR)")?"KR":"PP";
   const matchingModule=tree?.modules.find(m=>m.topic_id===tree.topics.find(t=>t.code===currentCode)?.id&&m.level===Number(level.replace(/[^0-9]/g,"")));
   const availableQuizzes=tree?.quizzes.filter(q=>q.module_id===matchingModule?.id)||[];
   const selectedQuiz=availableQuizzes.find(q=>q.id===quizId)||availableQuizzes[0];
@@ -92,8 +92,8 @@ export default function SoalEditView({
     e.preventDefault();
     const derivedTopic: TopicCode = topicFull.includes("ASB")
       ? "ASB"
-      : topicFull.includes("PRS")
-      ? "PRS"
+      : topicFull.includes("(KR)")
+      ? "KR"
       : "PP";
 
     if(saving||uploading)return;setSaving(true);setSaveError("");
@@ -115,7 +115,7 @@ export default function SoalEditView({
   const breadcrumbTopic = topicFull
     .replace(" (PP)", "")
     .replace(" (ASB)", "")
-    .replace(" (PRS)", "");
+    .replace(" (KR)", "");
 
   return (
     <div className="space-y-4">

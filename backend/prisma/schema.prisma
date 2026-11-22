@@ -226,6 +226,7 @@ model QuizRun {
  user_id Int
  quiz_id Int
  question_snapshot Json
+ checked_answers Json @default("{}")
  pass_score Int
  expires_at DateTime @db.Timestamptz(6)
  submitted_at DateTime? @db.Timestamptz(6)

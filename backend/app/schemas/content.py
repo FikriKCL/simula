@@ -85,9 +85,9 @@ class MaterialCreate(BaseModel):
             raise ValueError("PDF/video memerlukan URL")
         if self.kind == "COMIC" and not self.pages:
             raise ValueError("Komik memerlukan halaman berurutan")
-        if self.kind != "COMIC" and self.pages:
-            raise ValueError("pages hanya untuk komik")
-        if self.kind == "COMIC":
+        if self.kind not in ("COMIC", "PDF") and self.pages:
+            raise ValueError("pages hanya untuk komik/buku PDF")
+        if self.pages:
             self.page_count = len(self.pages)
         return self
 

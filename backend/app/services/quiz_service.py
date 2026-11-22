@@ -141,8 +141,7 @@ def grade(db, quiz, questions, pass_score, data, user):
     )
 
 
-@transactional
-def submit_run(qid, rid, data, user, db):
+def open_run(db, qid, rid, user):
     run = require(
         db.scalar(
             select(QuizRun)
@@ -162,8 +161,40 @@ def submit_run(qid, rid, data, user, db):
     )
     if expires <= datetime.now(timezone.utc):
         raise ServiceError(409, "Sesi tes kedaluwarsa")
+    return run
+
+
+@transactional
+def check_answer(qid, rid, data, user, db):
+    """Periksa satu soal. Jawaban pertama dikunci, jadi umpan balik tidak bisa dipakai menebak ulang."""
+    run = open_run(db, qid, rid, user)
+    eligible(db, require(db.get(Quiz, qid)), user)
+    question = next((q for q in run.question_snapshot if q["id"] == data.question_id), None)
+    if not question:
+        raise ServiceError(404, "Soal tidak ada di sesi ini")
+    if data.answer >= len(question["options"]):
+        raise ServiceError(422, "Indeks jawaban tidak valid")
+    checked = dict(run.checked_answers or {})
+    answer = checked.setdefault(str(question["id"]), data.answer)
+    run.checked_answers = checked
+    db.flush()
+    return {
+        "question_id": question["id"],
+        "answer": answer,
+        "correct": answer == question["correct_index"],
+        "correct_index": question["correct_index"],
+        "explanation": question["explanation"],
+    }
+
+
+@transactional
+def submit_run(qid, rid, data, user, db):
+    run = open_run(db, qid, rid, user)
     quiz = require(db.get(Quiz, qid))
     eligible(db, quiz, user)
+    # Soal yang sudah diperiksa memakai jawaban terkunci, bukan kiriman baru.
+    for key, answer in (run.checked_answers or {}).items():
+        data.answers[int(key)] = answer
     result = grade(db, quiz, run.question_snapshot, run.pass_score, data, user)
     run.submitted_at = datetime.now(timezone.utc)
     run.attempt_id = result["id"]

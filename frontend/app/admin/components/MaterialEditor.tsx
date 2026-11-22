@@ -57,6 +57,7 @@ export default function MaterialEditor({
     setBusy(true);
     setError("");
     const videoId = String(f.get("video_id") || "").trim();
+    const pdfPages = pages.filter((p) => p.image_url);
     const payload = {
       title: f.get("title"),
       kind,
@@ -65,8 +66,14 @@ export default function MaterialEditor({
       required: f.get("required") === "on",
       thumbnail_key: f.get("thumbnail_key") || null,
       thumbnail_url: initial?.thumbnail_url || null,
-      pages: kind === "COMIC" ? pages : [],
-      page_count: kind === "COMIC" ? pages.length : null,
+      // Buku PDF hasil impor menyimpan gambar halaman; jangan dihapus saat disunting.
+      pages: kind === "COMIC" ? pages : kind === "PDF" ? pdfPages : [],
+      page_count:
+        kind === "COMIC"
+          ? pages.length
+          : kind === "PDF" && pdfPages.length
+            ? pdfPages.length
+            : null,
       duration_seconds:
         kind === "VIDEO" && f.get("duration")
           ? Number(f.get("duration"))
