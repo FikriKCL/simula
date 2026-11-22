@@ -28,7 +28,7 @@ export interface AccountRegistration {
 }
 
 export type MaterialType = "ARTICLE" | "PDF" | "VIDEO" | "KOMIK";
-export type TopicCode = "PP" | "ASB" | "PRS";
+export type TopicCode = "PP" | "ASB" | "KR";
 
 export interface LearningMaterial {
   id: string;

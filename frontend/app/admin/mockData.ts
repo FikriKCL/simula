@@ -211,7 +211,7 @@ export const INITIAL_MATERIALS: LearningMaterial[] = [
     id: "mat-8",
     title: "Masa Remaja Itu Seru",
     type: "KOMIK",
-    topic: "PRS",
+    topic: "KR",
     size: "9 halaman",
   },
 ];
@@ -327,8 +327,8 @@ export const INITIAL_QUESTIONS: QuizQuestion[] = [
     id: "q-7",
     number: 7,
     question: "Teman sebaya yang baik adalah teman yang...",
-    topic: "PRS",
-    topicFull: "Pendidikan Remaja Sebaya (PRS)",
+    topic: "KR",
+    topicFull: "Kesehatan Remaja (KR)",
     type: "Pilihan ganda",
     level: "Level 24",
     options: [

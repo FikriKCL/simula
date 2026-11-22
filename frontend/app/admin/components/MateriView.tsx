@@ -146,7 +146,7 @@ export default function MateriView({
                 >
                   <option value="PP">PP</option>
                   <option value="ASB">ASB</option>
-                  <option value="PRS">PRS</option>
+                  <option value="KR">KR</option>
                 </select>
               </div>
             </div>

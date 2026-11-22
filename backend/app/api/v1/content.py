@@ -18,7 +18,7 @@ from app.schemas.content import (
     TopicOut,
     TopicPath,
 )
-from app.schemas.quiz import QuestionCreate, Submission, SubmissionOut
+from app.schemas.quiz import AnswerCheck, AnswerCheckOut, QuestionCreate, Submission, SubmissionOut
 from app.schemas.user import UserOut
 from app.services import certificate_service as cert
 from app.services import content_service as content
@@ -58,7 +58,7 @@ def path(user=Depends(current_user), db=Depends(get_db)):
 @router.get("/materials", tags=["Materials"], response_model=MaterialCatalogue)
 def catalogue(
     q: str = Query("", max_length=200),
-    kind: Literal["ARTICLE", "PDF", "VIDEO", "COMIC"] | None = None,
+    kind: list[Literal["ARTICLE", "PDF", "VIDEO", "COMIC"]] | None = Query(None),
     topic_id: int | None = Query(None, gt=0),
     module_id: int | None = Query(None, gt=0),
     limit: int = Query(20, ge=1, le=100),
@@ -174,6 +174,17 @@ def question_archive(
 )
 def start_run(qid: int, user=Depends(current_user), db=Depends(get_db)):
     return quiz.start_run(qid, user, db)
+
+
+@router.post(
+    "/quizzes/{qid}/runs/{rid}/check",
+    response_model=AnswerCheckOut,
+    tags=["Quizzes"],
+)
+def check_answer(
+    qid: int, rid: int, data: AnswerCheck, user=Depends(current_user), db=Depends(get_db)
+):
+    return quiz.check_answer(qid, rid, data, user, db)
 
 
 @router.post(

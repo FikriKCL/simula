@@ -95,8 +95,8 @@ def library(q, kind, topic_id, limit, offset, user, db, module_id=None):
                 Material.body.icontains(q, autoescape=True),
             )
         )
-    if kind:
-        query = query.where(Material.kind == kind)
+    if kind:  # satu jenis atau daftar (mis. ARTICLE + PDF untuk tab Dokumen)
+        query = query.where(Material.kind.in_([kind] if isinstance(kind, str) else kind))
     if module_id:
         query = query.where(Module.id == module_id)
     if topic_id:

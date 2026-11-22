@@ -61,7 +61,7 @@ def members(db, q, limit, offset):
     # Progress is completed published lessons / published lessons, per topic and overall.
     lesson_topics = list(db.execute(select(Lesson.id, Topic.code).join(Module, Module.id == Lesson.module_id).join(Topic, Topic.id == Module.topic_id).where(Module.status == "PUBLISHED")))
     lesson_ids = {lid for lid, code in lesson_topics}
-    totals = {code: sum(c == code for _, c in lesson_topics) for code in ("PP", "ASB", "PRS")}
+    totals = {code: sum(c == code for _, c in lesson_topics) for code in ("PP", "ASB", "KR")}
     for user in accounts_page["items"]:
         uid = user["id"]
         done = set(db.scalars(select(Progress.lesson_id).where(Progress.user_id == uid))) & lesson_ids

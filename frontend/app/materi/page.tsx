@@ -21,8 +21,8 @@ import {
   VideoIcon,
 } from "@/components/MateriIcons";
 
-type Kind = "artikel" | "video" | "komik";
-type Tab = "semua" | Kind;
+type Kind = "artikel" | "pdf" | "video" | "komik";
+type Tab = "semua" | "dokumen" | "video" | "komik";
 type Tone = "blue" | "pink" | "yellow" | "gray";
 
 type Item = {
@@ -42,18 +42,23 @@ const artByKey: Record<string, ReactNode> = {
   hand: <HandArt />,
   roll: <RollArt />,
 };
-function toItem(material: MaterialCard): Item {
+// Rotasi warna kartu seperti desain Figma (biru, kuning, merah muda, abu).
+const toneCycle: Tone[] = ["blue", "yellow", "pink", "gray"];
+
+function toItem(material: MaterialCard, index: number): Item {
   const kind: Kind =
     material.kind === "VIDEO"
       ? "video"
       : material.kind === "COMIC"
         ? "komik"
-        : "artikel";
+        : material.kind === "PDF"
+          ? "pdf"
+          : "artikel";
   return {
     id: String(material.id),
     kind,
     title: material.title,
-    tone: kind === "video" ? "pink" : "blue",
+    tone: toneCycle[index % toneCycle.length],
     art:
       artByKey[material.thumbnail_key || ""] ||
       (kind === "komik" ? (
@@ -68,7 +73,7 @@ function toItem(material: MaterialCard): Item {
       : material.completed
         ? "Selesai"
         : material.meta ? material.meta
-        : kind === "komik"
+        : kind === "komik" || kind === "pdf"
           ? `${material.page_count || 0} halaman`
           : kind === "video"
             ? `${Math.ceil((material.duration_seconds || 0) / 60)} menit`
@@ -79,13 +84,14 @@ function toItem(material: MaterialCard): Item {
 
 const tabs: { key: Tab; label: string; icon: ReactNode }[] = [
   { key: "semua", label: "Semua", icon: <GridIcon size={26} /> },
-  { key: "artikel", label: "Artikel", icon: <PdfIcon size={26} /> },
+  { key: "dokumen", label: "Dokumen/PDF", icon: <PdfIcon size={26} /> },
   { key: "video", label: "Video", icon: <VideoIcon size={26} /> },
   { key: "komik", label: "Komik", icon: <ComicIcon size={26} /> },
 ];
 
 const badge: Record<Kind, string> = {
   artikel: "ARTIKEL",
+  pdf: "PDF",
   video: "VIDEO",
   komik: "KOMIK",
 };
@@ -99,6 +105,7 @@ const tone: Record<Tone, string> = {
 
 const actStyle: Record<Kind, string> = {
   artikel: "size-6 bg-brand-soft text-brand",
+  pdf: "size-6 bg-brand-soft text-brand",
   video: "size-6 bg-sky-soft text-sky-dark",
   komik: "size-[26px] text-ink",
 };
@@ -111,12 +118,14 @@ export default function MateriPage() {
   const kindFilter =
     tab === "semua"
       ? ""
-      : `&kind=${tab === "artikel" ? "ARTICLE" : tab === "video" ? "VIDEO" : "COMIC"}`;
+      : tab === "dokumen"
+        ? "&kind=ARTICLE&kind=PDF"
+        : `&kind=${tab === "video" ? "VIDEO" : "COMIC"}`;
   const source = useApiData<{ items: MaterialCard[]; total: number }>(
     `/materials?limit=100&offset=${offset}&q=${encodeURIComponent(query)}${kindFilter}`,
   );
   const items = useMemo(
-    () => source.data?.items.map(toItem) || [],
+    () => source.data?.items.map((m, i) => toItem(m, i)) || [],
     [source.data],
   );
   const visible = items;
@@ -227,7 +236,7 @@ export default function MateriPage() {
                         href={it.href}
                         aria-disabled={!it.href}
                         aria-label={
-                          it.kind === "artikel"
+                          it.kind === "artikel" || it.kind === "pdf"
                             ? `Baca ${it.title}`
                             : it.kind === "video"
                               ? `Putar ${it.title}`
@@ -235,7 +244,9 @@ export default function MateriPage() {
                         }
                         className={`grid place-items-center rounded-full ${actStyle[it.kind]}`}
                       >
-                        {it.kind === "artikel" && <ArrowDownIcon size={13} />}
+                        {(it.kind === "artikel" || it.kind === "pdf") && (
+                          <ArrowDownIcon size={13} />
+                        )}
                         {it.kind === "video" && <PlayIcon size={11} />}
                         {it.kind === "komik" && <ComicIcon size={22} />}
                       </a>

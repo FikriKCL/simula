@@ -53,7 +53,7 @@ def test_learning_flow(demo):
     assert client.get(f"/api/v1/modules/{later}",headers=h).status_code==403
     items=get(f"/materials?module_id={mid}")["items"]
     assert len(items)==3 and {m["kind"] for m in items}=={"ARTICLE","COMIC","VIDEO"}
-    assert len(get("/materials?kind=ARTICLE&q=refleksi")["items"])==9
+    assert len(get("/materials?kind=ARTICLE&q=refleksi")["items"])==6  # 2 topik demo x 3 level
     detail=get(f'/materials/{items[0]["id"]}')
     assert len(detail["body"])>255 and detail["module_id"]==mid and detail["thumbnail_key"]=="plaster"
     module=get(f"/modules/{mid}");lid=module["lessons"][0]["id"]
@@ -108,7 +108,7 @@ def test_admin_permissions_and_real_catalogue(demo):
         assert r.status_code==200,r.text
         assert "password_hash" not in r.text
     summary=client.get("/api/v1/admin/overview",headers=h).json()
-    assert summary["materials"]==27 and summary["active_questions"]==54
+    assert summary["materials"]==18 and summary["active_questions"]==36
     assert summary["students"]==1 and summary["pending"]==0
     members=client.get("/api/v1/admin/members?q=demo_student",headers=h).json()
     assert members["total"]==1 and members["items"][0]["total_progress"]==0
@@ -210,7 +210,7 @@ def test_admin_workspace_keeps_answers_private_from_students(demo):
     assert result.status_code==200,result.text
     data=result.json()
     assert "password_hash" not in result.text
-    assert len(data["materials"])==27 and len(data["questions"])==54
+    assert len(data["materials"])==18 and len(data["questions"])==36
     assert data["members"][0]["username"]=="demo_student"
 
 

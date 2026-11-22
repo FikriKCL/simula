@@ -25,9 +25,9 @@ def seed(db, password):
     ensure(User, {"username": "demo_student"}, display_name="Raka Demo",
            password_hash=hasher.hash(password), role="STUDENT", school_id=school.id)
     # Existing accounts are never reset, nor are learner progress/answers fabricated.
+    # Topik Kesehatan Remaja (KR) dibuat oleh app.import_modules dari buku materi asli.
     for code, name, position in [("PP", "Pertolongan Pertama", 1),
-                                  ("ASB", "Ayo Siaga Bencana", 2),
-                                  ("PRS", "Perilaku Hidup Sehat", 3)]:
+                                  ("ASB", "Ayo Siaga Bencana", 2)]:
         topic = ensure(Topic, {"code": code}, name=name, position=position)
         for level in range(1, 4):
             module = ensure(Module, {"topic_id": topic.id, "level": level},
@@ -39,6 +39,10 @@ def seed(db, password):
                 continue
             lesson = ensure(Lesson, {"module_id": module.id, "position": 1},
                             title=f"Mengenal {name}", body="Pelajaran contoh untuk menguji aplikasi SIMULA.")
+            # Modul yang sudah berisi materi asli (app.import_modules) tidak diberi konten demo lagi.
+            if db.scalar(select(Material.id).where(Material.lesson_id == lesson.id,
+                                                   Material.position >= 10).limit(1)):
+                continue
             text = (f"## {name}\n\n**Data dummy untuk pengujian aplikasi.**\n\n"
                     "Materi ini belum ditinjau ahli dan bukan panduan tindakan medis.\n\n"
                     "### Tujuan belajar\n\n- Mengenali topik pembelajaran.\n- Membaca materi sampai selesai.\n"
@@ -47,7 +51,7 @@ def seed(db, password):
                     "melihat cerita bergambar, lalu menjawab pertanyaan. Ketika belum memahami sesuatu, "
                     "Piko bertanya kepada guru. Setelah itu ia menandai materi sebagai selesai.\n\n"
                     "### Refleksi\n\nCeritakan kembali apa yang baru kau pelajari kepada temanmu.")
-            key = {"PP": "plaster", "ASB": "kit", "PRS": "hand"}[code]
+            key = {"PP": "plaster", "ASB": "kit"}[code]
             ensure(Material, {"lesson_id": lesson.id, "position": 1},
                    title=f"Artikel {name}", kind="ARTICLE", body=text, thumbnail_key=key, required=True)
             ensure(Material, {"lesson_id": lesson.id, "position": 2},

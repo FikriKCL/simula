@@ -19,6 +19,10 @@ class QuizRun(Base):
     question_snapshot: Mapped[list] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql")
     )
+    # question_id (str) -> indeks jawaban; terkunci setelah diperiksa lewat /check.
+    checked_answers: Mapped[dict] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"), default=dict, server_default="{}"
+    )
     pass_score: Mapped[int] = mapped_column(Integer)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -110,7 +110,7 @@ export default function DashboardView({ members }: DashboardViewProps) {
                 <th className="pb-3 pr-4">ANGGOTA</th>
                 <th className="pb-3 px-3">PP</th>
                 <th className="pb-3 px-3">ASB</th>
-                <th className="pb-3 px-3">PRS</th>
+                <th className="pb-3 px-3">KR</th>
                 <th className="pb-3 px-3">TOTAL</th>
                 <th className="pb-3 pl-4 text-right">TERAKHIR AKTIF</th>
               </tr>
@@ -164,7 +164,7 @@ export default function DashboardView({ members }: DashboardViewProps) {
                     </div>
                   </td>
 
-                  {/* PRS */}
+                  {/* KR */}
                   <td className="py-3.5 px-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-[76px] h-[7px] bg-[#E2E8F0] dark:bg-slate-700 rounded-full overflow-hidden">
@@ -247,10 +247,10 @@ export default function DashboardView({ members }: DashboardViewProps) {
                   </div>
                 </div>
 
-                {/* PRS */}
+                {/* KR */}
                 <div>
                   <div className="text-[10px] font-extrabold text-[#94A3B8] uppercase mb-1">
-                    PRS
+                    KR
                   </div>
                   <div className="w-full h-[6px] bg-[#E2E8F0] dark:bg-slate-700 rounded-full overflow-hidden mb-1">
                     <div
