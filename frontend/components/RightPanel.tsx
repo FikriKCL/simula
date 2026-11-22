@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import ChatWindow from "./ChatWindow";
 import { PikoAvatar } from "./PikoAvatar";
-import { PikoMascot } from "./PikoMascot";
+import type { PikoMood } from "./PikoMascot";
+import { PikoCard, PIKO_CARD_HIDE_BELOW } from "./PikoCard";
 import {
   IndonesiaFlagIcon,
   SunIcon,
@@ -20,21 +21,35 @@ type Account = {
 const PANEL_HIDDEN_QUERY = "(max-width: 1100px)";
 
 // Tinggi chat yang bisa diatur pengguna. Lebar tetap mengikuti kolom panel (320px) agar jalur belajar
-// di tengah tidak tertutup. Batas bawah menjaga kotak ketik + beberapa pesan tetap terlihat; batas atas
-// adalah seluruh tinggi panel (kartu maskot disembunyikan bila chat membutuhkan ruangnya).
+// di tengah tidak tertutup. Ruang di atas chat selalu diisi kartu Dokter Piko, yang ikut mengecil
+// (tegak -> mendatar -> hilang) saat chat dibesarkan, jadi tidak pernah ada ruang kosong.
 const CHAT_MIN_HEIGHT = 260;
 const CHAT_HEIGHT_KEY = "simula-chat-height";
-const KEY_STEP = 24;
-// Ada dua keadaan: maskot tampil (tinggi bebas sampai batas maskot), atau chat penuh (maskot
-// disembunyikan). Tinggi di antaranya akan menyisakan ruang kosong di atas chat, jadi tidak dipakai:
-// menarik melewati batas maskot sejauh ini langsung membesarkan chat ke penuh.
-const SNAP_TO_MAX_PX = 40;
+const KEY_STEP = 32;
+// Perkiraan tinggi alami kartu Piko sebelum sempat diukur
+const PIKO_CARD_FALLBACK = 290;
+
+// Ucapan Dokter Piko: bergantian saat diam, dan bereaksi pada chat
+// Semua ucapan dibuat muat 2 baris (seperti teks di Figma) agar tinggi balon tidak berubah-ubah
+const PIKO_TIPS = [
+  "Halo! Aku Dokter Piko. Yuk, belajar menolong dengan aman!",
+  "Ada pertanyaan soal P3K? Tanyakan di bawah, ya!",
+  "Ingat: jaga keselamatan dirimu dulu sebelum menolong!",
+  "Darurat? Panggil orang dewasa, lalu hubungi 112/119.",
+  "Selesaikan kuis untuk membuka level berikutnya!",
+];
+const PIKO_THINKING = "Hmm, sebentar ya… aku cek buku panduan dulu.";
+const PIKO_ANSWERED = "Sudah kujawab di bawah! Mau tanya lagi?";
+const TIP_INTERVAL_MS = 8000;
+const HAPPY_MS = 4000;
 
 type Bounds = {
-  /** Tinggi maksimal: dari atas kartu maskot sampai dasar panel. */
+  /** Tinggi maksimal chat: ruang dari atas kartu Piko sampai dasar panel, dikurangi celah flex. */
   max: number;
-  /** Tinggi maksimal selama kartu maskot masih ditampilkan. */
-  withMascot: number;
+  /** Jarak antar elemen panel (gap flex). */
+  gap: number;
+  /** Tinggi alami kartu Piko (desain awal). */
+  pikoNatural: number;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -122,13 +137,14 @@ export default function RightPanel() {
 
   // ---- Ukuran chat ----
   const asideRef = useRef<HTMLElement>(null);
-  const mascotRef = useRef<HTMLElement>(null);
+  const pikoRef = useRef<HTMLElement>(null);
   const chatRef = useRef<HTMLElement>(null);
-  // Posisi kartu maskot diingat saat masih tampil, karena saat disembunyikan ia tidak bisa diukur
-  const mascotBox = useRef({ top: 0, height: 0 });
+  // Tinggi alami kartu Piko (desain awal), diukur selama kartu belum diperkecil
+  const pikoNatural = useRef(PIKO_CARD_FALLBACK);
   // null = tinggi otomatis (mengikuti isi, seperti desain awal)
   const [chatHeight, setChatHeight] = useState<number | null>(null);
   const [bounds, setBounds] = useState<Bounds | null>(null);
+  const [dragging, setDragging] = useState(false);
   const beforeMaximize = useRef<number | null>(null);
 
   useEffect(() => {
@@ -136,15 +152,19 @@ export default function RightPanel() {
     if (!aside) return;
     let first = true;
     const measure = () => {
-      const mascot = mascotRef.current;
-      if (mascot && mascot.offsetHeight > 0) {
-        mascotBox.current = { top: mascot.offsetTop, height: mascot.offsetHeight };
-      }
+      const piko = pikoRef.current;
+      if (!piko) return;
+      if (!piko.style.height) pikoNatural.current = piko.offsetHeight;
       const styles = getComputedStyle(aside);
       const bottom = aside.clientHeight - parseFloat(styles.paddingBottom);
+      // offsetTop tetap benar walau kartu sedang diperkecil: elemen di atasnya tidak berubah
       const gap = parseFloat(styles.rowGap) || 0;
-      const { top, height } = mascotBox.current;
-      setBounds({ max: bottom - top, withMascot: bottom - (top + height + gap) });
+      // Celah flex di antara kartu Piko dan chat tetap ada walau kartu setinggi 0
+      setBounds({
+        max: bottom - piko.offsetTop - gap,
+        gap,
+        pikoNatural: pikoNatural.current,
+      });
       if (first) {
         first = false;
         setChatHeight(readStoredHeight());
@@ -160,21 +180,20 @@ export default function RightPanel() {
   }, []);
 
   const maxHeight = bounds?.max ?? 0;
-  const effectiveHeight =
-    // Dinormalisasi juga di sini: tinggi tersimpan dari layar lain bisa jatuh di antara dua keadaan
-    chatHeight === null || !bounds ? null : normalize(chatHeight, bounds);
-  const mascotHidden = effectiveHeight !== null && bounds !== null && effectiveHeight > bounds.withMascot;
-  const maximized = effectiveHeight !== null && effectiveHeight >= maxHeight - 1;
 
-  /** Batasi tinggi ke salah satu dari dua keadaan yang rapi (lihat SNAP_TO_MAX_PX). */
+  /** Tinggi chat yang dipakai: dalam batas, dan langsung penuh bila sisa ruang Piko terlalu kecil. */
   function normalize(value: number, b: Bounds) {
     const v = clamp(value, CHAT_MIN_HEIGHT, b.max);
-    // Layar pendek: di bawah maskot tidak cukup ruang untuk tinggi minimal, jadi tinggi yang diatur
-    // selalu berarti penuh (pilihan lainnya adalah ukuran awal, lewat restore/klik dua kali)
-    if (b.withMascot < CHAT_MIN_HEIGHT) return b.max;
-    if (v <= b.withMascot) return v;
-    return v >= b.withMascot + SNAP_TO_MAX_PX ? b.max : b.withMascot;
+    return b.max - v < PIKO_CARD_HIDE_BELOW ? b.max : v;
   }
+
+  const effectiveHeight = chatHeight === null || !bounds ? null : normalize(chatHeight, bounds);
+  const maximized = effectiveHeight !== null && effectiveHeight >= maxHeight - 1;
+  // Kartu Piko mengisi tepat ruang di atas chat (undefined = ukuran alami)
+  const pikoHeight =
+    effectiveHeight === null || !bounds ? undefined : Math.max(0, bounds.max - effectiveHeight);
+  // Layar pendek: ukuran awal chat boleh di bawah batas minimal agar tidak menabrak tombol Piko
+  const shortPanel = bounds !== null && bounds.max - bounds.pikoNatural < CHAT_MIN_HEIGHT;
 
   function applyHeight(value: number | null, persist = true) {
     const next = value === null || !bounds ? value : normalize(value, bounds);
@@ -185,7 +204,7 @@ export default function RightPanel() {
   function toggleMaximize() {
     if (maximized) {
       const previous = beforeMaximize.current;
-      // Kalau ukuran sebelumnya juga berarti penuh (mis. layar pendek), kembali ke ukuran awal
+      // Kalau ukuran sebelumnya juga berarti penuh, kembali ke ukuran awal
       const restoresToMax = previous !== null && bounds !== null && normalize(previous, bounds) >= maxHeight - 1;
       applyHeight(restoresToMax ? null : previous);
     } else {
@@ -200,23 +219,23 @@ export default function RightPanel() {
     event.preventDefault();
     const handle = event.currentTarget;
     handle.setPointerCapture(event.pointerId);
+    setDragging(true);
     const startY = event.clientY;
-    // Saat diatur, chat menempel ke dasar panel. Mulai dari tinggi "tepi atas sekarang sampai dasar"
-    // agar tepi atas tidak melompat dan langsung mengikuti kursor.
+    // Mulai dari "tepi atas chat sampai dasar panel" agar tepi atas tidak melompat
     const panelBottom =
       aside.getBoundingClientRect().top + aside.clientHeight - parseFloat(getComputedStyle(aside).paddingBottom);
     const startHeight = clamp(panelBottom - chatRef.current.getBoundingClientRect().top, CHAT_MIN_HEIGHT, bounds.max);
     let latest = startHeight;
     const onMove = (move: PointerEvent) => {
-      // Pegangan ada di tepi atas: menarik ke atas = chat lebih tinggi
-      const next = normalize(startHeight + (startY - move.clientY), bounds);
-      latest = next;
-      setChatHeight(next);
+      // Pegangan ada di tepi atas: menarik ke atas = chat lebih tinggi, kartu Piko mengecil
+      latest = normalize(startHeight + (startY - move.clientY), bounds);
+      setChatHeight(latest);
     };
     const onUp = () => {
       handle.removeEventListener("pointermove", onMove);
       handle.removeEventListener("pointerup", onUp);
       handle.removeEventListener("pointercancel", onUp);
+      setDragging(false);
       beforeMaximize.current = null;
       storeHeight(latest);
     };
@@ -227,11 +246,10 @@ export default function RightPanel() {
 
   function resizeWithKeyboard(event: React.KeyboardEvent<HTMLDivElement>) {
     const current = effectiveHeight ?? chatRef.current?.getBoundingClientRect().height ?? CHAT_MIN_HEIGHT;
-    const atMascotLimit = bounds !== null && current >= bounds.withMascot - 1;
     const keys: Record<string, number> = {
-      // Di batas maskot, satu langkah lagi = penuh; dari penuh, satu langkah turun = batas maskot
-      ArrowUp: atMascotLimit ? maxHeight : current + KEY_STEP,
-      ArrowDown: maximized && bounds ? bounds.withMascot : current - KEY_STEP,
+      ArrowUp: current + KEY_STEP,
+      // Dari penuh, turun ke tinggi terbesar yang masih menampilkan kartu Piko
+      ArrowDown: maximized && bounds ? bounds.max - PIKO_CARD_HIDE_BELOW : current - KEY_STEP,
       Home: CHAT_MIN_HEIGHT,
       End: maxHeight,
     };
@@ -239,6 +257,23 @@ export default function RightPanel() {
     event.preventDefault();
     applyHeight(keys[event.key]);
   }
+
+  // ---- Ucapan & ekspresi Dokter Piko ----
+  const [tipIndex, setTipIndex] = useState(0);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [happy, setHappy] = useState(false);
+  useEffect(() => {
+    if (chatBusy || happy) return; // jangan ganti tips saat sedang bereaksi pada chat
+    const timer = setInterval(() => setTipIndex((i) => (i + 1) % PIKO_TIPS.length), TIP_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [chatBusy, happy]);
+  useEffect(() => {
+    if (!happy) return;
+    const timer = setTimeout(() => setHappy(false), HAPPY_MS);
+    return () => clearTimeout(timer);
+  }, [happy]);
+  const pikoMood: PikoMood = chatBusy ? "thinking" : happy ? "happy" : "idle";
+  const pikoMessage = chatBusy ? PIKO_THINKING : happy ? PIKO_ANSWERED : PIKO_TIPS[tipIndex];
 
   function toggleChat() {
     if (window.matchMedia(PANEL_HIDDEN_QUERY).matches) {
@@ -351,23 +386,14 @@ export default function RightPanel() {
     
         </div>
 
-        {/* Dokter Piko */}
-        <section
-          ref={mascotRef}
-          className={`flex shrink-0 flex-col items-center rounded-[28px] bg-sky-soft px-[18px] pb-2 pt-5 ${
-            mascotHidden ? "hidden" : ""
-          }`}
-        >
-          <div
-            className="relative w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-sm font-extrabold leading-[1.4]
-              after:absolute after:-bottom-[9px] after:left-1/2 after:size-4 after:-translate-x-1/2 after:rotate-45
-              after:rounded-br-[4px] after:border-b after:border-r after:border-line after:bg-surface after:content-['']"
-          >
-            Halo! Aku Dokter Piko. Yuk, belajar menolong dengan aman!
-          </div>
-
-          <PikoMascot className="mt-3.5 h-auto w-[140px]" />
-        </section>
+        {/* Dokter Piko: ikut mengecil saat chat dibesarkan */}
+        <PikoCard
+          ref={pikoRef}
+          height={pikoHeight}
+          message={pikoMessage}
+          mood={pikoMood}
+          animateSize={!dragging}
+        />
 
         {/* Chat: tumbuh mengikuti percakapan sampai sisa tinggi panel, lalu isinya digulir */}
         <ChatWindow
@@ -395,13 +421,14 @@ export default function RightPanel() {
             </div>
           }
           onClose={() => setOpen(false)}
+          onBusyChange={setChatBusy}
           onReply={() => {
+            setHappy(true);
             if (!openRef.current) setUnread(true);
           }}
-          className={`${
-            // Layar pendek: ukuran awal boleh lebih kecil dari batas minimal agar tidak menabrak tombol Piko
-            bounds && bounds.withMascot < CHAT_MIN_HEIGHT ? "min-h-0" : "min-h-[260px]"
-          } ${effectiveHeight === null ? "" : "mt-auto shrink-0"} motion-reduce:[animation-duration:0.01ms] ${
+          className={`${shortPanel ? "min-h-0" : "min-h-[260px]"} ${effectiveHeight === null ? "" : "shrink-0"} ${
+            dragging ? "" : "transition-[height] duration-300 ease-out"
+          } motion-reduce:[animation-duration:0.01ms] ${
             open ? "animate-pop-in" : "pointer-events-none animate-pop-out"
           } ${visible ? "" : "hidden"}`}
           onAnimationEnd={(event) => {

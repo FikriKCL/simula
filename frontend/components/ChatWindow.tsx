@@ -36,6 +36,8 @@ type Props = {
   ref?: Ref<HTMLElement>;
   /** Dipanggil setiap Dokter Piko selesai menjawab (dipakai untuk badge saat panel dikecilkan). */
   onReply?: () => void;
+  /** Dipanggil saat Dokter Piko mulai / selesai menjawab (dipakai ekspresi maskot). */
+  onBusyChange?: (busy: boolean) => void;
   className?: string;
   onAnimationEnd?: AnimationEventHandler<HTMLElement>;
   /** Sapaan pertama Dokter Piko. */
@@ -94,6 +96,7 @@ export default function ChatWindow({
   style,
   ref,
   onReply,
+  onBusyChange,
   className = "",
   onAnimationEnd,
   greeting = defaultGreeting,
@@ -158,6 +161,7 @@ export default function ChatWindow({
     ]);
     setInput("");
     setLoading(true);
+    onBusyChange?.(true);
     inputRef.current?.focus();
 
     const patchBot = (patch: (prev: Message) => Partial<Message>) =>
@@ -209,6 +213,7 @@ export default function ChatWindow({
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       setLoading(false);
+      onBusyChange?.(false);
     }
   }
 
