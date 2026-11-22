@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import ChatWindow from "./ChatWindow";
 import { PikoAvatar } from "./PikoAvatar";
 import { PikoMascot } from "./PikoMascot";
@@ -10,19 +10,14 @@ import {
   SunIcon,
   MoonIcon,
 } from "./Icons";
-import type { Msg } from "../lib/chat";
 import { api } from "../lib/api";
 
 type Account = {
   display_name: string;
 };
 
-const demoMessages: Msg[] = [
-  {
-    from: "bot",
-    text: "Halo! Buka halaman Dokter Piko untuk mulai bertanya.",
-  },
-];
+// Di bawah lebar ini panel kanan disembunyikan (max-[1100px]:hidden), jadi tombol Piko membuka halaman chat
+const PANEL_HIDDEN_QUERY = "(max-width: 1100px)";
 
 function handleLogout() {
   sessionStorage.removeItem("simula-token");
@@ -72,9 +67,32 @@ export default function RightPanel() {
   const [theme, setTheme] = useTheme();
   const darkMode = theme === "dark";
 
+  const router = useRouter();
+  // open: chat terlihat; visible: masih di layar (selama animasi keluar). Chat tidak di-unmount saat
+  // dikecilkan, jadi percakapan dan jawaban yang sedang ditulis tetap ada ketika dibuka lagi.
   const [open, setOpen] = useState(true);
-  const [mounted, setMounted] = useState(true);
+  const [visible, setVisible] = useState(true);
+  const [unread, setUnread] = useState(false);
+  // Dibaca saat jawaban selesai (callback async), jadi pakai ref agar tidak memakai nilai lama
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
   const [account, setAccount] = useState<Account | null>(null);
+
+  function toggleChat() {
+    if (window.matchMedia(PANEL_HIDDEN_QUERY).matches) {
+      router.push("/chatbot");
+      return;
+    }
+    if (open) {
+      setOpen(false);
+    } else {
+      setVisible(true);
+      setOpen(true);
+      setUnread(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -107,7 +125,8 @@ export default function RightPanel() {
 
   return (
     <>
-      <aside className="sticky top-0 flex h-screen flex-col gap-3.5 py-6 pl-2 pr-6 max-[1100px]:hidden">
+      {/* pb besar: ruang untuk tombol Piko melayang supaya tidak menutupi kotak ketik */}
+      <aside className="sticky top-0 flex h-screen flex-col gap-3.5 pb-[100px] pl-2 pr-6 pt-6 max-[1100px]:hidden">
         {/* Logo dan kontrol tema */}
         <header className="flex items-center justify-between gap-3 px-1">
           <div className="flex items-center gap-2">
@@ -173,7 +192,7 @@ export default function RightPanel() {
         </div>
 
         {/* Dokter Piko */}
-        <section className="flex flex-col items-center rounded-[28px] bg-sky-soft px-[18px] pb-2 pt-5">
+        <section className="flex shrink-0 flex-col items-center rounded-[28px] bg-sky-soft px-[18px] pb-2 pt-5">
           <div
             className="relative w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-sm font-extrabold leading-[1.4]
               after:absolute after:-bottom-[9px] after:left-1/2 after:size-4 after:-translate-x-1/2 after:rotate-45
@@ -185,42 +204,43 @@ export default function RightPanel() {
           <PikoMascot className="mt-3.5 h-auto w-[140px]" />
         </section>
 
-        {/* Chat dengan animasi masuk dan keluar */}
-        {mounted && (
-          <ChatWindow
-            initialMessages={demoMessages}
-            onClose={() => setOpen(false)}
-            className={`motion-reduce:[animation-duration:0.01ms] ${
-              open
-                ? "animate-pop-in"
-                : "pointer-events-none animate-pop-out"
-            }`}
-            onAnimationEnd={(event) => {
-              if (
-                event.target === event.currentTarget &&
-                !open
-              ) {
-                setMounted(false);
-              }
-            }}
-          />
-        )}
+        {/* Chat: tumbuh mengikuti percakapan sampai sisa tinggi panel, lalu isinya digulir */}
+        <ChatWindow
+          expandHref="/chatbot"
+          onClose={() => setOpen(false)}
+          onReply={() => {
+            if (!openRef.current) setUnread(true);
+          }}
+          className={`min-h-[260px] motion-reduce:[animation-duration:0.01ms] ${
+            open ? "animate-pop-in" : "pointer-events-none animate-pop-out"
+          } ${visible ? "" : "hidden"}`}
+          onAnimationEnd={(event) => {
+            if (event.target === event.currentTarget && !open) setVisible(false);
+          }}
+        />
       </aside>
 
-      {/* Tombol menuju halaman chatbot */}
-      <Link
-        href="/chatbot"
-        aria-label="Buka halaman chat Dokter Piko"
-        className="fixed bottom-7 right-7 z-20 grid size-[60px] place-items-center rounded-full border-[3px] border-brand bg-white shadow-float"
+      {/* Tombol Piko: kecilkan / buka lagi chat di panel kanan */}
+      <button
+        type="button"
+        onClick={toggleChat}
+        aria-expanded={open}
+        aria-label={open ? "Kecilkan chat Dokter Piko" : "Buka chat Dokter Piko"}
+        title={open ? "Kecilkan chat" : "Buka chat"}
+        className="fixed bottom-7 right-7 z-20 grid size-[60px] cursor-pointer place-items-center rounded-full border-[3px] border-brand bg-white shadow-float transition-transform hover:scale-105"
       >
         <PikoAvatar size={46} />
 
-        {!open && (
-          <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-sky-dark text-[11px] font-extrabold text-white">
+        {/* Badge: ada jawaban baru selama chat dikecilkan */}
+        {!open && unread && (
+          <span
+            aria-label="Ada jawaban baru"
+            className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-sky-dark text-[11px] font-extrabold text-white"
+          >
             1
           </span>
         )}
-      </Link>
+      </button>
     </>
   );
 }
