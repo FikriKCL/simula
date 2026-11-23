@@ -53,13 +53,17 @@ const MAX_CHIPS = 2;
 const OFFLINE_MODES = new Set(["network_error", "connection_error", "backend_offline"]);
 // Jarak dari dasar daftar pesan yang masih dianggap "sedang membaca pesan terbaru"
 const STICK_TO_BOTTOM_PX = 80;
-const INPUT_MAX_HEIGHT_PX = 96; // sekitar 4 baris
+const INPUT_MAX_HEIGHT_PX = 120; // sekitar 4 baris (font 16px di mobile)
 
 const headerBtn =
   "grid size-[30px] shrink-0 cursor-pointer place-items-center rounded-full bg-white/25 font-black text-white hover:bg-white/35";
 
 let idCounter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now()}-${++idCounter}`;
+// Riwayat chat disimpan di luar komponen supaya tidak hilang saat ChatWindow dipasang ulang
+// (mis. layar dilebarkan/dikecilkan melewati batas panel kanan). Hilang saat halaman dimuat ulang.
+type SavedChat = { messages: Message[]; chips: string[] };
+let savedChat: SavedChat | null = null;
 
 function ExpandIcon() {
   return (
@@ -102,17 +106,29 @@ export default function ChatWindow({
   greeting = defaultGreeting,
   suggestions = defaultSuggestions,
 }: Props) {
-  const [messages, setMessages] = useState<Message[]>(() => [
-    {
-      id: "welcome",
-      role: "assistant",
-      content: greeting,
-      createdAt: 0,
-      status: "done",
-      mode: "system_welcome",
-    },
-  ]);
-  const [chips, setChips] = useState<string[]>(suggestions);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (savedChat) {
+      // Stream yang terputus saat unmount jangan tampil sebagai "sedang mengetik" selamanya
+      return savedChat.messages.map((m) =>
+        m.status === "streaming" ? { ...m, status: "stopped" as const } : m,
+      );
+    }
+    return [
+      {
+        id: "welcome",
+        role: "assistant",
+        content: greeting,
+        createdAt: 0,
+        status: "done",
+        mode: "system_welcome",
+      },
+    ];
+  });
+  const [chips, setChips] = useState<string[]>(() => savedChat?.chips ?? suggestions);
+
+  useEffect(() => {
+    savedChat = { messages, chips };
+  }, [messages, chips]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   // Status di header mengikuti hasil permintaan terakhir ke backend
@@ -130,12 +146,30 @@ export default function ChatWindow({
   }, [messages]);
 
   // Kotak ketik tumbuh mengikuti isi sampai ±4 baris, lalu bisa digulir
-  useLayoutEffect(() => {
+  function fitInput() {
     const el = inputRef.current;
-    if (!el) return;
+    // Sedang disembunyikan (display:none): scrollHeight terbaca 0, jangan diukur
+    if (!el || el.clientWidth === 0) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT_PX)}px`;
-  }, [input]);
+  }
+
+  // Ukur ulang setiap isi berubah
+  useLayoutEffect(fitInput, [input]);
+
+  // Ukur ulang saat lebar berubah: sheet dibuka, layar diputar, jendela di-resize
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    let lastWidth = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === lastWidth) return; // abaikan perubahan tinggi dari fitInput sendiri
+      lastWidth = el.clientWidth;
+      fitInput();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Halaman ditinggal: hentikan stream ke backend (dan Gemini)
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -225,9 +259,8 @@ export default function ChatWindow({
       ref={ref}
       onAnimationEnd={onAnimationEnd}
       style={style}
-      className={`relative flex origin-bottom-right flex-col overflow-hidden rounded-[20px] bg-surface shadow-float ${
-        full ? "h-full w-[min(820px,100%)]" : ""
-      } ${className}`}
+      className={`relative flex origin-bottom-right flex-col overflow-hidden rounded-[20px] bg-surface shadow-float ${full ? "h-full w-[min(820px,100%)]" : ""
+        } ${className}`}
     >
       {topSlot}
       <header className="flex items-center gap-2.5 bg-brand px-3.5 py-3 text-white">
@@ -272,9 +305,8 @@ export default function ChatWindow({
         ref={listRef}
         onScroll={handleScroll}
         aria-live="polite"
-        className={`custom-scrollbar flex min-h-[72px] flex-1 flex-col gap-2 overflow-y-auto ${
-          full ? "p-[18px]" : "p-3"
-        }`}
+        className={`custom-scrollbar flex min-h-[72px] flex-1 flex-col gap-2 overflow-y-auto ${full ? "p-[18px]" : "p-3"
+          }`}
       >
         {messages.map((m) =>
           m.role === "user" ? (
@@ -284,9 +316,8 @@ export default function ChatWindow({
           ) : (
             <div
               key={m.id}
-              className={`${bubble} max-w-[94%] self-start ${
-                m.status === "error" ? "bg-brand-soft text-brand" : "bg-sky-soft"
-              }`}
+              className={`${bubble} max-w-[94%] self-start ${m.status === "error" ? "bg-brand-soft text-brand" : "bg-sky-soft"
+                }`}
             >
               {m.isEmergency && (
                 <p role="alert" className="mb-1.5 rounded-lg bg-surface px-2 py-1.5 text-brand">
@@ -347,8 +378,7 @@ export default function ChatWindow({
           placeholder="Tulis pertanyaanmu..."
           aria-label="Pertanyaan"
           maxLength={MAX_INPUT_CHARS}
-          className="custom-scrollbar min-w-0 flex-1 resize-none rounded-[19px] bg-line px-3.5 py-2.5 text-[13px] font-semibold leading-[1.4] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-brand/30"
-        />
+          className="custom-scrollbar min-w-0 flex-1 resize-none rounded-[19px] bg-line px-3.5 py-2.5 text-base font-semibold leading-[1.4] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-brand/30 min-[1101px]:text-[13px]" />
         {loading ? (
           <button
             type="button"

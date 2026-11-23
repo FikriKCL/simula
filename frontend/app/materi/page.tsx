@@ -74,11 +74,11 @@ function toItem(material: MaterialCard, index: number): Item {
       : material.completed
         ? "Selesai"
         : material.meta ? material.meta
-        : kind === "komik" || kind === "pdf"
-          ? `${material.page_count || 0} halaman`
-          : kind === "video"
-            ? `${Math.ceil((material.duration_seconds || 0) / 60)} menit`
-            : "Baca artikel",
+          : kind === "komik" || kind === "pdf"
+            ? `${material.page_count || 0} halaman`
+            : kind === "video"
+              ? `${Math.ceil((material.duration_seconds || 0) / 60)} menit`
+              : "Baca artikel",
     href: material.locked ? undefined : `/materi/${material.id}`,
   };
 }
@@ -114,6 +114,15 @@ const actStyle: Record<Kind, string> = {
 const gridClass =
   "mt-5 grid grid-cols-3 gap-3.5 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1";
 
+type Sort = "default" | "az" | "za";
+
+const sortOptions: { key: Sort; label: string }[] = [
+  { key: "default", label: "Urutkan: Bawaan" },
+  { key: "az", label: "Urutkan: Judul A–Z" },
+  { key: "za", label: "Urutkan: Judul Z–A" },
+];
+
+
 export default function MateriPage() {
   const [tab, setTab] = useState<Tab>("semua");
   const [offset, setOffset] = useState(0);
@@ -132,7 +141,14 @@ export default function MateriPage() {
     () => source.data?.items.map((m, i) => toItem(m, i)) || [],
     [source.data],
   );
-  const visible = items;
+  const [sort, setSort] = useState<Sort>("default");
+
+
+  const visible = useMemo(() => {
+    if (sort === "default") return items;
+    const sorted = [...items].sort((a, b) => a.title.localeCompare(b.title, "id"));
+    return sort === "za" ? sorted.reverse() : sorted;
+  }, [items, sort]);
 
   // Pemuatan pertama (belum ada data sama sekali) -> kerangka kartu.
   // Pemuatan berikutnya (ganti tab / cari) -> kartu lama diredupkan + spinner kecil.
@@ -183,11 +199,10 @@ export default function MateriPage() {
                   setTab(t.key);
                   setOffset(0);
                 }}
-                className={`flex items-center justify-center gap-2.5 rounded-t-[14px] px-2 pb-4 pt-[18px] font-heading text-[15px] font-extrabold uppercase tracking-[0.4px] transition-colors ${
-                  tab === t.key
-                    ? "bg-brand-soft text-brand shadow-[inset_0_-4px_0_var(--red)]"
-                    : "text-muted hover:bg-sky-soft"
-                }`}
+                className={`flex items-center justify-center gap-2.5 rounded-t-[14px] px-2 pb-4 pt-[18px] font-heading text-[15px] font-extrabold uppercase tracking-[0.4px] transition-colors ${tab === t.key
+                  ? "bg-brand-soft text-brand shadow-[inset_0_-4px_0_var(--red)]"
+                  : "text-muted hover:bg-sky-soft"
+                  }`}
               >
                 {t.icon}
                 <span className="max-[560px]:hidden">{t.label}</span>
@@ -199,13 +214,42 @@ export default function MateriPage() {
           <ApiState loading={false} error={source.error} retry={source.reload} />
 
           {/* Jumlah materi */}
-          <div className="mt-3 flex h-5 items-center gap-2 text-sm text-muted">
-            {firstLoad ? (
-              <Skeleton className="h-4 w-20" />
-            ) : (
-              <span>{source.data?.total || 0} materi</span>
-            )}
-            {source.loading && source.data && <Spinner size={14} label="Memuat materi…" />}
+          {/* Jumlah materi (kiri) + urutkan (kanan) */}
+          <div className="mt-3 flex min-h-9 items-center justify-between gap-2 text-sm text-muted">
+            <div className="flex items-center gap-2">
+              {firstLoad ? (
+                <Skeleton className="h-4 w-20" />
+              ) : (
+                <span>{source.data?.total || 0} materi</span>
+              )}
+              {source.loading && source.data && <Spinner size={14} label="Memuat materi…" />}
+            </div>
+
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">Urutkan materi</span>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as Sort)}
+                disabled={firstLoad}
+                className="cursor-pointer appearance-none rounded-full border-2 border-line bg-surface py-1.5 pl-3.5 pr-9 font-heading text-xs font-extrabold text-ink outline-none transition hover:bg-sky-soft focus-visible:ring-4 focus-visible:ring-sky-soft disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {sortOptions.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 text-muted"
+              >
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </label>
           </div>
 
           {/* Daftar materi */}
