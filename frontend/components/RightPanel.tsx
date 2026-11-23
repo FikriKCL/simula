@@ -1,21 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import ChatWindow from "./ChatWindow";
+import LogoutDialog from "./LogoutDialog";
+import { IndonesiaFlagIcon, MoonIcon, SunIcon } from "./Icons";
 import { PikoAvatar } from "./PikoAvatar";
-import type { PikoMood } from "./PikoMascot";
 import { PikoCard, PIKO_CARD_HIDE_BELOW } from "./PikoCard";
-import {
-  IndonesiaFlagIcon,
-  SunIcon,
-  MoonIcon,
-} from "./Icons";
+import type { PikoMood } from "./PikoMascot";
 import { api } from "../lib/api";
+import { useTheme } from "../lib/useTheme";
 
-type Account = {
-  display_name: string;
-};
+/* ============================================================
+   Konstanta
+   ============================================================ */
 
 // Di bawah lebar ini panel kanan disembunyikan (max-[1100px]:hidden), jadi tombol Piko membuka halaman chat
 const PANEL_HIDDEN_QUERY = "(max-width: 1100px)";
@@ -42,6 +40,14 @@ const PIKO_THINKING = "Hmm, sebentar ya… aku cek buku panduan dulu.";
 const PIKO_ANSWERED = "Sudah kujawab di bawah! Mau tanya lagi?";
 const TIP_INTERVAL_MS = 8000;
 const HAPPY_MS = 4000;
+
+/* ============================================================
+   Tipe dan fungsi bantu
+   ============================================================ */
+
+type Account = {
+  display_name: string;
+};
 
 type Bounds = {
   /** Tinggi maksimal chat: ruang dari atas kartu Piko sampai dasar panel, dikurangi celah flex. */
@@ -79,50 +85,105 @@ function handleLogout() {
   window.location.replace("/login");
 }
 
-function subscribeTheme(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener("simula-theme-change", callback);
-
-  return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener("simula-theme-change", callback);
-  };
-}
-
-function themeSnapshot(): "light" | "dark" {
-  return localStorage.getItem("simula-theme") === "dark"
-    ? "dark"
-    : "light";
-}
-
-function serverThemeSnapshot(): "light" | "dark" {
-  return "light";
-}
-
-function useTheme() {
-  const theme = useSyncExternalStore(
-    subscribeTheme,
-    themeSnapshot,
-    serverThemeSnapshot,
+function getInitials(name: string | undefined) {
+  if (!name) return "?";
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase() || "?"
   );
+}
+
+/** Profil pengguna yang sedang masuk. */
+function useAccount() {
+  const [account, setAccount] = useState<Account | null>(null);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    let active = true;
 
-  function setTheme(value: "light" | "dark") {
-    localStorage.setItem("simula-theme", value);
-    window.dispatchEvent(new Event("simula-theme-change"));
-  }
+    api<Account>("/users/me")
+      .then((user) => {
+        if (active) setAccount(user);
+      })
+      .catch((error) => {
+        console.error("Gagal mengambil profil:", error);
+      });
 
-  return [theme, setTheme] as const;
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return account;
 }
 
-export default function RightPanel() {
-  const [theme, setTheme] = useTheme();
-  const darkMode = theme === "dark";
+/* ============================================================
+   Potongan tampilan kecil
+   ============================================================ */
 
+function ProfileChip({ name, initials }: { name: string; initials: string }) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3">
+      <div
+        aria-hidden="true"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gold-soft text-[11px] font-black text-ink"
+      >
+        {initials}
+      </div>
+      <span title={name} className="truncate text-xs font-extrabold text-ink">
+        {name}
+      </span>
+    </div>
+  );
+}
+
+function ThemeToggle({ dark, onChange }: { dark: boolean; onChange: (theme: "light" | "dark") => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(dark ? "light" : "dark")}
+      aria-label={dark ? "Aktifkan mode terang" : "Aktifkan mode gelap"}
+      aria-pressed={dark}
+      className="flex shrink-0 cursor-pointer items-center gap-0.5 rounded-full border border-line bg-line p-0.5"
+    >
+      <span
+        className={`flex size-6 items-center justify-center rounded-full transition-all ${
+          dark ? "text-muted" : "bg-surface text-gold shadow-sm"
+        }`}
+      >
+        <SunIcon />
+      </span>
+      <span
+        className={`flex size-6 items-center justify-center rounded-full transition-all ${
+          dark ? "bg-surface text-sky shadow-sm" : "text-muted"
+        }`}
+      >
+        <MoonIcon />
+      </span>
+    </button>
+  );
+}
+
+/* ============================================================
+   Panel kanan
+   ============================================================ */
+
+export default function RightPanel() {
   const router = useRouter();
+  const [theme, setTheme] = useTheme();
+  const account = useAccount();
+
+  const displayName = account?.display_name || "Pengguna";
+  const initials = getInitials(account?.display_name);
+
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  /* ---------- Buka / tutup chat ---------- */
+
   // open: chat terlihat; visible: masih di layar (selama animasi keluar). Chat tidak di-unmount saat
   // dikecilkan, jadi percakapan dan jawaban yang sedang ditulis tetap ada ketika dibuka lagi.
   const [open, setOpen] = useState(true);
@@ -133,9 +194,23 @@ export default function RightPanel() {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
-  const [account, setAccount] = useState<Account | null>(null);
 
-  // ---- Ukuran chat ----
+  function toggleChat() {
+    if (window.matchMedia(PANEL_HIDDEN_QUERY).matches) {
+      router.push("/chatbot");
+      return;
+    }
+    if (open) {
+      setOpen(false);
+    } else {
+      setVisible(true);
+      setOpen(true);
+      setUnread(false);
+    }
+  }
+
+  /* ---------- Ukuran chat ---------- */
+
   const asideRef = useRef<HTMLElement>(null);
   const pikoRef = useRef<HTMLElement>(null);
   const chatRef = useRef<HTMLElement>(null);
@@ -258,133 +333,54 @@ export default function RightPanel() {
     applyHeight(keys[event.key]);
   }
 
-  // ---- Ucapan & ekspresi Dokter Piko ----
+  /* ---------- Ucapan dan ekspresi Dokter Piko ---------- */
+
   const [tipIndex, setTipIndex] = useState(0);
   const [chatBusy, setChatBusy] = useState(false);
   const [happy, setHappy] = useState(false);
+
   useEffect(() => {
     if (chatBusy || happy) return; // jangan ganti tips saat sedang bereaksi pada chat
     const timer = setInterval(() => setTipIndex((i) => (i + 1) % PIKO_TIPS.length), TIP_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [chatBusy, happy]);
+
   useEffect(() => {
     if (!happy) return;
     const timer = setTimeout(() => setHappy(false), HAPPY_MS);
     return () => clearTimeout(timer);
   }, [happy]);
+
   const pikoMood: PikoMood = chatBusy ? "thinking" : happy ? "happy" : "idle";
   const pikoMessage = chatBusy ? PIKO_THINKING : happy ? PIKO_ANSWERED : PIKO_TIPS[tipIndex];
 
-  function toggleChat() {
-    if (window.matchMedia(PANEL_HIDDEN_QUERY).matches) {
-      router.push("/chatbot");
-      return;
-    }
-    if (open) {
-      setOpen(false);
-    } else {
-      setVisible(true);
-      setOpen(true);
-      setUnread(false);
-    }
-  }
-
-  useEffect(() => {
-    let active = true;
-
-    api<Account>("/users/me")
-      .then((user) => {
-        if (active) {
-          setAccount(user);
-        }
-      })
-      .catch((error) => {
-        console.error("Gagal mengambil profil:", error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const displayName = account?.display_name || "Pengguna";
-
-  const initials =
-    account?.display_name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((word) => word[0])
-      .join("")
-      .toUpperCase() || "?";
+  /* ---------- Tampilan ---------- */
 
   return (
     <>
       {/* pb besar: ruang untuk tombol Piko melayang supaya tidak menutupi kotak ketik */}
-      <aside ref={asideRef} className="sticky top-0 flex h-screen flex-col gap-3.5 pb-[100px] pl-2 pr-6 pt-6 max-[1100px]:hidden">
-        {/* Logo dan kontrol tema */}
-        <header className="flex items-center justify-between gap-3 px-1">
-          <div className="flex items-center gap-2">
-            <div className="flex min-w-0 items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3">
-                <div
-                  aria-hidden="true"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FEF3C7] text-[11px] font-black text-[#1E293B]"
-                >
-                  {initials}
-                </div>
+      <aside
+        ref={asideRef}
+        className="sticky top-0 flex h-screen flex-col gap-3.5 pb-[100px] pl-2 pr-6 pt-6 max-[1100px]:hidden"
+      >
+        {/* Profil, logout, bahasa, dan tema */}
+        <header className="flex items-center gap-2 px-1">
+          <ProfileChip name={displayName} initials={initials} />
 
-                <span
-                  title={displayName}
-                  className="truncate text-xs font-extrabold text-ink"
-                >
-                  {displayName}
-                </span>
-              </div>
+          <button
+            type="button"
+            onClick={() => setConfirmLogout(true)}
+            className="shrink-0 cursor-pointer rounded-xl border border-line px-3 py-2 text-xs font-extrabold text-brand transition-colors hover:bg-brand-soft"
+          >
+            Keluar
+          </button>
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="shrink-0 cursor-pointer rounded-[12px] border border-line px-3 py-2 text-xs font-extrabold text-[#E5252A] transition-colors hover:bg-[#FEECEB]"
-              >
-                Keluar
-              </button>
-               <IndonesiaFlagIcon /> 
-            <button
-              type="button"
-              onClick={() => setTheme(darkMode ? "light" : "dark")}
-              aria-label={
-                darkMode ? "Aktifkan mode terang" : "Aktifkan mode gelap"
-              }
-              aria-pressed={darkMode}
-              className="flex cursor-pointer items-center gap-0.5 rounded-full border border-line bg-line p-0.5"
-            >
-              <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full transition-all ${
-                  !darkMode
-                    ? "bg-surface text-amber-500 shadow-sm"
-                    : "text-muted"
-                }`}
-              >
-                <SunIcon />
-              </span>
+          <span className="shrink-0">
+            <IndonesiaFlagIcon />
+          </span>
 
-              <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full transition-all ${
-                  darkMode
-                    ? "bg-surface text-sky-400 shadow-sm"
-                    : "text-muted"
-                }`}
-              >
-                <MoonIcon />
-              </span>
-            </button>
-          </div>
+          <ThemeToggle dark={theme === "dark"} onChange={setTheme} />
         </header>
-
-        {/* Profil dan logout */}
-        <div className="flex items-center justify-between gap-2 px-1">
-    
-        </div>
 
         {/* Dokter Piko: ikut mengecil saat chat dibesarkan */}
         <PikoCard
@@ -458,6 +454,9 @@ export default function RightPanel() {
           </span>
         )}
       </button>
+
+      {/* Konfirmasi sebelum logout */}
+      <LogoutDialog open={confirmLogout} onCancel={() => setConfirmLogout(false)} onConfirm={handleLogout} />
     </>
   );
 }
