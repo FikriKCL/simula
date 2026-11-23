@@ -329,7 +329,7 @@ export default function MaterialPage() {
                 <div className="flex flex-wrap gap-3">
                   {m.module_id && (
                     <Link
-                      href={`/belajar/${m.module_id}`}
+                      href={`/materi`}
                       className="rounded-[14px] px-4 py-2.5 font-heading text-sm font-extrabold text-sky-dark hover:bg-sky-soft"
                     >
                       Ke modul

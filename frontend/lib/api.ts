@@ -9,6 +9,21 @@ export class ApiError extends Error {
     super(message);
   }
 }
+// Pesan validasi (422) per kolom, supaya pengguna tahu isian mana yang salah.
+const FIELD_ERRORS: Record<string, string> = {
+  email: "Alamat email tidak valid.",
+  password: "Password minimal 10 karakter.",
+  display_name: "Nama minimal 2 karakter.",
+  username: "Username hanya boleh huruf kecil, angka, dan garis bawah.",
+};
+function fieldMessage(detail: unknown) {
+  if (!Array.isArray(detail)) return null;
+  for (const item of detail) {
+    const field = Array.isArray(item?.loc) ? item.loc[item.loc.length - 1] : null;
+    if (typeof field === "string" && FIELD_ERRORS[field]) return FIELD_ERRORS[field];
+  }
+  return null;
+}
 async function request(
   path: string,
   init: RequestInit = {},
@@ -43,7 +58,8 @@ async function request(
     throw new ApiError(
       typeof data.detail === "string"
         ? data.detail
-        : "Permintaan gagal. Periksa isian dan coba lagi.",
+        : fieldMessage(data.detail) ||
+            "Permintaan gagal. Periksa isian dan coba lagi.",
       response.status,
     );
   }

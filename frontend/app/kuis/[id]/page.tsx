@@ -183,7 +183,7 @@ export default function QuizPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const exitHref = quiz ? `/belajar/${quiz.module_id}` : "/dashboard";
+  const exitHref = quiz ? `/dashboard` : "/dashboard";
   const q = run && queue.length ? run.questions[queue[0]] : null;
   const total = run?.questions.length || quiz?.questions.length || 0;
   const done = Object.keys(checks).length;
@@ -313,7 +313,7 @@ export default function QuizPage() {
               Ulangi
             </button>
             <Link href={exitHref} className={btnRed}>
-              Kembali ke modul
+              Kembali ke menu utama!
             </Link>
           </div>
         </main>
