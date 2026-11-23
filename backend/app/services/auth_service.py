@@ -1,3 +1,5 @@
+import re
+
 from sqlalchemy import or_, select
 
 from app.config import settings
@@ -8,7 +10,20 @@ from .common import ServiceError
 from .user_service import create_user
 
 
+def username_from_email(db, email):
+    """Buat username unik dari email, mis. siti.aminah@x.id -> siti_aminah, siti_aminah2, …"""
+    base = re.sub(r"[^a-z0-9_]+", "_", str(email).split("@")[0].lower()).strip("_")[:30]
+    base = base if len(base) >= 3 else f"siswa_{base}".rstrip("_")
+    name, n = base, 1
+    while db.scalar(select(User.id).where(User.username == name)):
+        n += 1
+        name = f"{base}{n}"
+    return name
+
+
 def register(data, db):
+    if not data.username:
+        data.username = username_from_email(db, data.email)
     return create_user(data, "STUDENT", db, "PENDING" if settings().registration_approval_required else "APPROVED")
 
 

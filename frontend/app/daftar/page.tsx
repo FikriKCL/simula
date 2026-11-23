@@ -1,18 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import { Cross } from "@/components/Icons";
 import { PikoMascot } from "@/components/PikoMascot";
 
+const MIN_PASSWORD = 10; // Sama dengan aturan backend.
 const label = "font-heading text-sm font-extrabold text-ink";
 const input =
   "w-full rounded-[14px] border-2 border-ink bg-surface px-4 py-3 text-[15px] font-semibold text-ink outline-none transition placeholder:text-muted focus:border-sky-dark focus:ring-4 focus:ring-sky-soft";
 
 function EyeIcon({ off }: { off: boolean }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"
         stroke="currentColor"
@@ -21,7 +29,12 @@ function EyeIcon({ off }: { off: boolean }) {
       />
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
       {off && (
-        <path d="M4 4l16 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M4 4l16 16"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
       )}
     </svg>
   );
@@ -53,7 +66,10 @@ function Cloud({ className }: { className: string }) {
 
 function HeroPanel() {
   return (
-    <div aria-hidden="true" className="relative overflow-hidden max-[900px]:hidden">
+    <div
+      aria-hidden="true"
+      className="relative overflow-hidden max-[900px]:hidden"
+    >
       {/* Latar gelombang biru */}
       <svg
         viewBox="0 0 600 900"
@@ -88,6 +104,7 @@ function HeroPanel() {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [nama, setNama] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -95,23 +112,41 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showRePassword, setShowRePassword] = useState(false);
   const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (password !== rePassword) {
-      setError("Password dan Re-Password tidak sama.");
-      return;
-    }
+    const name = nama.trim();
+    const mail = email.trim().toLowerCase();
+    if (name.length < 2) return setError("Nama minimal 2 karakter.");
+    if (password.length < MIN_PASSWORD)
+      return setError(`Password minimal ${MIN_PASSWORD} karakter.`);
+    if (password !== rePassword)
+      return setError("Password dan Re-Password tidak sama.");
     setBusy(true);
     setError("");
     try {
-      await api("/auth/register", {
+      // Username dibuat otomatis oleh server dari alamat email.
+      const user = await api<{ registration_status?: string }>(
+        "/auth/register",
+        {
+          method: "POST",
+          body: JSON.stringify({ display_name: name, email: mail, password }),
+        },
+      );
+      if (user.registration_status && user.registration_status !== "APPROVED") {
+        setPending(true); // Akun menunggu persetujuan admin.
+        setBusy(false);
+        return;
+      }
+      // Langsung masuk supaya siswa tidak perlu mengetik ulang.
+      const token = await api<{ access_token: string }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ nama, email, password }),
+        body: JSON.stringify({ username: mail, password }),
       });
-      // Arahkan ke halaman masuk setelah berhasil daftar
-      window.location.assign("/login");
+      sessionStorage.setItem("simula-token", token.access_token);
+      router.push("/dashboard");
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -142,105 +177,142 @@ export default function RegisterPage() {
             </h2>
           </div>
 
-          <form onSubmit={submit} className="mt-3 grid gap-3.5">
-            <label className="grid gap-1.5">
-              <span className={label}>Nama</span>
-              <input
-                autoComplete="name"
-                placeholder="Masukan Nama"
-                className={input}
-                value={nama}
-                onChange={(e) => setNama(e.target.value)}
-                required
-              />
-            </label>
-
-            <label className="grid gap-1.5">
-              <span className={label}>Alamat email</span>
-              <input
-                type="email"
-                autoComplete="email"
-                placeholder="Masukan Alamat Email"
-                className={input}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-
-            <label className="grid gap-1.5">
-              <span className={label}>Password</span>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="Masukkan Password"
-                  className={`${input} pr-12`}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                  aria-pressed={showPassword}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-ink"
-                >
-                  <EyeIcon off={showPassword} />
-                </button>
-              </div>
-            </label>
-
-            <label className="grid gap-1.5">
-              <span className={label}>Re-Password</span>
-              <div className="relative">
-                <input
-                  type={showRePassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="Masukkan Re-Password"
-                  className={`${input} pr-12`}
-                  value={rePassword}
-                  onChange={(e) => setRePassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowRePassword((v) => !v)}
-                  aria-label={showRePassword ? "Sembunyikan re-password" : "Tampilkan re-password"}
-                  aria-pressed={showRePassword}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-ink"
-                >
-                  <EyeIcon off={showRePassword} />
-                </button>
-              </div>
-            </label>
-
-            {error && (
-              <p
-                role="alert"
-                className="rounded-[14px] bg-brand-soft px-3.5 py-2.5 text-sm font-bold text-brand"
-              >
-                {error}
-              </p>
-            )}
-
-            <button
-              disabled={busy}
-              className="mt-2 cursor-pointer rounded-[14px] bg-brand px-5 py-3 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+          {pending ? (
+            <div
+              role="status"
+              className="mt-4 rounded-[14px] bg-sky-soft p-5 text-ink"
             >
-              {busy ? "Memproses…" : "Daftar"}
-            </button>
-          </form>
+              <p className="font-heading text-lg font-extrabold">
+                Pendaftaran terkirim!
+              </p>
+              <p className="mt-1 text-sm font-semibold">
+                Akunmu menunggu persetujuan admin. Setelah disetujui, masuk
+                memakai email dan password yang tadi kamu buat.
+              </p>
+              <Link
+                href="/login"
+                className="mt-4 inline-block rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c]"
+              >
+                Ke halaman masuk
+              </Link>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="mt-3 grid gap-3.5">
+              <label className="grid gap-1.5">
+                <span className={label}>Nama</span>
+                <input
+                  autoComplete="name"
+                  placeholder="Masukan Nama"
+                  className={input}
+                  value={nama}
+                  onChange={(e) => setNama(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className={label}>Alamat email</span>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Masukan Alamat Email"
+                  className={input}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className={label}>Password</span>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Masukkan Password"
+                    className={`${input} pr-12`}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={MIN_PASSWORD}
+                    aria-describedby="password-hint"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={
+                      showPassword
+                        ? "Sembunyikan password"
+                        : "Tampilkan password"
+                    }
+                    aria-pressed={showPassword}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-ink"
+                  >
+                    <EyeIcon off={showPassword} />
+                  </button>
+                </div>
+                <span
+                  id="password-hint"
+                  className="text-xs font-semibold text-muted"
+                >
+                  Minimal {MIN_PASSWORD} karakter.
+                </span>
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className={label}>Re-Password</span>
+                <div className="relative">
+                  <input
+                    type={showRePassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Masukkan Re-Password"
+                    className={`${input} pr-12`}
+                    value={rePassword}
+                    onChange={(e) => setRePassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRePassword((v) => !v)}
+                    aria-label={
+                      showRePassword
+                        ? "Sembunyikan re-password"
+                        : "Tampilkan re-password"
+                    }
+                    aria-pressed={showRePassword}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-ink"
+                  >
+                    <EyeIcon off={showRePassword} />
+                  </button>
+                </div>
+              </label>
+
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-[14px] bg-brand-soft px-3.5 py-2.5 text-sm font-bold text-brand"
+                >
+                  {error}
+                </p>
+              )}
+
+              <button
+                disabled={busy}
+                className="mt-2 cursor-pointer rounded-[14px] bg-brand px-5 py-3 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {busy ? "Memproses…" : "Daftar"}
+              </button>
+            </form>
+          )}
 
           <p className="mt-4 text-center text-sm font-semibold text-muted">
             Sudah punya akun?{" "}
             <Link href="/login" className="font-extrabold text-brand underline">
-              Masuk
+              Login Sekarang
             </Link>
           </p>
         </section>
-      </main>   
+      </main>
 
       {/* Kanan: ilustrasi */}
       <HeroPanel />

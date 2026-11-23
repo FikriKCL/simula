@@ -1,11 +1,13 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .auth import Register
 
 
 class StaffCreate(Register):
+    # Akun staf dibuat admin dan selalu butuh username eksplisit.
+    username: str = Field(min_length=3, max_length=40, pattern=r"^[a-z0-9_]+$")
     role: Literal["STUDENT", "INSTRUCTOR", "REVIEWER", "ADMIN"] = "INSTRUCTOR"
 
 
@@ -21,6 +23,7 @@ class UserOut(BaseModel):
     school_id: int | None
     xp: int
     active: bool = True
+    registration_status: str = "APPROVED"  # PENDING bila pendaftaran butuh persetujuan admin
 
 
 class UserState(BaseModel):
