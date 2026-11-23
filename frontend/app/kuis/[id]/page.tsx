@@ -7,6 +7,7 @@ import Link from "next/link";
 import { api, type QuizRun, type QuizResult } from "@/lib/api";
 import ApiState, { useApiData } from "@/components/ApiState";
 import { CheckIcon, CloseIcon } from "@/components/Icons";
+import { PikoAvatar } from "@/components/PikoAvatar";
 
 type QuizDetail = {
   id: number;
@@ -16,19 +17,79 @@ type QuizDetail = {
   pass_score: number;
   questions: { id: number }[];
 };
+
+type QType =
+  | "single"
+  | "image_choice"
+  | "guess"
+  | "situation"
+  | "true_false"
+  | "multi"
+  | "order"
+  | "match";
+
+/** Jawaban: angka untuk soal tunggal, array untuk multi / urutan / pasangan. */
+type Answer = number | number[];
+
 type Check = {
   question_id: number;
-  answer: number;
+  answer: Answer;
   correct: boolean;
-  correct_index: number;
+  correct_index: Answer;
   explanation: string;
 };
-type Question = QuizRun["questions"][number];
+
+/** Field tambahan per tipe soal (lihat tabel kontrak data). */
+type QuestionExtra = {
+  type?: QType;
+  statement?: string;
+  hint?: string;
+  left_images?: (string | null)[];
+};
+type Question = QuizRun["questions"][number] & QuestionExtra;
+
+type OptState = "idle" | "selected" | "right" | "wrong";
 
 const kindLabel: Record<string, string> = {
   PRE: "TES AWAL",
   POST: "TES AKHIR",
 };
+
+const typeLabel: Partial<Record<QType, string>> = {
+  match: "PASANGKAN",
+  true_false: "BENAR ATAU SALAH",
+  order: "URUTKAN LANGKAH",
+  multi: "PILIH SEMUA YANG BENAR",
+  situation: "SITUASI",
+  guess: "TEBAK OBJEK",
+  image_choice: "PILIH GAMBAR",
+};
+
+function typeOf(q: Question): QType {
+  if (q.type) return q.type;
+  return (q.option_images || []).some(Boolean) ? "image_choice" : "single";
+}
+
+/** Apakah jawaban sudah lengkap sehingga tombol Periksa boleh aktif? */
+function isReady(q: Question, a: Answer | null): boolean {
+  if (a === null) return false;
+  const t = typeOf(q);
+  if (t === "multi") return Array.isArray(a) && a.length > 0;
+  if (t === "order") return Array.isArray(a) && a.length === q.options.length;
+  if (t === "match")
+    return Array.isArray(a) && a.length === q.options.length && a.every((v) => v >= 0);
+  return typeof a === "number";
+}
+
+/** Teks jawaban benar untuk panel umpan balik. */
+function correctLabel(q: Question, check: Check): string | null {
+  const ci = check.correct_index;
+  if (typeof ci === "number") return q.options[ci] ?? null;
+  const t = typeOf(q);
+  if (t === "multi") return ci.map((i) => q.options[i]).join(", ");
+  if (t === "order") return ci.map((i) => q.options[i]).join(" → ");
+  return null; // pasangan: cukup tampilkan penjelasan
+}
 
 /* Tombol 3D seperti desain Figma (PERIKSA / LANJUT / LOMPATI). */
 const btnBase =
@@ -37,7 +98,7 @@ const btnRed = `${btnBase} bg-brand text-white shadow-[0_4px_0_#b71c1c]`;
 const btnBlue = `${btnBase} bg-sky-dark text-white shadow-[0_4px_0_#1565c0]`;
 const btnGhost = `${btnBase} border-2 border-line bg-surface text-muted shadow-[0_4px_0_var(--border)]`;
 
-function optionClass(state: "idle" | "selected" | "right" | "wrong") {
+function optionClass(state: OptState) {
   const base =
     "relative flex w-full cursor-pointer items-center justify-between gap-3 rounded-[14px] border-2 text-left font-bold transition disabled:cursor-default";
   return {
@@ -48,9 +109,19 @@ function optionClass(state: "idle" | "selected" | "right" | "wrong") {
   }[state];
 }
 
+/* ---------- Potongan tampilan kecil ---------- */
+
 function KeyBadge({ n }: { n: number }) {
   return (
     <span className="grid size-6 shrink-0 place-items-center rounded-md border-2 border-line bg-surface text-[11px] font-black text-muted">
+      {n}
+    </span>
+  );
+}
+
+function PairBadge({ n }: { n: number }) {
+  return (
+    <span className="absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-sky-dark text-[11px] font-black text-white">
       {n}
     </span>
   );
@@ -108,67 +179,332 @@ function Chip({ text }: { text: string }) {
   );
 }
 
-function Options({
+/* ============================================================
+   Tipe soal
+   ============================================================ */
+
+type AreaProps = {
+  q: Question;
+  selected: Answer | null;
+  check: Check | null;
+  onSelect: (a: Answer | null) => void;
+};
+
+function singleState(i: number, selected: Answer | null, check: Check | null): OptState {
+  if (check) {
+    const ans = check.answer as number;
+    const right = check.correct_index as number;
+    return i === ans && !check.correct ? "wrong" : i === right ? "right" : "idle";
+  }
+  return i === selected ? "selected" : "idle";
+}
+
+/** Pilihan teks: single, tebak objek, situasi (ikon kecil di kiri bila ada). */
+function ListOptions({ q, selected, check, onSelect }: AreaProps) {
+  return (
+    <div role="radiogroup" aria-label="Pilihan jawaban" className="mt-6 grid gap-3">
+      {q.options.map((option, i) => {
+        const icon = q.option_images?.[i];
+        return (
+          <button
+            key={i}
+            role="radio"
+            aria-checked={selected === i}
+            disabled={!!check}
+            onClick={() => onSelect(i)}
+            className={`${optionClass(singleState(i, selected, check))} px-4 py-3.5`}
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-3">
+              {icon && <img src={icon} alt="" className="size-9 shrink-0 object-contain" />}
+              <span className="text-[15px]">{option}</span>
+            </span>
+            <KeyBadge n={i + 1} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Pilih gambar (satu jawaban) dan pilih semua yang benar (beberapa jawaban). */
+function ImageGrid({
   q,
   selected,
   check,
   onSelect,
-}: {
-  q: Question;
-  selected: number | null;
-  check: Check | null;
-  onSelect: (i: number) => void;
-}) {
-  const images = (q.option_images || []).some(Boolean);
-  const state = (i: number) =>
-    check
-      ? i === check.answer && !check.correct
-        ? "wrong"
-        : i === check.correct_index
-          ? "right"
-          : "idle"
-      : i === selected
-        ? "selected"
-        : "idle";
+  multi,
+}: AreaProps & { multi: boolean }) {
+  const picked = Array.isArray(selected) ? selected : [];
+
+  function state(i: number): OptState {
+    if (!multi) return singleState(i, selected, check);
+    if (check) {
+      const ans = check.answer as number[];
+      const right = check.correct_index as number[];
+      const isRight = right.includes(i);
+      return ans.includes(i) && !isRight ? "wrong" : isRight ? "right" : "idle";
+    }
+    return picked.includes(i) ? "selected" : "idle";
+  }
+
+  function click(i: number) {
+    if (!multi) return onSelect(i);
+    onSelect(picked.includes(i) ? picked.filter((x) => x !== i) : [...picked, i]);
+  }
+
   return (
-    <div
-      role="radiogroup"
-      aria-label="Pilihan jawaban"
-      className={
-        images
-          ? "mt-6 grid grid-cols-3 gap-3 max-[560px]:grid-cols-2"
-          : "mt-6 grid gap-3"
-      }
-    >
-      {q.options.map((option, i) => (
-        <button
-          key={i}
-          role="radio"
-          aria-checked={selected === i}
-          disabled={!!check}
-          onClick={() => onSelect(i)}
-          className={`${optionClass(state(i))} ${
-            images ? "aspect-square flex-col justify-center p-4" : "px-4 py-3.5"
-          }`}
-        >
-          {images && q.option_images?.[i] ? (
-            <img
-              src={q.option_images[i]!}
-              alt={option}
-              className="max-h-[70%] max-w-full object-contain"
-            />
-          ) : null}
-          <span className={images ? "text-center text-sm" : "text-[15px]"}>
-            {option}
-          </span>
-          <span className={images ? "absolute bottom-2.5 right-2.5" : ""}>
-            <KeyBadge n={i + 1} />
-          </span>
-        </button>
-      ))}
+    <>
+      {multi && (
+        <p className="mt-3 text-sm font-bold text-muted">
+          {q.hint || "Boleh lebih dari satu jawaban."}
+        </p>
+      )}
+      <div
+        role={multi ? "group" : "radiogroup"}
+        aria-label="Pilihan jawaban"
+        className={`grid grid-cols-3 gap-3 ${multi ? "mt-3" : "mt-6"}`}
+      >
+        {q.options.map((option, i) => {
+          const st = state(i);
+          const on = st === "selected" || st === "right" || st === "wrong";
+          return (
+            <button
+              key={i}
+              role={multi ? "checkbox" : "radio"}
+              aria-checked={multi ? picked.includes(i) : selected === i}
+              aria-label={option}
+              disabled={!!check}
+              onClick={() => click(i)}
+              className={`${optionClass(st)} aspect-[4/3] flex-col justify-center gap-1 p-3`}
+            >
+              {q.option_images?.[i] && (
+                <img
+                  src={q.option_images[i]!}
+                  alt={multi ? "" : option}
+                  className={`max-w-full object-contain ${multi ? "max-h-[55%]" : "max-h-[70%]"}`}
+                />
+              )}
+              {multi && <span className="text-center text-sm">{option}</span>}
+
+              {multi && on && (
+                <span
+                  className={`absolute right-2 top-2 grid size-6 place-items-center rounded-full text-white ${
+                    st === "wrong" ? "bg-brand" : "bg-sky-dark"
+                  }`}
+                >
+                  {st === "wrong" ? <CloseIcon size={12} /> : <CheckIcon size={12} />}
+                </span>
+              )}
+              {!multi && (
+                <span className="absolute bottom-2.5 right-2.5">
+                  <KeyBadge n={i + 1} />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/** Benar atau salah: kartu pernyataan + dua tombol besar. */
+function TrueFalseOptions({ q, selected, check, onSelect }: AreaProps) {
+  const labels = [q.options[0] || "Benar", q.options[1] || "Salah"];
+  return (
+    <>
+      {q.statement && (
+        <div className="mt-5 rounded-[14px] border-2 border-line bg-surface px-6 py-5 font-heading text-[17px] font-extrabold shadow-[0_4px_0_var(--border)]">
+          {q.statement}
+        </div>
+      )}
+      <div role="radiogroup" aria-label="Pilihan jawaban" className="mt-3 grid grid-cols-2 gap-3">
+        {labels.map((label, i) => (
+          <button
+            key={i}
+            role="radio"
+            aria-checked={selected === i}
+            disabled={!!check}
+            onClick={() => onSelect(i)}
+            className={`${optionClass(singleState(i, selected, check))} flex-col justify-center gap-2 py-6`}
+          >
+            <span
+              className={`grid size-14 place-items-center rounded-full text-white ${
+                i === 0 ? "bg-sky-dark" : "bg-brand"
+              }`}
+            >
+              {i === 0 ? <CheckIcon size={28} /> : <CloseIcon size={26} />}
+            </span>
+            <span className="font-heading text-lg font-extrabold uppercase">{label}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Urutkan langkah: ketuk langkah di bawah untuk mengisi slot, ketuk slot untuk mengembalikan. */
+function OrderOptions({ q, selected, check, onSelect }: AreaProps) {
+  const placed = Array.isArray(selected) ? selected : [];
+  const n = q.options.length;
+  const bank = q.options.map((_, i) => i).filter((i) => !placed.includes(i));
+
+  function slotState(pos: number): OptState {
+    if (!check) return "idle";
+    return (check.correct_index as number[])[pos] === placed[pos] ? "right" : "wrong";
+  }
+
+  return (
+    <div className="mt-6">
+      <ol className="grid gap-2.5">
+        {Array.from({ length: n }, (_, pos) => {
+          const item = placed[pos];
+          return (
+            <li key={pos} className="flex items-center gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-line font-heading text-xs font-black text-ink">
+                {pos + 1}
+              </span>
+              {item === undefined ? (
+                <div className="h-14 flex-1 rounded-[14px] border-2 border-dashed border-line" />
+              ) : (
+                <button
+                  type="button"
+                  disabled={!!check}
+                  onClick={() => onSelect(placed.filter((x) => x !== item))}
+                  aria-label={`Langkah ${pos + 1}: ${q.options[item]}. Ketuk untuk mengembalikan`}
+                  className={`${optionClass(slotState(pos))} min-h-14 flex-1 px-4 py-3 text-[15px]`}
+                >
+                  {q.options[item]}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      {bank.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-2.5" aria-label="Langkah yang tersedia">
+          {bank.map((i) => (
+            <button
+              key={i}
+              type="button"
+              disabled={!!check}
+              onClick={() => onSelect([...placed, i])}
+              className="cursor-pointer rounded-[12px] border-2 border-line bg-surface px-4 py-2.5 text-sm font-bold text-ink shadow-[0_3px_0_var(--border)] transition hover:bg-sky-soft/50 active:translate-y-[3px] active:shadow-none"
+            >
+              {q.options[i]}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
+/** Pasangkan: ketuk gambar di kiri, lalu nama di kanan. Ketuk lagi untuk melepas pasangan. */
+function MatchOptions({ q, selected, check, onSelect }: AreaProps) {
+  const n = q.options.length;
+  const pairs = Array.isArray(selected) ? selected : Array<number>(n).fill(-1);
+  const [active, setActive] = useState<number | null>(null);
+  const locked = !!check;
+  const owner = (j: number) => pairs.indexOf(j);
+  const verdict = (i: number): OptState =>
+    (check!.answer as number[])[i] === (check!.correct_index as number[])[i] ? "right" : "wrong";
+
+  function pickLeft(i: number) {
+    if (locked) return;
+    if (pairs[i] >= 0) {
+      const next = [...pairs];
+      next[i] = -1;
+      onSelect(next);
+    }
+    setActive(i);
+  }
+
+  function pickRight(j: number) {
+    if (locked) return;
+    const next = [...pairs];
+    const current = owner(j);
+    if (current >= 0) next[current] = -1;
+    if (active === null) {
+      if (current >= 0) onSelect(next); // ketuk pasangan yang sudah ada = lepas
+      return;
+    }
+    next[active] = j;
+    onSelect(next);
+    setActive(null);
+  }
+
+  const leftState = (i: number): OptState =>
+    check ? verdict(i) : active === i || pairs[i] >= 0 ? "selected" : "idle";
+  const rightState = (j: number): OptState => {
+    const o = owner(j);
+    if (check) return o >= 0 ? verdict(o) : "idle";
+    return o >= 0 ? "selected" : "idle";
+  };
+
+  return (
+    <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-0">
+      <div className="grid gap-3" aria-label="Gambar">
+        {Array.from({ length: n }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            disabled={locked}
+            onClick={() => pickLeft(i)}
+            aria-label={`Gambar ${i + 1}`}
+            aria-pressed={active === i}
+            className={`${optionClass(leftState(i))} h-[76px] justify-center px-3 ${
+              active === i ? "ring-4 ring-sky-dark/30" : ""
+            }`}
+          >
+            {q.left_images?.[i] && (
+              <img src={q.left_images[i]!} alt="" className="max-h-[70%] max-w-full object-contain" />
+            )}
+            {pairs[i] >= 0 && <PairBadge n={i + 1} />}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3" aria-label="Nama">
+        {q.options.map((option, j) => (
+          <button
+            key={j}
+            type="button"
+            disabled={locked}
+            onClick={() => pickRight(j)}
+            className={`${optionClass(rightState(j))} h-[76px] justify-center px-3 text-center text-[15px]`}
+          >
+            {option}
+            {owner(j) >= 0 && <PairBadge n={owner(j) + 1} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Memilih tampilan jawaban sesuai tipe soal. */
+function AnswerArea(props: AreaProps) {
+  switch (typeOf(props.q)) {
+    case "true_false":
+      return <TrueFalseOptions {...props} />;
+    case "multi":
+      return <ImageGrid {...props} multi />;
+    case "image_choice":
+      return <ImageGrid {...props} multi={false} />;
+    case "order":
+      return <OrderOptions {...props} />;
+    case "match":
+      return <MatchOptions {...props} />;
+    default:
+      return <ListOptions {...props} />; // single, guess, situation
+  }
+}
+
+/* ============================================================
+   Halaman kuis
+   ============================================================ */
 
 export default function QuizPage() {
   const { id } = useParams<{ id: string }>();
@@ -176,17 +512,18 @@ export default function QuizPage() {
   const quiz = detail.data;
   const [run, setRun] = useState<QuizRun | null>(null);
   const [queue, setQueue] = useState<number[]>([]); // indeks soal yang belum diperiksa
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Answer | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
   const [checks, setChecks] = useState<Record<number, Check>>({});
   const [result, setResult] = useState<QuizResult | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const exitHref = quiz ? `/dashboard` : "/dashboard";
-  const q = run && queue.length ? run.questions[queue[0]] : null;
+  const exitHref = "/dashboard";
+  const q: Question | null = run && queue.length ? (run.questions[queue[0]] as Question) : null;
   const total = run?.questions.length || quiz?.questions.length || 0;
   const done = Object.keys(checks).length;
+  const ready = q ? isReady(q, selected) : false;
 
   async function start() {
     setBusy(true);
@@ -207,7 +544,7 @@ export default function QuizPage() {
   }
 
   const periksa = useCallback(async () => {
-    if (!run || !q || selected === null || check) return;
+    if (!run || !q || !isReady(q, selected) || check) return;
     setBusy(true);
     setError("");
     try {
@@ -259,13 +596,25 @@ export default function QuizPage() {
     setSelected(null);
   }
 
-  // Keyboard: angka memilih jawaban, Enter = Periksa / Lanjut.
+  // Keyboard: angka memilih jawaban (untuk tipe pilihan), Enter = Periksa / Lanjut.
   useEffect(() => {
     if (!q) return;
+    const current = q;
+    const t = typeOf(current);
     function onKey(e: KeyboardEvent) {
       if (busy) return;
       const n = Number(e.key);
-      if (!check && n >= 1 && n <= (q?.options.length || 0)) setSelected(n - 1);
+      const count = current.options.length;
+      if (!check && n >= 1 && n <= count) {
+        if (t === "multi") {
+          setSelected((prev) => {
+            const list = Array.isArray(prev) ? prev : [];
+            return list.includes(n - 1) ? list.filter((x) => x !== n - 1) : [...list, n - 1];
+          });
+        } else if (t !== "order" && t !== "match") {
+          setSelected(n - 1);
+        }
+      }
       if (e.key === "Enter") {
         e.preventDefault();
         if (check) lanjut();
@@ -368,11 +717,14 @@ export default function QuizPage() {
   }
 
   /* ---------- Layar soal ---------- */
+  const type = typeOf(q);
+  const chipText = typeLabel[type] || kindLabel[quiz?.kind || ""] || "KUIS";
   const footer = check
     ? check.correct
       ? "bg-sky-soft"
       : "bg-brand-soft"
     : "border-t-2 border-line bg-page";
+  const rightAnswer = check && !check.correct ? correctLabel(q, check) : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
@@ -382,26 +734,43 @@ export default function QuizPage() {
         label={`${Math.min(done + 1, total)}/${total}`}
       />
 
-      <main className="mx-auto w-[min(540px,calc(100%-32px))] flex-1 pb-10 pt-10">
-        <Chip text={kindLabel[quiz?.kind || ""] || "KUIS"} />
-        <h1 className="mt-4 font-heading text-[24px] font-extrabold leading-snug">
-          {q.prompt}
-        </h1>
+      <main className="mx-auto w-[min(540px,calc(100%-32px))] flex-1 pb-10 pt-10 min-[1000px]:w-[min(760px,calc(100%-32px))]">
+        <Chip text={chipText} />
+
+        {type === "situation" ? (
+          <div className="mt-4 flex items-center gap-3">
+            <div className="shrink-0">
+              <PikoAvatar size={72} />
+            </div>
+            <h1 className="relative rounded-[16px] border-2 border-line bg-surface px-4 py-3 font-heading text-[17px] font-extrabold leading-snug">
+              {q.prompt}
+            </h1>
+          </div>
+        ) : (
+          <h1 className="mt-4 font-heading text-[24px] font-extrabold leading-snug">
+            {q.prompt}
+          </h1>
+        )}
+
         {q.image_url && (
-          <div className="mt-5 grid place-items-center rounded-[20px] bg-sky-soft p-6">
+          <div className="mt-5 grid min-h-[190px] place-items-center rounded-[20px] bg-sky-soft p-6">
             <img
               src={q.image_url}
               alt="Ilustrasi pertanyaan"
-              className="max-h-56 max-w-full object-contain"
+              className="max-h-40 max-w-full object-contain"
             />
           </div>
         )}
-        <Options
+
+        {/* key = id soal: state internal (mis. pasangan aktif) ikut reset di soal berikutnya */}
+        <AnswerArea
+          key={q.id}
           q={q}
           selected={selected}
           check={check}
           onSelect={setSelected}
         />
+
         {error && (
           <p role="alert" className="mt-4 font-bold text-brand">
             {error}
@@ -429,8 +798,7 @@ export default function QuizPage() {
                   {check.correct ? "Hebat!" : "Belum tepat"}
                 </p>
                 <p className="text-sm font-semibold text-ink">
-                  {!check.correct &&
-                    `Jawaban benar: ${q.options[check.correct_index]}. `}
+                  {rightAnswer && `Jawaban benar: ${rightAnswer}. `}
                   {check.explanation}
                 </p>
               </div>
@@ -455,7 +823,7 @@ export default function QuizPage() {
           ) : (
             <button
               onClick={periksa}
-              disabled={busy || selected === null}
+              disabled={busy || !ready}
               className={btnRed}
             >
               {busy ? "Memeriksa…" : "Periksa"}

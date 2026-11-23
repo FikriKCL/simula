@@ -340,6 +340,8 @@ export default function ProfilPage() {
                     ))}
                   </div>
                 </section>
+                <span></span>
+                <span></span>
               </div>
             </>
           ) : !source.error ? (

@@ -111,8 +111,11 @@ const actStyle: Record<Kind, string> = {
   komik: "size-[26px] text-ink",
 };
 
+// 12 habis dibagi 2, 3, dan 4, jadi baris terakhir tetap rapi di semua jumlah kolom
+const PAGE_SIZE = 12;
+
 const gridClass =
-  "mt-5 grid grid-cols-3 gap-3.5 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1";
+  "mt-5 grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-3.5 max-[560px]:mt-4 max-[560px]:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] max-[560px]:gap-2.5";
 
 type Sort = "default" | "az" | "za";
 
@@ -135,8 +138,17 @@ export default function MateriPage() {
         ? "&kind=ARTICLE&kind=PDF"
         : `&kind=${tab === "video" ? "VIDEO" : "COMIC"}`;
   const source = useApiData<{ items: MaterialCard[]; total: number }>(
-    `/materials?limit=100&offset=${offset}&q=${encodeURIComponent(query)}${kindFilter}`,
+    `/materials?limit=${PAGE_SIZE}&offset=${offset}&q=${encodeURIComponent(query)}${kindFilter}`,
   );
+
+  const total = source.data?.total || 0;
+  const page = Math.floor(offset / PAGE_SIZE) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  function goToPage(nextOffset: number) {
+    setOffset(Math.max(0, nextOffset));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   const items = useMemo(
     () => source.data?.items.map((m, i) => toItem(m, i)) || [],
     [source.data],
@@ -164,22 +176,27 @@ export default function MateriPage() {
           <form
             role="search"
             onSubmit={(e) => e.preventDefault()}
-            className={`${banner} gap-3 px-[18px] py-3.5`}
+            className={`${banner} gap-3 px-[18px] py-3.5 max-[560px]:gap-2 max-[560px]:px-3 max-[560px]:py-3`}
           >
-            <label className="flex h-[50px] flex-1 items-center gap-3 rounded-full border-[3px] border-[#1c2b3d] bg-white px-[18px] text-[#1c2b3d]">
-              <SearchIcon size={24} />
+            <label className="flex h-[50px] min-w-0 flex-1 items-center gap-3 rounded-full border-[3px] border-[#1c2b3d] bg-white px-[18px] text-[#1c2b3d] max-[560px]:h-11 max-[560px]:gap-2 max-[560px]:border-2 max-[560px]:px-3.5">
+              <span className="shrink-0">
+                <SearchIcon size={22} />
+              </span>
               <input
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setOffset(0);
                 }}
-                placeholder="Cari materi pertolongan pertama..."
+                placeholder="Cari materi P3K..."
                 aria-label="Cari materi"
-                className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-[#1c2b3d] outline-none placeholder:text-[#7b8798]"
+                className="min-w-0 flex-1 bg-transparent text-base font-semibold text-[#1c2b3d] outline-none placeholder:text-[#7b8798] min-[561px]:text-[15px]"
               />
             </label>
-            <button type="submit" className={btnOutline}>
+            <button
+              type="submit"
+              className={`${btnOutline} shrink-0 max-[560px]:px-4 max-[560px]:py-2 max-[560px]:text-sm`}
+            >
               Cari
             </button>
           </form>
@@ -277,41 +294,37 @@ export default function MateriPage() {
                   className="overflow-hidden rounded-[18px] border-2 border-line bg-surface shadow-pop transition hover:-translate-y-[3px] hover:shadow-[0_7px_0_var(--border)]"
                 >
                   <div
-                    className={`relative grid h-[122px] place-items-center ${tone[it.tone]}`}
+                    className={`relative grid h-[122px] place-items-center max-[560px]:h-[96px] ${tone[it.tone]}`}
                   >
-                    <span className="absolute left-3 top-3 rounded-full bg-brand px-[11px] py-[3px] text-[11px] font-black tracking-[0.5px] text-white">
+                    <span className="absolute left-2.5 top-2.5 rounded-full bg-brand px-[10px] py-[3px] text-[11px] font-black tracking-[0.5px] text-white max-[560px]:px-2 max-[560px]:text-[10px]">
                       {badge[it.kind]}
                     </span>
-                    {it.art}
+                    <div className="max-[560px]:scale-[0.8]">{it.art}</div>
                     {it.kind === "video" && (
                       <a
                         href={it.href}
                         aria-disabled={!it.href}
                         aria-label={`Putar ${it.title}`}
-                        className="absolute bottom-3 right-3 grid size-[34px] place-items-center rounded-full bg-white text-brand shadow-[0_2px_6px_rgba(0,0,0,0.14)]"
+                        className="absolute bottom-2.5 right-2.5 grid size-[34px] place-items-center rounded-full bg-white text-brand shadow-[0_2px_6px_rgba(0,0,0,0.14)] max-[560px]:size-8"
                       >
                         <PlayIcon size={14} />
                       </a>
                     )}
                   </div>
 
-                  <div className="px-4 pb-4 pt-3.5">
-                    <h3 className="font-heading text-base font-extrabold leading-[1.2]">
+                  <div className="px-4 pb-4 pt-3.5 max-[560px]:px-3 max-[560px]:pb-3 max-[560px]:pt-2.5">
+                    <h3 className="line-clamp-2 font-heading text-base font-extrabold leading-[1.2] max-[560px]:text-sm">
                       {it.title}
                     </h3>
-                    <div className="mt-2.5 flex items-center justify-between text-[13px] font-semibold text-muted">
-                      <span>{it.meta}</span>
+                    <div className="mt-2.5 flex items-center justify-between gap-2 text-[13px] font-semibold text-muted max-[560px]:mt-2 max-[560px]:text-xs">
+                      <span className="min-w-0 leading-snug">{it.meta}</span>
                       <a
                         href={it.href}
                         aria-disabled={!it.href}
                         aria-label={
-                          it.kind === "artikel" || it.kind === "pdf"
-                            ? `Baca ${it.title}`
-                            : it.kind === "video"
-                              ? `Putar ${it.title}`
-                              : `Baca ${it.title}`
+                          it.kind === "video" ? `Putar ${it.title}` : `Baca ${it.title}`
                         }
-                        className={`grid place-items-center rounded-full ${actStyle[it.kind]}`}
+                        className={`grid shrink-0 place-items-center rounded-full ${actStyle[it.kind]}`}
                       >
                         {(it.kind === "artikel" || it.kind === "pdf") && (
                           <ArrowDownIcon size={13} />
@@ -326,22 +339,37 @@ export default function MateriPage() {
             </div>
           )}
 
-          <div className="mt-6 flex justify-between">
-            <button
-              disabled={offset === 0 || source.loading}
-              onClick={() => setOffset(Math.max(0, offset - 100))}
+          {totalPages > 1 && (
+            <nav
+              aria-label="Halaman materi"
+              className="mt-6 flex items-center justify-center gap-2 max-[560px]:gap-1.5 pb-12"
             >
-              Sebelumnya
-            </button>
-            <button
-              disabled={
-                source.loading || offset + 100 >= (source.data?.total || 0)
-              }
-              onClick={() => setOffset(offset + 100)}
-            >
-              Berikutnya
-            </button>
-          </div>
+              <button
+                type="button"
+                className={`${btnOutline} disabled:cursor-not-allowed disabled:opacity-50`}
+                disabled={page <= 1 || source.loading}
+                onClick={() => goToPage(offset - PAGE_SIZE)}
+              >
+                Sebelumnya
+              </button>
+
+              <span
+                aria-live="polite"
+                className="min-w-[72px] text-center text-sm font-extrabold text-ink max-[560px]:min-w-[56px]"
+              >
+                {page} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                className={`${btnOutline} disabled:cursor-not-allowed disabled:opacity-50`}
+                disabled={page >= totalPages || source.loading}
+                onClick={() => goToPage(offset + PAGE_SIZE)}
+              >
+                Berikutnya
+              </button>
+            </nav>
+          )}
         </div>
       </main>
 
