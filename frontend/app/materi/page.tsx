@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { type MaterialCard } from "@/lib/api";
 import ApiState, { useApiData } from "@/components/ApiState";
+import { CardSkeleton, Skeleton, Spinner } from "@/components/Loading";
 import Sidebar from "@/components/Sidebar";
 import RightPanel from "@/components/RightPanel";
 import { banner, btnOutline, column } from "@/components/ui";
@@ -110,6 +111,9 @@ const actStyle: Record<Kind, string> = {
   komik: "size-[26px] text-ink",
 };
 
+const gridClass =
+  "mt-5 grid grid-cols-3 gap-3.5 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1";
+
 export default function MateriPage() {
   const [tab, setTab] = useState<Tab>("semua");
   const [offset, setOffset] = useState(0);
@@ -129,6 +133,10 @@ export default function MateriPage() {
     [source.data],
   );
   const visible = items;
+
+  // Pemuatan pertama (belum ada data sama sekali) -> kerangka kartu.
+  // Pemuatan berikutnya (ganti tab / cari) -> kartu lama diredupkan + spinner kecil.
+  const firstLoad = source.loading && !source.data;
 
   return (
     <div className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)_320px] max-[1100px]:grid-cols-[200px_minmax(0,1fr)] max-[720px]:grid-cols-1">
@@ -187,21 +195,38 @@ export default function MateriPage() {
             ))}
           </div>
 
-          <ApiState
-            loading={source.loading}
-            error={source.error}
-            retry={source.reload}
-          />
-          <p className="mt-3 text-sm text-muted">
-            {source.data?.total || 0} materi
-          </p>
+          {/* Loading ditangani kerangka di bawah, jadi ApiState hanya menampilkan error + tombol coba lagi */}
+          <ApiState loading={false} error={source.error} retry={source.reload} />
+
+          {/* Jumlah materi */}
+          <div className="mt-3 flex h-5 items-center gap-2 text-sm text-muted">
+            {firstLoad ? (
+              <Skeleton className="h-4 w-20" />
+            ) : (
+              <span>{source.data?.total || 0} materi</span>
+            )}
+            {source.loading && source.data && <Spinner size={14} label="Memuat materi…" />}
+          </div>
+
           {/* Daftar materi */}
-          {!source.loading && !source.error && visible.length === 0 ? (
+          {firstLoad ? (
+            <div className={gridClass} aria-busy="true">
+              <span role="status" className="sr-only">
+                Memuat materi…
+              </span>
+              {Array.from({ length: 6 }, (_, i) => (
+                <CardSkeleton key={i} />
+              ))}
+            </div>
+          ) : !source.loading && !source.error && visible.length === 0 ? (
             <p className="mt-12 text-center font-bold text-muted">
               Materi tidak ditemukan. Coba kata kunci lain ya!
             </p>
           ) : (
-            <div className="mt-5 grid grid-cols-3 gap-3.5 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
+            <div
+              aria-busy={source.loading}
+              className={`${gridClass} transition-opacity ${source.loading ? "opacity-60" : ""}`}
+            >
               {visible.map((it) => (
                 <article
                   key={it.id}
@@ -256,6 +281,7 @@ export default function MateriPage() {
               ))}
             </div>
           )}
+
           <div className="mt-6 flex justify-between">
             <button
               disabled={offset === 0 || source.loading}

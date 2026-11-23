@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type PathTopic } from "@/lib/api";
 import ApiState, { useApiData } from "./ApiState";
 import { Cross, CheckIcon, LockIcon } from "./Icons";
+import { LevelPathSkeleton } from "./Loading";
 
 type Status = "done" | "open" | "locked";
 
@@ -28,6 +29,10 @@ export default function LevelPath({
   const { data, error, loading, reload } =
     useApiData<PathTopic[]>("/learning/path");
   const router = useRouter();
+
+  // Pemuatan pertama (belum ada data) -> kerangka jalur level.
+  if (loading && !data) return <LevelPathSkeleton />;
+
   const levels: Level[] = (data || []).flatMap((topic) =>
     topic.levels.map((node, i) => ({
       id: String(node.id),
@@ -41,10 +46,18 @@ export default function LevelPath({
       offset: [0, 40, 70, 40][i % 4],
     })),
   );
+
   return (
     <div className="relative z-[1] mx-auto mt-2 flex w-[min(800px,calc(100%-48px))] flex-col items-center">
-      <ApiState loading={loading} error={error} retry={reload} />
-      {!loading && !error && !levels.length && <p>Belum ada modul terbit.</p>}
+      {/* Loading ditangani kerangka di atas, jadi ApiState hanya menampilkan error + coba lagi */}
+      <ApiState loading={false} error={error} retry={reload} />
+
+      {!loading && !error && !levels.length && (
+        <p className="mt-8 text-center font-bold text-muted">
+          Belum ada modul terbit.
+        </p>
+      )}
+
       {levels.map((level) => {
         const locked = level.status === "locked";
         return (

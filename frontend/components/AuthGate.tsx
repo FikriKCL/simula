@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { LoadingScreen } from "./Loading";
 export default function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [state, setState] = useState<
@@ -39,9 +40,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (!protectedPage) return children;
   if (state === "loading")
     return (
-      <p className="p-10" role="status">
-        Memeriksa sesi…
-      </p>
+      <LoadingScreen>
+        
+      </LoadingScreen>
     );
   if (state === "error")
     return (

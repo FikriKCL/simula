@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { api, downloadCertificate, type Profile } from "@/lib/api";
 import ApiState, { useApiData } from "@/components/ApiState";
+import { ProfilSkeleton } from "@/components/Loading";
 import Sidebar from "@/components/Sidebar";
 import RightPanel from "@/components/RightPanel";
 import { PikoMascot } from "@/components/PikoMascot";
@@ -46,9 +47,9 @@ export default function ProfilPage() {
     name: data?.user.display_name || "",
     joined: data
       ? new Date(data.user.created_at).toLocaleDateString("id-ID", {
-          month: "long",
-          year: "numeric",
-        })
+        month: "long",
+        year: "numeric",
+      })
       : "",
     rank: `${data?.user.xp || 0} XP · ${data?.earned_badges || 0} lencana`,
   };
@@ -124,14 +125,7 @@ export default function ProfilPage() {
       setSaving(false);
     }
   }
-  if (source.loading || source.error)
-    return (
-      <ApiState
-        loading={source.loading}
-        error={source.error}
-        retry={source.reload}
-      />
-    );
+
   return (
     <div className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)_320px] max-[1100px]:grid-cols-[200px_minmax(0,1fr)] max-[720px]:grid-cols-1">
       <Sidebar active="profil" />
@@ -149,179 +143,208 @@ export default function ProfilPage() {
               </p>
             </div>
             <button
+              disabled={!data}
               onClick={() => {
                 setName(data?.user.display_name || "");
                 setEditing(true);
               }}
-              className="cursor-pointer rounded-[14px] border-[3px] border-[#1c2b3d] bg-white px-6 py-2.5 font-heading text-sm font-extrabold text-[#1c2b3d] shadow-[0_3px_0_#1c2b3d] transition active:translate-y-[3px] active:shadow-none"
+              className="cursor-pointer rounded-[14px] border-[3px] border-[#1c2b3d] bg-white px-6 py-2.5 font-heading text-sm font-extrabold text-[#1c2b3d] shadow-[0_3px_0_#1c2b3d] transition active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
             >
               Ubah Profil
             </button>
           </div>
 
-          {editing && (
-            <form onSubmit={save} className={`${panel} grid gap-3 p-5`}>
-              <label>
-                Nama tampilan
-                <input
-                  minLength={2}
-                  maxLength={100}
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="ml-3 rounded border p-2"
-                />
-              </label>
-              {saveError && <p role="alert">{saveError}</p>}
-              <button disabled={saving}>
-                {saving ? "Menyimpan…" : "Simpan"}
-              </button>
-              <button type="button" onClick={() => setEditing(false)}>
-                Batal
-              </button>
-            </form>
-          )}
-          {/* Kartu profil */}
-          <section
-            className={`${panel} flex items-center gap-[26px] py-6 pl-7 pr-6 max-[560px]:flex-col max-[560px]:text-center`}
-          >
-            <div className="relative m-2 size-[118px] shrink-0 overflow-hidden rounded-full bg-sky-soft shadow-[0_0_0_7px_var(--red-soft)]">
-              {/* Potong maskot supaya hanya kepala yang tampak */}
-              <PikoMascot className="absolute -left-9 -top-3.5 h-auto w-[190px]" />
-            </div>
-            <div>
-              <h2 className="font-heading text-4xl font-extrabold leading-[1.1]">
-                {user.name}
-              </h2>
-              <p className="mt-1 text-[17px] font-semibold text-muted">
-                Bergabung sejak {user.joined}
-              </p>
-              <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 font-heading text-sm font-extrabold text-brand">
-                <StarIcon size={16} />
-                {user.rank}
-              </span>
-            </div>
-          </section>
+          {/* Error (kosong kalau tidak ada error). Loading ditangani kerangka di bawah. */}
+          <ApiState loading={false} error={source.error} retry={source.reload} />
 
-          {/* Statistik */}
-          <div className="grid grid-cols-3 gap-3.5 max-[900px]:grid-cols-1">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className={`${panel} flex items-center gap-3.5 rounded-[18px] px-[18px] py-4`}
+          {data ? (
+            <>
+              {editing && (
+                <form onSubmit={save} className={`${panel} grid gap-3.5 p-5`}>
+                  <label className="grid gap-1.5 font-heading text-sm font-extrabold">
+                    Nama tampilan
+                    <input
+                      minLength={2}
+                      maxLength={100}
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="rounded-[14px] border-2 border-line bg-page px-3.5 py-2.5 text-[15px] font-semibold text-ink outline-none transition focus:border-sky-dark focus:ring-4 focus:ring-sky-soft"
+                    />
+                  </label>
+
+                  {saveError && (
+                    <p
+                      role="alert"
+                      className="rounded-[14px] bg-brand-soft px-3.5 py-2.5 text-sm font-bold text-brand"
+                    >
+                      {saveError}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2.5">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex-1 cursor-pointer rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {saving ? "Menyimpan…" : "Simpan"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(false)}
+                      className="cursor-pointer rounded-[14px] border-2 border-line bg-surface px-5 py-2.5 font-heading text-sm font-extrabold text-muted shadow-[0_4px_0_var(--border)] transition hover:bg-sky-soft active:translate-y-1 active:shadow-none"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Kartu profil */}
+              <section
+                className={`${panel} flex items-center gap-[26px] py-6 pl-7 pr-6 max-[560px]:flex-col max-[560px]:text-center`}
               >
-                <div
-                  className={`grid size-[42px] shrink-0 place-items-center ${
-                    s.soft ? "rounded-full bg-sky-soft" : ""
-                  }`}
-                >
-                  {s.icon}
+                <div className="relative m-2 size-[118px] shrink-0 overflow-hidden rounded-full bg-sky-soft shadow-[0_0_0_7px_var(--red-soft)]">
+                  {/* Potong maskot supaya hanya kepala yang tampak */}
+                  <PikoMascot className="absolute -left-9 -top-3.5 h-auto w-[190px]" />
                 </div>
                 <div>
-                  <strong className="block font-heading text-2xl font-extrabold leading-[1.1]">
-                    {s.value}
-                  </strong>
-                  <span className="text-sm font-semibold text-muted">
-                    {s.label}
+                  <h2 className="font-heading text-4xl font-extrabold leading-[1.1]">
+                    {user.name}
+                  </h2>
+                  <p className="mt-1 text-[17px] font-semibold text-muted">
+                    Bergabung sejak {user.joined}
+                  </p>
+                  <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 font-heading text-sm font-extrabold text-brand">
+                    <StarIcon size={16} />
+                    {user.rank}
                   </span>
                 </div>
-              </div>
-            ))}
-          </div>
+              </section>
 
-          <section className={`${panel} p-5`}>
-            <h2 className="text-xl font-bold">Sertifikat Saya</h2>
-            <ApiState
-              loading={certificates.loading}
-              error={certificates.error}
-              retry={certificates.reload}
-            />
-            {certificates.data?.length === 0 && (
-              <p className="mt-3 text-muted">
-                Selesaikan tes akhir untuk mendapatkan sertifikat.
-              </p>
-            )}
-            {certificates.data?.map((c) => (
-              <div key={c.id} className="mt-3 flex justify-between gap-3">
-                <span>
-                  {c.module_title} · Nilai {c.score}
-                </span>
-                <button
-                  disabled={downloadBusy !== null}
-                  onClick={() => download(c.id, c.code)}
-                  className="text-brand underline"
-                >
-                  {downloadBusy === c.id ? "Mengunduh…" : "Unduh"}
-                </button>
-              </div>
-            ))}
-            {downloadError && <p role="alert">{downloadError}</p>}
-          </section>
-          {/* Lencana + Progres */}
-          <div className="grid grid-cols-2 items-stretch gap-3.5 max-[900px]:grid-cols-1">
-            <section className={`${panel} p-5`}>
-              <h3 className="mb-3.5 font-heading text-xl font-extrabold">
-                Lencana Saya
-              </h3>
-              <div className="grid grid-cols-4 gap-x-1.5 gap-y-3">
-                {lencana.map((b) => (
+              {/* Statistik */}
+              <div className="grid grid-cols-3 gap-3.5 max-[900px]:grid-cols-1">
+                {stats.map((s) => (
                   <div
-                    key={b.label}
-                    className={`flex flex-col items-center gap-1.5 text-center text-xs font-extrabold leading-tight ${
-                      b.earned ? "" : "text-muted"
-                    }`}
+                    key={s.label}
+                    className={`${panel} flex items-center gap-3.5 rounded-[18px] px-[18px] py-4`}
                   >
                     <div
-                      className={`mb-1 grid size-[58px] place-items-center rounded-full ${
-                        b.earned
-                          ? "bg-gold-soft shadow-[0_4px_0_var(--gold)]"
-                          : "bg-lock shadow-[0_4px_0_var(--lock-edge)] [&_svg]:opacity-55 [&_svg]:grayscale"
-                      }`}
+                      className={`grid size-[42px] shrink-0 place-items-center ${s.soft ? "rounded-full bg-sky-soft" : ""
+                        }`}
                     >
-                      <BadgeIcon kind={b.kind} size={32} />
+                      {s.icon}
                     </div>
-                    <span>{b.label}</span>
+                    <div>
+                      <strong className="block font-heading text-2xl font-extrabold leading-[1.1]">
+                        {s.value}
+                      </strong>
+                      <span className="text-sm font-semibold text-muted">
+                        {s.label}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
-            </section>
 
-            <section className={`${panel} p-5`}>
-              <h3 className="mb-3.5 font-heading text-xl font-extrabold">
-                Progres Materi
-              </h3>
-              <div className="flex flex-col gap-[18px]">
-                {progres.map((p) => (
-                  <div key={p.label}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="flex items-center gap-2.5 font-heading text-[17px] font-extrabold">
-                        {p.icon}
-                        {p.label}
-                      </span>
-                      <span className="text-[13px] font-bold text-muted">
-                        {p.done} dari {p.total}
-                      </span>
-                    </div>
-                    <div
-                      className="h-3 overflow-hidden rounded-full bg-line"
-                      role="progressbar"
-                      aria-label={p.label}
-                      aria-valuemin={0}
-                      aria-valuemax={p.total}
-                      aria-valuenow={p.done}
+              {/* Sertifikat */}
+              <section className={`${panel} p-5`}>
+                <h2 className="text-xl font-bold">Sertifikat Saya</h2>
+                <ApiState
+                  loading={certificates.loading}
+                  error={certificates.error}
+                  retry={certificates.reload}
+                />
+                {certificates.data?.length === 0 && (
+                  <p className="mt-3 text-muted">
+                    Selesaikan tes akhir untuk mendapatkan sertifikat.
+                  </p>
+                )}
+                {certificates.data?.map((c) => (
+                  <div key={c.id} className="mt-3 flex justify-between gap-3">
+                    <span>
+                      {c.module_title} · Nilai {c.score}
+                    </span>
+                    <button
+                      disabled={downloadBusy !== null}
+                      onClick={() => download(c.id, c.code)}
+                      className="text-brand underline"
                     >
-                      <div
-                        className="h-full rounded-full bg-sky-dark transition-[width] duration-500"
-                        style={{
-                          width: `${(p.total ? p.done / p.total : 0) * 100}%`,
-                        }}
-                      />
-                    </div>
+                      {downloadBusy === c.id ? "Mengunduh…" : "Unduh"}
+                    </button>
                   </div>
                 ))}
+                {downloadError && <p role="alert">{downloadError}</p>}
+              </section>
+
+              {/* Lencana + Progres */}
+              <div className="grid grid-cols-2 items-stretch gap-3.5 max-[900px]:grid-cols-1">
+                <section className={`${panel} p-5`}>
+                  <h3 className="mb-3.5 font-heading text-xl font-extrabold">
+                    Lencana Saya
+                  </h3>
+                  <div className="grid grid-cols-4 gap-x-1.5 gap-y-3">
+                    {lencana.map((b) => (
+                      <div
+                        key={b.label}
+                        className={`flex flex-col items-center gap-1.5 text-center text-xs font-extrabold leading-tight ${b.earned ? "" : "text-muted"
+                          }`}
+                      >
+                        <div
+                          className={`mb-1 grid size-[58px] place-items-center rounded-full ${b.earned
+                              ? "bg-gold-soft shadow-[0_4px_0_var(--gold)]"
+                              : "bg-lock shadow-[0_4px_0_var(--lock-edge)] [&_svg]:opacity-55 [&_svg]:grayscale"
+                            }`}
+                        >
+                          <BadgeIcon kind={b.kind} size={32} />
+                        </div>
+                        <span>{b.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className={`${panel} p-5`}>
+                  <h3 className="mb-3.5 font-heading text-xl font-extrabold">
+                    Progres Materi
+                  </h3>
+                  <div className="flex flex-col gap-[18px]">
+                    {progres.map((p) => (
+                      <div key={p.label}>
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="flex items-center gap-2.5 font-heading text-[17px] font-extrabold">
+                            {p.icon}
+                            {p.label}
+                          </span>
+                          <span className="text-[13px] font-bold text-muted">
+                            {p.done} dari {p.total}
+                          </span>
+                        </div>
+                        <div
+                          className="h-3 overflow-hidden rounded-full bg-line"
+                          role="progressbar"
+                          aria-label={p.label}
+                          aria-valuemin={0}
+                          aria-valuemax={p.total}
+                          aria-valuenow={p.done}
+                        >
+                          <div
+                            className="h-full rounded-full bg-sky-dark transition-[width] duration-500"
+                            style={{
+                              width: `${(p.total ? p.done / p.total : 0) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               </div>
-            </section>
-          </div>
+            </>
+          ) : !source.error ? (
+            <ProfilSkeleton />
+          ) : null}
         </div>
       </main>
 
