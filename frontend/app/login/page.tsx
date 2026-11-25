@@ -157,7 +157,7 @@ function HeroPanel() {
         <p className="mb-3 max-w-[260px] rounded-2xl border-2 border-line bg-white px-4 py-2.5 text-center text-sm font-bold leading-snug text-ink">
           Halo! Yuk, masuk dan lanjutkan belajar bersama simula.
         </p>
-        <PikoMascot className="mx-auto h-auto w-[300px]" />
+        <PikoMascot className="mx-auto h-auto w-[300px]" animated mood="idle"/>
       </div>
     </div>
   );
