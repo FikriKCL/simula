@@ -8,6 +8,7 @@ import {
   PencilIcon,
   TrashIcon,
 } from "./AdminIcons";
+import { DateSortSelect, compareByDate, type DateSort } from "./Shared";
 
 interface SoalViewProps {
   questions: QuizQuestion[];
@@ -25,6 +26,7 @@ export default function SoalView({
   const [search, setSearch] = useState("");
   const [topicFilter, setTopicFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sort, setSort] = useState<DateSort>("newest");
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const filteredQuestions = useMemo(() => {
@@ -35,8 +37,8 @@ export default function SoalView({
       const matchTopic = topicFilter === "all" || q.topic === topicFilter;
       const matchType = typeFilter === "all" || q.type === typeFilter;
       return matchSearch && matchTopic && matchType;
-    });
-  }, [questions, search, topicFilter, typeFilter]);
+    }).sort((a, b) => compareByDate(sort, a, b));
+  }, [questions, search, topicFilter, typeFilter, sort]);
 
   const pageCount=Math.max(1,Math.ceil(filteredQuestions.length/10));
   const page=Math.min(currentPage,pageCount);
@@ -77,20 +79,21 @@ export default function SoalView({
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {setSearch(e.target.value);setCurrentPage(1);}}
               placeholder="Cari pertanyaan..."
               className="w-full h-11 pl-10 pr-4 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#43A8F6]/30"
             />
           </div>
 
           <div className="grid grid-cols-2 md:flex gap-2.5 md:gap-3">
+            <DateSortSelect value={sort} onChange={(v)=>{setSort(v);setCurrentPage(1);}} className="col-span-2 md:col-span-1" />
             <select
               value={topicFilter}
-              onChange={(e) => setTopicFilter(e.target.value)}
+              onChange={(e) => {setTopicFilter(e.target.value);setCurrentPage(1);}}
               aria-label="Filter materi"
               className="w-full md:w-[175px] h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-bold text-[#1E293B] dark:text-white appearance-none cursor-pointer focus:outline-none"
             >
-              <option value="all">Semua materi</option>
+              <option value="all">Semua kategori</option>
               <option value="PP">PP</option>
               <option value="ASB">ASB</option>
               <option value="KR">KR</option>
@@ -98,7 +101,7 @@ export default function SoalView({
 
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={(e) => {setTypeFilter(e.target.value);setCurrentPage(1);}}
               aria-label="Filter tipe soal"
               className="w-full md:w-[165px] h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-bold text-[#1E293B] dark:text-white appearance-none cursor-pointer focus:outline-none"
             >
@@ -119,7 +122,7 @@ export default function SoalView({
               <tr className="border-b border-[#EEF2F6] dark:border-slate-800 text-[11px] font-extrabold uppercase tracking-wider text-[#94A3B8]">
                 <th className="pb-3 pr-3 w-12">NO</th>
                 <th className="pb-3 px-3">PERTANYAAN</th>
-                <th className="pb-3 px-3">MATERI</th>
+                <th className="pb-3 px-3">KATEGORI</th>
                 <th className="pb-3 px-3">TIPE</th>
                 <th className="pb-3 px-3">LEVEL</th>
                 <th className="pb-3 pl-4 text-right">AKSI</th>

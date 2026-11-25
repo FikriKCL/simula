@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { LoadingScreen } from "./Loading"
+import { LoadingScreen } from "./Loading";
 import { PikoMascot } from "./PikoMascot";
 export default function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -41,16 +41,25 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (!protectedPage) return children;
   if (state === "loading")
     return (
-      <LoadingScreen>
-
-      </LoadingScreen>
+      <LoadingScreen label="Memeriksa sesi…" />
     );
   if (state === "error")
     return (
-      <div className="p-10" role="alert">
-        Tidak dapat memeriksa sesi. Pastikan backend berjalan.{" "}
-        <button onClick={() => setRetry((v) => v + 1)}>Coba lagi</button>
-      </div>
+      <GateShell>
+        <h1 className="font-heading text-2xl font-extrabold">
+          Server belum terhubung
+        </h1>
+        <p role="alert" className="my-3 font-semibold text-muted">
+          Tidak dapat memeriksa sesi. Pastikan backend SIMULA berjalan, lalu
+          coba lagi.
+        </p>
+        <button
+          onClick={() => setRetry((v) => v + 1)}
+          className={primaryBtn}
+        >
+          Coba lagi
+        </button>
+      </GateShell>
     );
   if (state === "guest")
     return (
@@ -74,17 +83,40 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         >
           Buka halaman masuk
         </Link>
+        <p className="mt-4 text-sm font-semibold text-muted">
+          Belum punya akun?{" "}
+          <Link href="/daftar" className="font-extrabold text-brand underline">
+            Daftar
+          </Link>
+        </p>
       </main>
     );
   if (pathname.startsWith("/admin") && role !== "ADMIN")
     return (
-      <main className="p-10">
-        <h1 className="text-2xl font-bold">Akses admin diperlukan</h1>
-        <p>Akun ini tidak memiliki izin mengelola situs.</p>
-        <Link href="/dashboard" className="underline">
+      <GateShell>
+        <h1 className="font-heading text-2xl font-extrabold">
+          Akses admin diperlukan
+        </h1>
+        <p className="my-3 font-semibold text-muted">
+          Akun ini tidak memiliki izin mengelola situs.
+        </p>
+        <Link href="/dashboard" className={primaryBtn}>
           Kembali ke pembelajaran
         </Link>
-      </main>
+      </GateShell>
     );
   return children;
+}
+
+const primaryBtn =
+  "inline-block cursor-pointer rounded-[14px] bg-brand px-6 py-3 font-heading text-sm font-extrabold text-white no-underline shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none";
+
+function GateShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-page px-6">
+      <div className="w-full max-w-md rounded-[22px] border-2 border-line bg-surface p-8 text-center shadow-pop">
+        {children}
+      </div>
+    </main>
+  );
 }

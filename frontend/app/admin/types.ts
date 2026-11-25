@@ -12,6 +12,7 @@ export interface MemberProgress {
   total: number;
   lastActive: string;
   lastActiveAt?: number;
+  createdAt?: number;
 }
 
 export type RegistrationStatus = "menunggu" | "diterima" | "ditolak";
@@ -24,6 +25,7 @@ export interface AccountRegistration {
   name: string;
   email: string;
   registeredAt: string;
+  createdAt?: number;
   status: RegistrationStatus;
 }
 

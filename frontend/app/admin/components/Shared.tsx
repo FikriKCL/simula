@@ -81,3 +81,29 @@ export function Message({
     </>
   );
 }
+
+/* ---- Toolbar daftar admin: cari + urutkan ---- */
+export const toolbarSelect =
+  "w-full md:w-[165px] h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-bold text-[#1E293B] dark:text-white appearance-none cursor-pointer focus:outline-none";
+
+export type DateSort = "newest" | "oldest";
+
+/** Urut terbaru/terlama. Waktu dipakai bila ada; kalau tidak, ID (naik sesuai urutan dibuat). */
+export function compareByDate(sort: DateSort, a: { id: string; createdAt?: number }, b: { id: string; createdAt?: number }) {
+  const diff = (a.createdAt ?? Number(a.id)) - (b.createdAt ?? Number(b.id));
+  return sort === "newest" ? -diff : diff;
+}
+
+export function DateSortSelect({ value, onChange, className = "" }: { value: DateSort; onChange: (v: DateSort) => void; className?: string }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as DateSort)}
+      aria-label="Urutkan berdasarkan waktu"
+      className={`${toolbarSelect} ${className}`}
+    >
+      <option value="newest">Terbaru</option>
+      <option value="oldest">Terlama</option>
+    </select>
+  );
+}

@@ -1,48 +1,13 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useTheme as useSharedTheme } from "./theme";
 
 export type Theme = "light" | "dark";
 
-const THEME_KEY = "simula-theme";
-const THEME_EVENT = "simula-theme-change";
-
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener(THEME_EVENT, callback);
-
-  return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener(THEME_EVENT, callback);
-  };
-}
-
-function getSnapshot(): Theme {
-  try {
-    return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
-
-function getServerSnapshot(): Theme {
-  return "light";
-}
-
-/** Tema terang/gelap: disimpan di localStorage dan dipasang ke atribut data-theme di <html>. */
+/**
+ * Tema terang/gelap untuk komponen yang memakai bentuk [theme, setTheme].
+ * Memakai store tema bersama (lib/theme.ts), jadi semua halaman dan admin selalu sama,
+ * dan tema sudah dipasang sebelum halaman tampil (lihat app/layout.tsx).
+ */
 export function useTheme() {
-  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
-
-  function setTheme(value: Theme) {
-    try {
-      localStorage.setItem(THEME_KEY, value);
-    } catch {
-      // Penyimpanan diblokir (mode privat): tema tidak bisa diganti
-    }
-    window.dispatchEvent(new Event(THEME_EVENT));
-  }
-
-  return [theme, setTheme] as const;
+  const { resolved, setTheme } = useSharedTheme();
+  return [resolved as Theme, (value: Theme) => setTheme(value)] as const;
 }

@@ -3,13 +3,24 @@
 import React, { useState, useMemo } from "react";
 import { LearningMaterial, MaterialType, TopicCode, ContentTree } from "../types";
 import ModuleDialog from "./ModuleDialog";
-import MaterialContentFields from "./MaterialContentFields";
+import MaterialContentFields, { validateMaterial } from "./MaterialContentFields";
+import { FieldError, FormErrorSummary, SaveError, errorRing, fieldProps } from "./FormErrors";
 import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
   MaterialTypeBadgeIcon,
+  SearchIcon,
 } from "./AdminIcons";
+import { DateSortSelect, compareByDate, type DateSort } from "./Shared";
+
+const CATEGORIES: { key: "SEMUA" | TopicCode; label: string; full: string }[] = [
+  { key: "SEMUA", label: "Semua", full: "Semua kategori" },
+  { key: "PP", label: "PP", full: "Pertolongan Pertama" },
+  { key: "ASB", label: "ASB", full: "Ayo Siaga Bencana" },
+  { key: "KR", label: "KR", full: "Kesehatan Remaja" },
+];
+const categoryName = (code: TopicCode) => CATEGORIES.find((c) => c.key === code)?.full ?? code;
 
 interface MateriViewProps {
   tree?: ContentTree;
@@ -30,6 +41,9 @@ export default function MateriView({
   onDeleteMaterial,
 }: MateriViewProps) {
   const [activeTab, setActiveTab] = useState<MaterialTabFilter>("SEMUA");
+  const [category, setCategory] = useState<"SEMUA" | TopicCode>("SEMUA");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<DateSort>("newest");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LearningMaterial | null>(null);
@@ -44,11 +58,25 @@ export default function MateriView({
   const [uploading,setUploading]=useState(false);
   const [saving,setSaving]=useState(false);
   const [saveError,setSaveError]=useState("");
+  // Kesalahan isian baru ditampilkan setelah tombol Simpan ditekan, lalu ikut diperbarui saat diketik
+  const [attempt,setAttempt]=useState(0);
+  const errors=attempt?validateMaterial(title,type,draft):{};
+  const bad=(id:string)=>errors[id]?` ${errorRing}`:"";
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { SEMUA: materials.length };
+    for (const m of materials) counts[m.topic] = (counts[m.topic] || 0) + 1;
+    return counts;
+  }, [materials]);
 
   const filteredMaterials = useMemo(() => {
-    if (activeTab === "SEMUA") return materials;
-    return materials.filter((m) => m.type === activeTab);
-  }, [materials, activeTab]);
+    const q = search.trim().toLowerCase();
+    return materials
+      .filter((m) => category === "SEMUA" || m.topic === category)
+      .filter((m) => activeTab === "SEMUA" || m.type === activeTab)
+      .filter((m) => !q || m.title.toLowerCase().includes(q))
+      .sort((a, b) => compareByDate(sort, a, b));
+  }, [materials, activeTab, category, search, sort]);
 
   const openCreateEditor = () => {
     setEditingItem(null);
@@ -58,6 +86,7 @@ export default function MateriView({
     setSize("");
     setDraft({body:"",pages:[],required:true});
     setSaveError("");
+    setAttempt(0);
     setIsEditorOpen(true);
   };
 
@@ -65,6 +94,7 @@ export default function MateriView({
     setEditingItem(item);
     setDraft(item);
     setSaveError("");
+    setAttempt(0);
     setTitle(item.title);
     setType(item.type);
     setTopic(item.topic);
@@ -73,13 +103,15 @@ export default function MateriView({
   };
 
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();if(saving||uploading)return;setSaveError("");setSaving(true);
+    e.preventDefault();if(saving||uploading)return;setSaveError("");
+    setAttempt(n=>n+1);
+    if(Object.keys(validateMaterial(title,type,draft)).length)return;
+    setSaving(true);
     try{
-      if(type==="KOMIK"&&!draft.pages?.length)throw new Error("Komik memerlukan halaman.");
       const payload={...draft,title:title.trim(),type,topic,size:size.trim()} as Omit<LearningMaterial,"id">;
       if(editingItem)await onUpdateMaterial({...payload,id:editingItem.id});else await onAddMaterial(payload);
       setIsEditorOpen(false);
-    }catch(error){setSaveError((error as Error).message);}finally{setSaving(false);}
+    }catch(error){const m=(error as Error).message;if(m!=="Penyimpanan dibatalkan.")setSaveError(m);}finally{setSaving(false);}
   };
 
   const pageCount=Math.max(1,Math.ceil(filteredMaterials.length/10));
@@ -98,24 +130,28 @@ export default function MateriView({
       </div>
           <form
             onSubmit={handleSave}
+            noValidate
             className="bg-white dark:bg-slate-900 rounded-[20px] border-[1.5px] border-[#DCE3EC] border-b-[3px] dark:border-slate-800 p-4 md:p-6 space-y-5"
           >
             <h2 className="text-lg font-black text-[#1E293B] dark:text-white">
               {editingItem ? "Ubah Materi" : "Unggah Materi Baru"}
             </h2>
+            <FormErrorSummary errors={errors} attempt={attempt} />
 
             <div>
-              <label className="block text-xs font-extrabold text-[#1E293B] dark:text-slate-200 mb-1">
+              <label htmlFor="mat-title" className="block text-xs font-extrabold text-[#1E293B] dark:text-slate-200 mb-1">
                 Judul Materi
               </label>
               <input
+                {...fieldProps("mat-title", errors)}
                 type="text"
-                required
                 value={title}
+                maxLength={200}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Contoh: Pertolongan Luka Bakar"
-                className="w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-semibold"
+                className={"w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-semibold"+bad("mat-title")}
               />
+              <FieldError id="mat-title" errors={errors} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -144,9 +180,9 @@ export default function MateriView({
                   onChange={(e) => {setTopic(e.target.value as TopicCode);setDraft(v=>({...v,lessonId:undefined}));}}
                   className="w-full h-10 px-3 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-bold"
                 >
-                  <option value="PP">PP</option>
-                  <option value="ASB">ASB</option>
-                  <option value="KR">KR</option>
+                  <option value="PP">PP · Pertolongan Pertama</option>
+                  <option value="ASB">ASB · Ayo Siaga Bencana</option>
+                  <option value="KR">KR · Kesehatan Remaja</option>
                 </select>
               </div>
             </div>
@@ -164,8 +200,8 @@ export default function MateriView({
               />
             </div>
 
-            <MaterialContentFields value={draft} onChange={setDraft} tree={tree} topic={topic} type={type} editing={!!editingItem} onUploadingChange={setUploading} onManage={()=>setSetupOpen(true)}/>
-            {saveError && <p role="alert">{saveError}</p>}
+            <MaterialContentFields value={draft} onChange={setDraft} tree={tree} topic={topic} type={type} editing={!!editingItem} onUploadingChange={setUploading} onManage={()=>setSetupOpen(true)} errors={errors}/>
+            <SaveError message={saveError} />
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -214,6 +250,46 @@ export default function MateriView({
 
       {/* Main Content Card */}
       <div className="bg-white dark:bg-slate-900 rounded-[20px] border-[1.5px] border-[#DCE3EC] border-b-[3px] dark:border-slate-800 p-4 md:p-6">
+        {/* Kategori (topik) */}
+        <div role="tablist" aria-label="Kategori materi" className="flex flex-wrap gap-2 mb-4">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              role="tab"
+              aria-selected={category === c.key}
+              title={c.full}
+              onClick={() => {setCategory(c.key);setCurrentPage(1);}}
+              className={`inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-3.5 py-1.5 text-xs font-extrabold transition-colors cursor-pointer ${
+                category === c.key
+                  ? "border-[#E5252A] bg-[#FEECEB] text-[#E5252A]"
+                  : "border-[#DCE3EC] dark:border-slate-700 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              }`}
+            >
+              {c.key === "SEMUA" ? c.full : `${c.label} · ${c.full}`}
+              <span className="rounded-full bg-white/80 dark:bg-slate-900/60 px-1.5 text-[10px]">{categoryCounts[c.key] || 0}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Cari + urutkan */}
+        <div className="flex flex-col md:flex-row gap-2.5 md:gap-3 mb-4">
+          <div className="relative flex-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+              <SearchIcon className="w-4 h-4 text-[#64748B]" />
+            </span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => {setSearch(e.target.value);setCurrentPage(1);}}
+              placeholder="Cari judul materi..."
+              aria-label="Cari judul materi"
+              className="w-full h-11 pl-10 pr-4 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#43A8F6]/30"
+            />
+          </div>
+          <DateSortSelect value={sort} onChange={(v)=>{setSort(v);setCurrentPage(1);}} />
+        </div>
+
         {/* Category Filter Tabs */}
         <div className="flex items-center gap-1.5 md:gap-2 border-b border-[#E2E8F0] dark:border-slate-800 mb-5 overflow-x-auto">
           {(
@@ -227,7 +303,7 @@ export default function MateriView({
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {setActiveTab(tab.key);setCurrentPage(1);}}
               className={`-mb-[1px] px-3.5 md:px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider rounded-t-[12px] transition-colors whitespace-nowrap cursor-pointer ${
                 activeTab === tab.key
                   ? "bg-[#FEECEB] text-[#E5252A] border-b-[3px] border-[#E5252A]"
@@ -246,7 +322,7 @@ export default function MateriView({
               <tr className="border-b border-[#EEF2F6] dark:border-slate-800 text-[11px] font-extrabold uppercase tracking-wider text-[#94A3B8]">
                 <th className="pb-3 pr-4">JUDUL</th>
                 <th className="pb-3 px-4">TIPE</th>
-                <th className="pb-3 px-4">MATERI</th>
+                <th className="pb-3 px-4">KATEGORI</th>
                 <th className="pb-3 px-4">UKURAN</th>
                 <th className="pb-3 pl-4 text-right">AKSI</th>
               </tr>
@@ -272,8 +348,9 @@ export default function MateriView({
                     </span>
                   </td>
 
-                  <td className="py-3 px-4 font-bold text-[#334155] dark:text-slate-300">
+                  <td className="py-3 px-4 font-bold text-[#334155] dark:text-slate-300" title={categoryName(item.topic)}>
                     {item.topic}
+                    <span className="block text-[11px] font-semibold text-[#94A3B8]">{categoryName(item.topic)}</span>
                   </td>
 
                   <td className="py-3 px-4 font-semibold text-[#334155] dark:text-slate-300">
@@ -355,7 +432,7 @@ export default function MateriView({
         {/* Empty State */}
         {filteredMaterials.length === 0 && (
           <div className="py-10 text-center text-sm font-bold text-slate-400">
-            Tidak ada materi pada kategori ini.
+            {search.trim() ? "Tidak ada materi yang cocok dengan pencarian." : "Tidak ada materi pada kategori ini."}
           </div>
         )}
 

@@ -347,7 +347,10 @@ export default function ChatWindow({
                 key={s}
                 type="button"
                 onClick={() => ask(s)}
-                className="rounded-full border-[1.5px] border-brand px-3 py-[3px] text-left text-xs font-extrabold leading-[1.35] text-brand hover:bg-brand-soft"
+                // Lebih kecil dari teks gelembung chat supaya saran tidak lebih menonjol dari jawaban
+                className={`rounded-full border border-brand/70 px-2.5 py-[3px] text-left font-bold leading-[1.4] text-brand hover:bg-brand-soft ${
+                  full ? "text-xs" : "text-[11px]"
+                }`}
               >
                 {s}
               </button>

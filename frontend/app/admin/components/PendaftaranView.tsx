@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { AccountRegistration, RegistrationStatus } from "../types";
 import { SearchIcon, CheckIcon } from "./AdminIcons";
+import { DateSortSelect, compareByDate, type DateSort } from "./Shared";
 
 interface PendaftaranViewProps {
   registrations: AccountRegistration[];
@@ -15,6 +16,7 @@ export default function PendaftaranView({
 }: PendaftaranViewProps) {
   const [activeTab, setActiveTab] = useState<RegistrationStatus>("menunggu");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<DateSort>("newest");
 
   const counts = useMemo(() => {
     return {
@@ -31,8 +33,8 @@ export default function PendaftaranView({
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.email.toLowerCase().includes(search.toLowerCase());
       return matchTab && matchQuery;
-    });
-  }, [registrations, activeTab, search]);
+    }).sort((a, b) => compareByDate(sort, a, b));
+  }, [registrations, activeTab, search, sort]);
 
   return (
     <div className="space-y-4">
@@ -87,8 +89,9 @@ export default function PendaftaranView({
           </button>
         </div>
 
-        {/* Search Input */}
-        <div className="relative mb-5">
+        {/* Search Input + urutan */}
+        <div className="flex flex-col md:flex-row gap-2.5 md:gap-3 mb-5">
+        <div className="relative flex-1">
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
             <SearchIcon className="w-4 h-4 text-[#64748B]" />
           </span>
@@ -99,6 +102,8 @@ export default function PendaftaranView({
             placeholder="Cari nama atau email..."
             className="w-full h-11 pl-10 pr-4 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#43A8F6]/30"
           />
+        </div>
+        <DateSortSelect value={sort} onChange={setSort} />
         </div>
 
         {/* DESKTOP TABLE VIEW */}

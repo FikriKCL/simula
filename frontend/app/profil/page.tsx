@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { api, downloadCertificate, type Profile } from "@/lib/api";
 import ApiState, { useApiData } from "@/components/ApiState";
@@ -19,7 +18,6 @@ import {
 const panel = "rounded-[22px] border-2 border-line bg-surface shadow-pop";
 
 export default function ProfilPage() {
-  const router = useRouter();
   const source = useApiData<Profile>("/users/me/summary");
   const certificates =
     useApiData<
@@ -90,7 +88,13 @@ export default function ProfilPage() {
   }));
   const progres = (data?.material_progress || []).map((p) => ({
     label:
-      p.kind === "ARTICLE" ? "Artikel" : p.kind === "COMIC" ? "Komik" : p.kind,
+      p.kind === "ARTICLE"
+        ? "Artikel"
+        : p.kind === "COMIC"
+          ? "Komik"
+          : p.kind === "VIDEO"
+            ? "Video"
+            : "Dokumen",
     done: p.completed,
     total: p.total,
     icon:
@@ -250,32 +254,49 @@ export default function ProfilPage() {
 
               {/* Sertifikat */}
               <section className={`${panel} p-5`}>
-                <h2 className="text-xl font-bold">Sertifikat Saya</h2>
+                <h3 className="mb-3.5 font-heading text-xl font-extrabold">
+                  Sertifikat Saya
+                </h3>
                 <ApiState
                   loading={certificates.loading}
                   error={certificates.error}
                   retry={certificates.reload}
                 />
                 {certificates.data?.length === 0 && (
-                  <p className="mt-3 text-muted">
-                    Selesaikan tes akhir untuk mendapatkan sertifikat.
+                  <p className="rounded-[14px] bg-sky-soft px-4 py-3 text-sm font-semibold text-muted">
+                    Belum ada sertifikat. Lulus tes akhir sebuah level untuk
+                    mendapatkannya.
                   </p>
                 )}
-                {certificates.data?.map((c) => (
-                  <div key={c.id} className="mt-3 flex justify-between gap-3">
-                    <span>
-                      {c.module_title} · Nilai {c.score}
-                    </span>
-                    <button
-                      disabled={downloadBusy !== null}
-                      onClick={() => download(c.id, c.code)}
-                      className="text-brand underline"
+                <ul className="flex flex-col gap-2.5">
+                  {certificates.data?.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-center justify-between gap-3 rounded-[14px] border-2 border-line px-4 py-3"
                     >
-                      {downloadBusy === c.id ? "Mengunduh…" : "Unduh"}
-                    </button>
-                  </div>
-                ))}
-                {downloadError && <p role="alert">{downloadError}</p>}
+                      <div className="min-w-0">
+                        <p className="truncate font-heading text-[15px] font-extrabold">
+                          {c.module_title}
+                        </p>
+                        <p className="text-xs font-bold text-muted">
+                          Nilai {c.score} · {c.code}
+                        </p>
+                      </div>
+                      <button
+                        disabled={downloadBusy !== null}
+                        onClick={() => download(c.id, c.code)}
+                        className="shrink-0 cursor-pointer rounded-[12px] border-2 border-brand px-4 py-2 font-heading text-xs font-extrabold text-brand transition hover:bg-brand-soft disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {downloadBusy === c.id ? "Mengunduh…" : "Unduh PDF"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {downloadError && (
+                  <p role="alert" className="mt-2 text-sm font-bold text-brand">
+                    {downloadError}
+                  </p>
+                )}
               </section>
 
               {/* Lencana + Progres */}

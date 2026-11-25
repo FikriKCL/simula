@@ -80,7 +80,7 @@ def material_detail(aid, user, db):
     )
 
 
-def library(q, kind, topic_id, limit, offset, user, db, module_id=None):
+def library(q, kind, topic_id, limit, offset, user, db, module_id=None, sort="default"):
     # Catalogue intentionally exposes titles/thumbnails, including locked levels, but no body or source URL.
     query = (
         select(Material, Module.id.label("module_id"), Module.level, Module.topic_id)
@@ -103,8 +103,13 @@ def library(q, kind, topic_id, limit, offset, user, db, module_id=None):
         query = query.where(Module.topic_id == topic_id)
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     items = []
+    # IDs are assigned in insert order, so they stand in for "date added"
+    order = {
+        "newest": (Material.id.desc(),),
+        "oldest": (Material.id.asc(),),
+    }.get(sort, (Module.topic_id, Module.level, Material.position, Material.id))
     for mat, mid, level, tid in db.execute(
-        query.order_by(Module.topic_id, Module.level, Material.position, Material.id)
+        query.order_by(*order)
         .limit(limit)
         .offset(offset)
     ):

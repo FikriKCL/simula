@@ -94,7 +94,7 @@ function HeroPanel() {
 
       {/* Maskot + balon kata */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <p className="mb-3 max-w-[260px] rounded-2xl border-2 border-line bg-white px-4 py-2.5 text-center text-sm font-bold leading-snug text-ink">
+        <p className="mb-3 max-w-[260px] rounded-2xl border-2 border-line bg-white px-4 py-2.5 text-center text-sm font-bold leading-snug text-[#1c2b3d]">
           Halo! Yuk, daftar dan belajar bersama dengan simula.
         </p>
         <PikoMascot className="mx-auto h-auto w-[300px]" animated mood="idle" />

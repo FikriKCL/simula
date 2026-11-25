@@ -312,8 +312,11 @@ export default function RightPanel() {
   // Layar dilebarkan lagi: tutup sheet mobile
   useEffect(() => {
     if (narrow === false) {
-      setMobileOpen(false);
-      setMobileFull(false);
+      // Deferred: closing the sheet reacts to a resize, not to render
+      Promise.resolve().then(() => {
+        setMobileOpen(false);
+        setMobileFull(false);
+      });
     }
   }, [narrow]);
 

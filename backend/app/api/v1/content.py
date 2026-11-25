@@ -31,7 +31,7 @@ router = APIRouter()
 def ui_config():
     s = settings()
     return {
-        "chatbot_enabled": False,
+        "chatbot_enabled": bool(s.gemini_api_key),
         "contact_email": s.contact_email,
         "guide_url": s.guide_url,
         "supported_locales": ["id", "en"],
@@ -61,12 +61,14 @@ def catalogue(
     kind: list[Literal["ARTICLE", "PDF", "VIDEO", "COMIC"]] | None = Query(None),
     topic_id: int | None = Query(None, gt=0),
     module_id: int | None = Query(None, gt=0),
+    # default = urutan belajar; newest/oldest = urutan materi ditambahkan (ID naik)
+    sort: Literal["default", "newest", "oldest"] = Query("default"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     user=Depends(current_user),
     db=Depends(get_db),
 ):
-    return content.library(q, kind, topic_id, limit, offset, user, db, module_id)
+    return content.library(q, kind, topic_id, limit, offset, user, db, module_id, sort)
 
 
 @router.get("/materials/{aid}", response_model=MaterialOut, tags=["Materials"])

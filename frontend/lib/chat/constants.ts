@@ -17,36 +17,3 @@ export const NON_CONTEXT_MODES = new Set([
   "invalid_input",
   "empty_reply",
 ]);
-
-export const STARTERS = [
-  {
-    icon: "🚑",
-    title: "Pertolongan Pertama",
-    prompt: "Bagaimana langkah pertolongan pertama pada luka bakar melepuh?",
-  },
-  {
-    icon: "🌋",
-    title: "Siaga Bencana",
-    prompt: "Apa yang harus dilakukan saat terjadi gempa bumi di dalam gedung?",
-  },
-  {
-    icon: "🌐",
-    title: "Gerakan Palang Merah",
-    prompt: "Sebutkan dan jelaskan 7 Prinsip Dasar Gerakan Palang Merah!",
-  },
-  {
-    icon: "🩸",
-    title: "Donor Darah",
-    prompt: "Apa saja syarat-syarat untuk menjadi pendonor darah sukarela?",
-  },
-  {
-    icon: "🩺",
-    title: "Kesehatan Remaja",
-    prompt: "Bagaimana peran PMR dalam pendidikan kesehatan remaja sebaya?",
-  },
-  {
-    icon: "🧭",
-    title: "Kepemimpinan PMR",
-    prompt: "Apa saja sikap yang harus dimiliki seorang pemimpin di PMR?",
-  },
-];

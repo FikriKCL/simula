@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { MemberProgress } from "../types";
 import { SearchIcon } from "./AdminIcons";
+import { compareByDate } from "./Shared";
 
 interface DashboardViewProps {
   members: MemberProgress[];
@@ -35,6 +36,8 @@ export default function DashboardView({ members }: DashboardViewProps) {
       result.sort((a, b) => b.total - a.total);
     } else if (sortFilter === "name") {
       result.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortFilter === "newest" || sortFilter === "oldest") {
+      result.sort((a, b) => compareByDate(sortFilter, a, b));
     } else {
       result.sort((a,b)=>(b.lastActiveAt||0)-(a.lastActiveAt||0));
     }
@@ -70,7 +73,7 @@ export default function DashboardView({ members }: DashboardViewProps) {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {setSearch(e.target.value);setCurrentPage(1);}}
               placeholder="Cari anggota..."
               className="w-full h-11 pl-10 pr-4 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#43A8F6]/30"
             />
@@ -79,7 +82,7 @@ export default function DashboardView({ members }: DashboardViewProps) {
           <div className="grid grid-cols-2 md:flex gap-2.5 md:gap-3">
             <select
               value={progressFilter}
-              onChange={(e) => setProgressFilter(e.target.value)}
+              onChange={(e) => {setProgressFilter(e.target.value);setCurrentPage(1);}}
               aria-label="Filter progres"
               className="w-full md:w-[165px] h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-bold text-[#1E293B] dark:text-white appearance-none cursor-pointer focus:outline-none"
             >
@@ -98,6 +101,8 @@ export default function DashboardView({ members }: DashboardViewProps) {
               <option value="recent">Terakhir aktif</option>
               <option value="highest">Progres tertinggi</option>
               <option value="name">Nama (A–Z)</option>
+              <option value="newest">Terbaru bergabung</option>
+              <option value="oldest">Terlama bergabung</option>
             </select>
           </div>
         </div>

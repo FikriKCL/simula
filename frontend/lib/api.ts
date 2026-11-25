@@ -70,6 +70,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (response.status === 204) return undefined as T;
   return response.json();
 }
+export function logout() {
+  sessionStorage.removeItem("simula-token");
+  window.location.replace("/login");
+}
 export async function downloadCertificate(id: number, code: string) {
   const response = await request(`/certificates/${id}/download`);
   const url = URL.createObjectURL(await response.blob());

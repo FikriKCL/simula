@@ -1,4 +1,6 @@
 import AuthGate from "@/components/AuthGate";
+import InlineScript from "@/components/InlineScript";
+import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 import type { Metadata, Viewport } from "next";
 import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
@@ -18,7 +20,7 @@ const display = Baloo_2({
 });
 
 export const metadata: Metadata = {
-  title: "Simula - Pembelajaran",
+  title: { default: "SIMULA - Pembelajaran PMR", template: "%s · SIMULA" },
   description: "Belajar pertolongan pertama dengan cara yang menyenangkan",
 };
 
@@ -45,6 +47,9 @@ export default function RootLayout({
       className={`${body.variable} ${display.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <InlineScript html={THEME_INIT_SCRIPT} />
+      </head>
       <body>
         <AuthGate>{children}</AuthGate>
       </body>

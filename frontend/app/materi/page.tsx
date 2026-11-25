@@ -117,10 +117,12 @@ const PAGE_SIZE = 12;
 const gridClass =
   "mt-5 grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-3.5 max-[560px]:mt-4 max-[560px]:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] max-[560px]:gap-2.5";
 
-type Sort = "default" | "az" | "za";
+type Sort = "default" | "newest" | "oldest" | "az" | "za";
 
 const sortOptions: { key: Sort; label: string }[] = [
   { key: "default", label: "Urutkan: Bawaan" },
+  { key: "newest", label: "Urutkan: Terbaru" },
+  { key: "oldest", label: "Urutkan: Terlama" },
   { key: "az", label: "Urutkan: Judul A–Z" },
   { key: "za", label: "Urutkan: Judul Z–A" },
 ];
@@ -130,6 +132,9 @@ export default function MateriPage() {
   const [tab, setTab] = useState<Tab>("semua");
   const [offset, setOffset] = useState(0);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<Sort>("default");
+  // Terbaru/terlama diurutkan server supaya benar di semua halaman, bukan cuma halaman ini
+  const serverSort = sort === "newest" || sort === "oldest" ? `&sort=${sort}` : "";
 
   const kindFilter =
     tab === "semua"
@@ -138,7 +143,7 @@ export default function MateriPage() {
         ? "&kind=ARTICLE&kind=PDF"
         : `&kind=${tab === "video" ? "VIDEO" : "COMIC"}`;
   const source = useApiData<{ items: MaterialCard[]; total: number }>(
-    `/materials?limit=${PAGE_SIZE}&offset=${offset}&q=${encodeURIComponent(query)}${kindFilter}`,
+    `/materials?limit=${PAGE_SIZE}&offset=${offset}&q=${encodeURIComponent(query)}${kindFilter}${serverSort}`,
   );
 
   const total = source.data?.total || 0;
@@ -153,11 +158,8 @@ export default function MateriPage() {
     () => source.data?.items.map((m, i) => toItem(m, i)) || [],
     [source.data],
   );
-  const [sort, setSort] = useState<Sort>("default");
-
-
   const visible = useMemo(() => {
-    if (sort === "default") return items;
+    if (sort !== "az" && sort !== "za") return items;
     const sorted = [...items].sort((a, b) => a.title.localeCompare(b.title, "id"));
     return sort === "za" ? sorted.reverse() : sorted;
   }, [items, sort]);
@@ -246,7 +248,10 @@ export default function MateriPage() {
               <span className="sr-only">Urutkan materi</span>
               <select
                 value={sort}
-                onChange={(e) => setSort(e.target.value as Sort)}
+                onChange={(e) => {
+                  setSort(e.target.value as Sort);
+                  setOffset(0);
+                }}
                 disabled={firstLoad}
                 className="cursor-pointer appearance-none rounded-full border-2 border-line bg-surface py-1.5 pl-3.5 pr-9 font-heading text-xs font-extrabold text-ink outline-none transition hover:bg-sky-soft focus-visible:ring-4 focus-visible:ring-sky-soft disabled:cursor-not-allowed disabled:opacity-60"
               >

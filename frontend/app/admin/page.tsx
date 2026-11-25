@@ -7,7 +7,8 @@ import {
   QuizQuestion,
   RegistrationStatus,
 } from "./types";
-import {api} from "@/lib/api";
+import {api, logout} from "@/lib/api";
+import { useTheme } from "@/lib/theme";
 import ApiState from "@/components/ApiState";
 import {mapWorkspace, type Workspace} from "./adapter";
 import {
@@ -28,7 +29,9 @@ import SoalEditView from "./components/SoalEditView";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-  const [darkMode, setDarkMode] = useState(false);
+  const { resolved, setTheme } = useTheme();
+  const darkMode = resolved === "dark";
+  const setDarkMode = (dark: boolean) => setTheme(dark ? "dark" : "light");
 
   const [data,setData] = useState<Workspace|null>(null);
   const [error,setError] = useState("");
@@ -39,7 +42,6 @@ export default function AdminPage() {
   const [account,setAccount] = useState<{display_name:string}|null>(null);
   const reload = () => setVersion(v=>v+1);
   useEffect(()=>{let active=true;Promise.all([api<Workspace>("/admin/workspace"),api<{display_name:string}>("/users/me")]).then(([value,user])=>{if(active){setData(value);setAccount(user);setError("");}}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[version]);
-  useEffect(()=>{document.documentElement.dataset.theme=darkMode?"dark":"light";},[darkMode]);
   const {members,registrations,materials,questions}=useMemo(()=>data?mapWorkspace(data):{members:[],registrations:[],materials:[],questions:[]},[data]);
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(
     null
@@ -129,10 +131,7 @@ export default function AdminPage() {
     setIsCreatingQuestion(false);
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("simula-token");
-    window.location.replace("/login");
-  };
+  const handleLogout = logout;
 
   const navItems: {
     key: AdminTab;

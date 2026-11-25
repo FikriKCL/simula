@@ -10,6 +10,7 @@ import {
 } from "../types";
 import {api,API_URL} from "@/lib/api";
 import { PlusIcon, TrashIcon } from "./AdminIcons";
+import { FieldError, FormErrorSummary, SaveError, errorRing, fieldProps, type FieldErrors } from "./FormErrors";
 
 interface SoalEditViewProps {
   tree?: ContentTree;
@@ -63,6 +64,28 @@ export default function SoalEditView({
   const matchingModule=tree?.modules.find(m=>m.topic_id===tree.topics.find(t=>t.code===currentCode)?.id&&m.level===Number(level.replace(/[^0-9]/g,"")));
   const availableQuizzes=tree?.quizzes.filter(q=>q.module_id===matchingModule?.id)||[];
   const selectedQuiz=availableQuizzes.find(q=>q.id===quizId)||availableQuizzes[0];
+  const targetQuizId=isNew?(quizId<0?quizId:selectedQuiz?.id||(["DRAFT","REJECTED"].includes(matchingModule?.status||"")?-1:undefined)):question.quizId;
+
+  // Semua kesalahan dicek sekaligus; tampil setelah Simpan ditekan, lalu ikut diperbarui saat diketik
+  const [attempt,setAttempt]=useState(0);
+  function validate():FieldErrors{
+    const e:FieldErrors={};
+    if(!targetQuizId)e["soal-quiz"]=matchingModule?"Belum ada kuis untuk topik/level ini dan modulnya sudah terbit. Pilih level lain atau tarik modul ke draft.":"Modul untuk topik/level ini belum ada. Pilih level lain.";
+    if(prompt.trim().length<3)e["soal-prompt"]="Pertanyaan minimal 3 karakter.";
+    if(options.length<2)e["soal-options"]="Soal memerlukan minimal 2 opsi jawaban.";
+    const seen=new Set<string>();
+    options.forEach((o,i)=>{
+      const t=o.text.trim().toLowerCase();
+      if(!t)e[`soal-opt-${o.id}`]=`Opsi ${i+1} masih kosong.`;
+      else if(seen.has(t))e[`soal-opt-${o.id}`]=`Opsi ${i+1} sama dengan opsi lain.`;
+      seen.add(t);
+    });
+    if(!options.some(o=>o.id===correctOptionId))e["soal-options"]="Pilih satu jawaban benar (klik bulatan di kiri opsi).";
+    if(explanation.trim().length<3)e["soal-explanation"]="Penjelasan minimal 3 karakter.";
+    return e;
+  }
+  const errors=attempt?validate():{};
+  const bad=(id:string)=>errors[id]?` ${errorRing}`:"";
   async function uploadImage(file:File,optionId?:string){
     if(file.size>2*1024*1024){setSaveError("Gambar soal maksimal 2 MB.");return;}
     setUploading(true);setSaveError("");try{const form=new FormData();form.append("file",file);const result=await api<{path:string}>("/admin/uploads/images",{method:"POST",body:form});const url=new URL(result.path,API_URL).href;
@@ -96,10 +119,13 @@ export default function SoalEditView({
       ? "KR"
       : "PP";
 
-    if(saving||uploading)return;setSaving(true);setSaveError("");
+    if(saving||uploading)return;setSaveError("");
+    setAttempt(n=>n+1);
+    if(Object.keys(validate()).length)return;
+    setSaving(true);
     try {await onSave({
       ...question,
-      quizId:isNew?(quizId<0?quizId:selectedQuiz?.id||(["DRAFT","REJECTED"].includes(matchingModule?.status||"")?-1:undefined)):question.quizId,
+      quizId:targetQuizId,
       imageUrl:questionImage,
       topic: derivedTopic,
       topicFull,
@@ -143,8 +169,10 @@ export default function SoalEditView({
       {/* Main Form Card */}
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="bg-white dark:bg-slate-900 rounded-[20px] border-[1.5px] border-[#DCE3EC] border-b-[3px] dark:border-slate-800 p-4 md:p-6 space-y-5"
       >
+        <FormErrorSummary errors={errors} attempt={attempt} />
         {/* Row 1: Materi & Level */}
         <div className="grid grid-cols-2 gap-3 md:gap-5">
           <div className="relative">
@@ -203,11 +231,12 @@ export default function SoalEditView({
             Tipe soal
           </label>
           <label className="block text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-slate-200 mb-2">Kuis tujuan
-            <select disabled={!isNew||saving} value={isNew?(quizId<0?quizId:selectedQuiz?.id||(["DRAFT","REJECTED"].includes(matchingModule?.status||"")?-1:"")):question.quizId||""} onChange={e=>setQuizId(Number(e.target.value))} className="w-full min-h-[48px] md:min-h-[44px] px-3.5 py-2 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-left text-[13px] font-semibold text-[#1E293B] dark:text-white leading-snug cursor-pointer focus:outline-none">
+            <select {...fieldProps("soal-quiz",errors)} disabled={!isNew||saving} value={isNew?(quizId<0?quizId:selectedQuiz?.id||(["DRAFT","REJECTED"].includes(matchingModule?.status||"")?-1:"")):question.quizId||""} onChange={e=>setQuizId(Number(e.target.value))} className={"w-full min-h-[48px] md:min-h-[44px] px-3.5 py-2 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-left text-[13px] font-semibold text-[#1E293B] dark:text-white leading-snug cursor-pointer focus:outline-none"+bad("soal-quiz")}>
             {availableQuizzes.length===0&&!["DRAFT","REJECTED"].includes(matchingModule?.status||"")&&<option value="">Belum ada kuis pada topik/level ini</option>}
             {(isNew?availableQuizzes:tree?.quizzes.filter(q=>q.id===question.quizId)||[]).map(q=><option key={q.id} value={q.id}>{q.kind} · {q.title}</option>)}
             {isNew&&["DRAFT","REJECTED"].includes(matchingModule?.status||"")&&<><option value={-1}>Buat kuis PRE baru</option><option value={-2}>Buat kuis POST baru</option></>}
             </select>
+            <FieldError id="soal-quiz" errors={errors} />
           </label>
           <div className="flex flex-wrap gap-2">
             {QUESTION_TYPES.map((t) => {
@@ -239,12 +268,14 @@ export default function SoalEditView({
               Pertanyaan
             </label>
             <textarea
-              required minLength={3} maxLength={2000}
+              {...fieldProps("soal-prompt",errors)}
+              maxLength={2000}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
-              className="w-full h-24 md:h-[108px] p-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-[#43A8F6]/30"
+              className={`w-full h-24 md:h-[108px] p-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-[#43A8F6]/30${bad("soal-prompt")}`}
             />
+            <FieldError id="soal-prompt" errors={errors} />
           </div>
 
           <div>
@@ -276,7 +307,7 @@ export default function SoalEditView({
 
         {/* Row 4: Opsi Jawaban */}
         <div>
-          <div className="text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-slate-200 mb-2.5">
+          <div id="soal-options" tabIndex={-1} className="text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-slate-200 mb-2.5 outline-none">
             Opsi jawaban{" "}
             <span className="font-semibold text-[#64748B] text-xs">
               (pilih satu jawaban benar)
@@ -287,7 +318,8 @@ export default function SoalEditView({
             {options.map((opt) => {
               const isCorrect = opt.id === correctOptionId;
               return (
-                <div key={opt.id} className="flex items-center gap-2.5">
+                <div key={opt.id}>
+                <div className="flex items-center gap-2.5">
                   {/* Radio Button */}
                   <button
                     type="button"
@@ -306,14 +338,16 @@ export default function SoalEditView({
 
                   {/* Option Text Input */}
                   <input
+                    {...fieldProps(`soal-opt-${opt.id}`,errors)}
                     type="text"
-                    required maxLength={500}
+                    maxLength={500}
+                    readOnly={selectedType==="Benar / salah"}
                     value={opt.text}
                     onChange={(e) =>
                       handleOptionTextChange(opt.id, e.target.value)
                     }
                     placeholder="Tulis opsi jawaban..."
-                    className="flex-1 h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none"
+                    className={`min-w-0 flex-1 h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none${bad(`soal-opt-${opt.id}`)}`}
                   />
 
                   {/* Tactile Gambar Button */}
@@ -337,6 +371,20 @@ export default function SoalEditView({
                       }}
                     />
                   </label>
+                  {options.length>2&&selectedType!=="Benar / salah"&&(
+                    <button
+                      type="button"
+                      disabled={saving||uploading}
+                      onClick={()=>{setOptions(prev=>prev.filter(o=>o.id!==opt.id));if(isCorrect)setCorrectOptionId("");}}
+                      aria-label={`Hapus opsi ${opt.text||"kosong"}`}
+                      title="Hapus opsi"
+                      className="shrink-0 w-9 h-11 rounded-[12px] border border-[#DCE3EC] dark:border-slate-700 text-[#E5252A] hover:bg-[#FEECEB] inline-flex items-center justify-center cursor-pointer"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <FieldError id={`soal-opt-${opt.id}`} errors={errors} />
                 </div>
               );
             })}
@@ -351,6 +399,7 @@ export default function SoalEditView({
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Tambah opsi</span>
           </button>
+          <FieldError id="soal-options" errors={errors} />
         </div>
 
         {/* Row 5: Penjelasan setelah menjawab */}
@@ -359,16 +408,18 @@ export default function SoalEditView({
             Penjelasan setelah menjawab
           </label>
           <textarea
-            required minLength={3} maxLength={2000}
+            {...fieldProps("soal-explanation",errors)}
+            maxLength={2000}
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
             rows={2}
-            className="w-full h-20 md:h-[72px] p-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white resize-none focus:outline-none"
+            className={`w-full h-20 md:h-[72px] p-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white resize-none focus:outline-none${bad("soal-explanation")}`}
           />
+          <FieldError id="soal-explanation" errors={errors} />
         </div>
 
-        {uploading&&<p role="status">Mengunggah gambar…</p>}
-        {saveError&&<p role="alert">{saveError}</p>}
+        {uploading&&<p role="status" className="text-xs font-bold text-[#1D8CF8]">Mengunggah gambar…</p>}
+        <SaveError message={saveError} />
         {/* Footer Actions */}
         <div className="pt-4 border-t border-[#EEF2F6] dark:border-slate-800 flex items-center justify-between gap-3">
           <button
