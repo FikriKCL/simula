@@ -42,6 +42,8 @@ type Check = {
 /** Field tambahan per tipe soal (lihat tabel kontrak data). */
 type QuestionExtra = {
   type?: QType;
+  question_type?: string;
+  left_items?: string[];
   statement?: string;
   hint?: string;
   left_images?: (string | null)[];
@@ -65,8 +67,18 @@ const typeLabel: Partial<Record<QType, string>> = {
   image_choice: "PILIH GAMBAR",
 };
 
+const backendType: Record<string, QType> = {
+  TRUE_FALSE: "true_false",
+  ORDERING: "order",
+  MATCHING: "match",
+  IMAGE_CHOICE: "image_choice",
+};
+
 function typeOf(q: Question): QType {
   if (q.type) return q.type;
+  const mapped = q.question_type ? backendType[q.question_type] : undefined;
+  if (mapped === "image_choice" && !(q.option_images || []).some(Boolean)) return "single";
+  if (mapped) return mapped;
   return (q.option_images || []).some(Boolean) ? "image_choice" : "single";
 }
 
@@ -445,28 +457,30 @@ function MatchOptions({ q, selected, check, onSelect }: AreaProps) {
 
   return (
     <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-0">
-      <div className="grid gap-3" aria-label="Gambar">
+      <div className="grid gap-3" aria-label="Sisi kiri">
         {Array.from({ length: n }, (_, i) => (
           <button
             key={i}
             type="button"
             disabled={locked}
             onClick={() => pickLeft(i)}
-            aria-label={`Gambar ${i + 1}`}
+            aria-label={q.left_items?.[i] || `Gambar ${i + 1}`}
             aria-pressed={active === i}
             className={`${optionClass(leftState(i))} h-[76px] justify-center px-3 ${
               active === i ? "ring-4 ring-sky-dark/30" : ""
             }`}
           >
-            {q.left_images?.[i] && (
-              <img src={q.left_images[i]!} alt="" className="max-h-[70%] max-w-full object-contain" />
+            {q.left_images?.[i] ? (
+              <img src={q.left_images[i]!} alt={q.left_items?.[i] || ""} className="max-h-[70%] max-w-full object-contain" />
+            ) : (
+              <span className="text-center text-[15px] leading-snug">{q.left_items?.[i]}</span>
             )}
             {pairs[i] >= 0 && <PairBadge n={i + 1} />}
           </button>
         ))}
       </div>
 
-      <div className="grid gap-3" aria-label="Nama">
+      <div className="grid gap-3" aria-label="Sisi kanan">
         {q.options.map((option, j) => (
           <button
             key={j}
@@ -519,7 +533,9 @@ export default function QuizPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const exitHref = "/dashboard";
+  // Keluar kembali ke halaman modul (level) tempat kuis ini berada
+  const moduleHref = quiz ? `/belajar/${quiz.module_id}` : "/dashboard";
+  const exitHref = moduleHref;
   const q: Question | null = run && queue.length ? (run.questions[queue[0]] as Question) : null;
   const total = run?.questions.length || quiz?.questions.length || 0;
   const done = Object.keys(checks).length;
@@ -657,13 +673,28 @@ export default function QuizPage() {
               {result.certificate_id && "Sertifikat tersedia di profil"}
             </p>
           )}
+          {result.passed && quiz?.kind === "POST" && (
+            <p className="mt-4 font-bold text-sky-dark">
+              Level berikutnya sudah terbuka di jalur belajar.
+            </p>
+          )}
+          {!result.passed && (
+            <p className="mt-4 font-semibold text-muted">
+              Baca lagi materinya, lalu ulangi kuis. Nilai terbaikmu tetap tersimpan.
+            </p>
+          )}
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <button disabled={busy} onClick={start} className={btnGhost}>
               Ulangi
             </button>
-            <Link href={exitHref} className={btnRed}>
-              Kembali ke menu utama!
+            <Link href={moduleHref} className={result.passed && quiz?.kind === "POST" ? btnGhost : btnRed}>
+              Kembali ke modul
             </Link>
+            {result.passed && quiz?.kind === "POST" && (
+              <Link href="/dashboard" className={btnRed}>
+                Lanjut level berikutnya
+              </Link>
+            )}
           </div>
         </main>
       </div>
@@ -693,7 +724,7 @@ export default function QuizPage() {
                 {quiz.questions.length} soal · Nilai lulus {quiz.pass_score}
               </p>
               <ul className="mx-auto mt-5 max-w-sm space-y-1.5 text-left text-sm text-muted">
-                <li>• Pilih satu jawaban, lalu tekan <b>Periksa</b>.</li>
+                <li>• Jawab soal, lalu tekan <b>Periksa</b>.</li>
                 <li>• Jawaban yang sudah diperiksa tidak bisa diubah.</li>
                 <li>• Bisa <b>Lompati</b> soal dan menjawabnya nanti.</li>
               </ul>
@@ -707,9 +738,14 @@ export default function QuizPage() {
             </div>
           )}
           {error && (
-            <p role="alert" className="mt-4 text-center font-bold text-brand">
+            <div role="alert" className="mt-4 rounded-[14px] border-2 border-brand/30 bg-brand-soft px-4 py-3 text-center font-bold text-brand">
               {error}
-            </p>
+              {quiz && (
+                <Link href={moduleHref} className="mt-2 block underline">
+                  Buka halaman modul
+                </Link>
+              )}
+            </div>
           )}
         </main>
       </div>
@@ -750,6 +786,14 @@ export default function QuizPage() {
           <h1 className="mt-4 font-heading text-[24px] font-extrabold leading-snug">
             {q.prompt}
           </h1>
+        )}
+
+        {(type === "order" || type === "match") && !check && (
+          <p className="mt-2 text-sm font-bold text-muted">
+            {type === "order"
+              ? "Ketuk langkah di bawah sesuai urutan yang benar. Ketuk lagi untuk mengembalikan."
+              : "Ketuk kotak kiri, lalu ketuk pasangannya di kanan."}
+          </p>
         )}
 
         {q.image_url && (

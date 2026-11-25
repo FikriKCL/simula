@@ -5,7 +5,10 @@ from pydantic import BaseModel, Field, HttpUrl, model_validator
 
 
 class QuestionCreate(BaseModel):
-    question_type: Literal["SINGLE_CHOICE", "IMAGE_CHOICE", "TRUE_FALSE"] = "SINGLE_CHOICE"
+    # ORDERING: options disimpan dalam urutan benar. MATCHING: left_items[i] berpasangan dengan options[i].
+    question_type: Literal["SINGLE_CHOICE", "IMAGE_CHOICE", "TRUE_FALSE", "ORDERING", "MATCHING"] = "SINGLE_CHOICE"
+    left_items: list[str] = Field(default_factory=list, max_length=6)
+    left_images: list[HttpUrl | None] = Field(default_factory=list, max_length=6)
     image_url: HttpUrl | None = None
     option_images: list[HttpUrl | None] = Field(default_factory=list, max_length=6)
     prompt: str = Field(min_length=3, max_length=2000)
@@ -25,6 +28,22 @@ class QuestionCreate(BaseModel):
             raise ValueError("Pilihan tidak valid")
         if len(set(self.options)) != len(self.options):
             raise ValueError("Pilihan harus berbeda")
+        if self.question_type in ("ORDERING", "MATCHING"):
+            # Kunci jawaban ada di urutan opsi, bukan di correct_index
+            self.correct_index = 0
+            if self.option_images:
+                raise ValueError("Soal urutkan/cocokkan tidak memakai gambar opsi")
+        if self.question_type == "MATCHING":
+            if len(self.left_items) != len(self.options):
+                raise ValueError("Setiap pasangan memerlukan sisi kiri dan kanan")
+            if any(not s.strip() or len(s) > 500 for s in self.left_items):
+                raise ValueError("Sisi kiri pasangan tidak boleh kosong")
+            if len(set(self.left_items)) != len(self.left_items):
+                raise ValueError("Sisi kiri pasangan harus berbeda")
+            if self.left_images and len(self.left_images) != len(self.left_items):
+                raise ValueError("Jumlah gambar sisi kiri harus sama dengan jumlah pasangan")
+        elif self.left_items or self.left_images:
+            raise ValueError("left_items hanya untuk soal cocokkan")
         return self
 
 
@@ -35,20 +54,24 @@ class QuizCreate(BaseModel):
     questions: list[QuestionCreate] = Field(min_length=1, max_length=50)
 
 
+# Jawaban: indeks opsi, atau daftar indeks untuk soal urutkan (urutan) / cocokkan (kanan per kiri)
+Answer = int | list[int]
+
+
 class Submission(BaseModel):
-    answers: dict[int, int] = Field(min_length=1, max_length=50)
+    answers: dict[int, Answer] = Field(min_length=1, max_length=50)
 
 
 class AnswerCheck(BaseModel):
     question_id: int
-    answer: int = Field(ge=0, le=20)
+    answer: Answer
 
 
 class AnswerCheckOut(BaseModel):
     question_id: int
-    answer: int
+    answer: Answer
     correct: bool
-    correct_index: int
+    correct_index: Answer
     explanation: str
 
 
@@ -62,6 +85,8 @@ class QuizOut(BaseModel):
 
 class QuestionOut(BaseModel):
     question_type: str = "SINGLE_CHOICE"
+    left_items: list[str] = Field(default_factory=list)
+    left_images: list[str | None] = Field(default_factory=list)
     image_url: str | None = None
     option_images: list[str | None] = Field(default_factory=list)
     id: int
@@ -79,7 +104,7 @@ class AttemptOut(BaseModel):
     quiz_id: int
     score: int
     passed: bool
-    answers: dict[str, int]
+    answers: dict[str, Answer]
     created_at: datetime
 
 

@@ -339,22 +339,28 @@ export default function ChatWindow({
           ),
         )}
 
-        {/* Saran ikut digulir bersama percakapan, jadi tidak menutupi jawaban di atasnya */}
+        {/* Saran pertanyaan lanjutan: daftar kecil di bawah jawaban, bukan tombol besar */}
         {!loading && chips.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Saran pertanyaan">
-            {chips.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => ask(s)}
-                // Lebih kecil dari teks gelembung chat supaya saran tidak lebih menonjol dari jawaban
-                className={`rounded-full border border-brand/70 px-2.5 py-[3px] text-left font-bold leading-[1.4] text-brand hover:bg-brand-soft ${
-                  full ? "text-xs" : "text-[11px]"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+          <div className="pt-0.5" aria-label="Saran pertanyaan">
+            <p className={`mb-1 font-extrabold uppercase tracking-[0.5px] text-muted ${full ? "text-[10px]" : "text-[9px]"}`}>
+              Tanya lagi
+            </p>
+            <div className="flex flex-col items-start gap-1">
+              {chips.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  title={s}
+                  onClick={() => ask(s)}
+                  className={`flex max-w-full items-start gap-1 rounded-lg bg-brand-soft/70 px-2 py-1 text-left font-semibold leading-[1.35] text-brand transition-colors hover:bg-brand-soft ${
+                    full ? "text-xs" : "text-[11px]"
+                  }`}
+                >
+                  <span aria-hidden className="shrink-0">↳</span>
+                  <span className="line-clamp-2">{s}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -120,6 +120,10 @@ export default function ModulePage() {
     useApiData<{ id: number; total: number; completed: number }[]>(
       "/learning/progress",
     );
+  // Status level dari jalur belajar: selesai = semua pelajaran + tes akhir lulus
+  const path = useApiData<
+    { id: number; levels: { id: number; level: number; title: string; status: string; posttests_passed: boolean }[] }[]
+  >("/learning/path");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
   const [doneLessons, setDoneLessons] = useState<number[]>([]);
@@ -138,6 +142,8 @@ export default function ModulePage() {
           : "Pelajaran selesai.",
       );
       progress.reload();
+      path.reload();
+      catalogue.reload();
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -154,6 +160,10 @@ export default function ModulePage() {
   const pre = mod?.quizzes.filter((q) => q.kind !== "POST") || [];
   const post = mod?.quizzes.filter((q) => q.kind === "POST") || [];
   const pct = total ? Math.min((completed / total) * 100, 100) : 0;
+  const topicLevels = path.data?.find((t) => t.levels.some((l) => l.id === Number(id)))?.levels || [];
+  const here = topicLevels.findIndex((l) => l.id === Number(id));
+  const levelDone = here >= 0 && topicLevels[here].status === "COMPLETED";
+  const nextLevel = here >= 0 ? topicLevels[here + 1] : undefined;
 
   return (
     <div className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)] max-[1100px]:grid-cols-[200px_minmax(0,1fr)] max-[720px]:grid-cols-1">
@@ -249,6 +259,20 @@ export default function ModulePage() {
                 </div>
               </section>
 
+              {levelDone && (
+                <section className="mt-5 flex items-center justify-between gap-4 rounded-[20px] border-2 border-gold bg-gold-soft px-6 py-4 max-[560px]:flex-col max-[560px]:items-stretch">
+                  <div>
+                    <p className="font-heading text-lg font-extrabold">Level ini sudah selesai 🎉</p>
+                    <p className="text-sm font-semibold text-muted">
+                      {nextLevel ? `Level berikutnya terbuka: ${nextLevel.title}` : "Semua level di topik ini sudah kamu selesaikan."}
+                    </p>
+                  </div>
+                  <Link href={nextLevel ? `/belajar/${nextLevel.id}` : "/dashboard"} className={`${btnRed} shrink-0`}>
+                    {nextLevel ? "Lanjut level berikutnya" : "Ke jalur belajar"}
+                  </Link>
+                </section>
+              )}
+
               {/* Jalur belajar */}
               <h2 className="mb-4 mt-8 font-heading text-lg font-extrabold">
                 Langkah belajar
@@ -273,6 +297,7 @@ export default function ModulePage() {
                 {mod.lessons.map((l, i) => {
                   const items = materials.filter((m) => m.lesson_id === l.id);
                   const done = lessonsDone || doneLessons.includes(l.id);
+                  const remaining = items.filter((m) => !m.completed).length;
                   return (
                     <Step
                       key={l.id}
@@ -332,7 +357,12 @@ export default function ModulePage() {
                           </ul>
                         )}
 
-                        <div className="mt-5 flex justify-end">
+                        <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+                          {!done && remaining > 0 && (
+                            <span className="mr-auto text-sm font-bold text-muted">
+                              Buka dan tandai selesai {remaining} materi dulu.
+                            </span>
+                          )}
                           {done ? (
                             <span className="inline-flex items-center gap-2 rounded-full bg-sky-soft px-4 py-2 font-heading text-sm font-extrabold text-sky-dark">
                               <CheckIcon size={14} /> Pelajaran selesai
@@ -392,7 +422,7 @@ export default function ModulePage() {
           {message && (
             <p
               role="status"
-              className="mt-4 rounded-[14px] bg-sky-soft px-4 py-3 text-center font-bold text-sky-dark"
+              className="sticky bottom-4 z-10 mt-4 rounded-[14px] bg-sky-soft px-4 py-3 text-center font-bold text-sky-dark shadow-pop"
             >
               {message}
             </p>

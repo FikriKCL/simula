@@ -128,3 +128,29 @@ def create_material(lid, data, withdraw, db):
     db.add(mat)
     db.flush()
     return record(mat)
+
+
+@transactional
+def publish_module(db, mid, user):
+    # Admin menerbitkan level langsung (LMS satu admin); peninjauan dua akun tetap tersedia lewat /modules/{id}/review.
+    row = require(db.scalar(select(Module).where(Module.id == mid).with_for_update()))
+    if row.status == "PUBLISHED":
+        raise ServiceError(409, "Level sudah terbit")
+    if not db.scalar(select(Lesson.id).where(Lesson.module_id == mid).limit(1)):
+        raise ServiceError(422, "Tambahkan minimal satu pelajaran sebelum menerbitkan level")
+    row.status = "PUBLISHED"
+    row.reviewed_by = user["id"]
+    row.review_note = None
+    db.flush()
+    return record(row)
+
+
+@transactional
+def unpublish_module(db, mid):
+    row = require(db.scalar(select(Module).where(Module.id == mid).with_for_update()))
+    if row.status != "PUBLISHED":
+        raise ServiceError(409, "Level belum terbit")
+    row.status = "DRAFT"
+    row.reviewed_by = None
+    db.flush()
+    return record(row)

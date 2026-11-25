@@ -1,3 +1,4 @@
+import random
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
@@ -35,8 +36,64 @@ def snapshot(db, qid):
     ]
 
 
+SEQUENCE_TYPES = ("ORDERING", "MATCHING")
+
+
+def with_shuffle(questions):
+    """Soal urutkan/cocokkan: opsi kanan diacak per sesi. perm[d] = indeks asli opsi yang tampil di posisi d."""
+    out = []
+    for q in questions:
+        q = dict(q)
+        if q.get("question_type") in SEQUENCE_TYPES:
+            perm = list(range(len(q["options"])))
+            # Jangan tampilkan dalam urutan benar (kalau bisa diacak)
+            while len(perm) > 1 and perm == sorted(perm):
+                random.shuffle(perm)
+            q["perm"] = perm
+        out.append(q)
+    return out
+
+
+def shown_options(q):
+    perm = q.get("perm")
+    return [q["options"][i] for i in perm] if perm else q["options"]
+
+
 def public_questions(questions):
-    return [dict({k: q[k] for k in ("id", "prompt", "options")}, question_type=q.get("question_type", "SINGLE_CHOICE"), image_url=q.get("image_url"), option_images=q.get("option_images", [])) for q in questions]
+    return [
+        dict(
+            id=q["id"],
+            prompt=q["prompt"],
+            options=shown_options(q),
+            question_type=q.get("question_type", "SINGLE_CHOICE"),
+            image_url=q.get("image_url"),
+            option_images=q.get("option_images", []),
+            left_items=q.get("left_items") or [],
+            left_images=q.get("left_images") or [],
+        )
+        for q in questions
+    ]
+
+
+def valid_answer(q, answer):
+    n = len(q["options"])
+    if q.get("question_type") in SEQUENCE_TYPES:
+        # Daftar berisi setiap posisi tampil tepat sekali
+        return isinstance(answer, list) and sorted(answer) == list(range(n))
+    return isinstance(answer, int) and not isinstance(answer, bool) and 0 <= answer < n
+
+
+def correct_answer(q):
+    """Kunci jawaban dalam indeks yang dilihat siswa."""
+    if q.get("question_type") in SEQUENCE_TYPES:
+        perm = q.get("perm") or list(range(len(q["options"])))
+        # ORDERING: posisi tampil untuk langkah ke-k; MATCHING: posisi tampil pasangan kiri ke-k
+        return [perm.index(k) for k in range(len(perm))]
+    return q["correct_index"]
+
+
+def is_correct(q, answer):
+    return answer == correct_answer(q)
 
 
 def quiz_detail(qid, user, db):
@@ -59,7 +116,7 @@ def eligible(db, quiz, user):
 def start_run(qid, user, db):
     quiz = require(db.scalar(select(Quiz).where(Quiz.id == qid).with_for_update()))
     eligible(db, quiz, user)
-    questions = snapshot(db, qid)
+    questions = with_shuffle(snapshot(db, qid))
     if not questions:
         raise ServiceError(409, "Bank soal belum memiliki soal aktif")
     run = add(
@@ -84,13 +141,10 @@ def start_run(qid, user, db):
 def grade(db, quiz, questions, pass_score, data, user):
     if not questions or set(data.answers) != {q["id"] for q in questions}:
         raise ServiceError(422, "Jawab tepat semua soal pada kuis ini")
-    if any(
-        data.answers[q["id"]] < 0 or data.answers[q["id"]] >= len(q["options"])
-        for q in questions
-    ):
+    if not all(valid_answer(q, data.answers[q["id"]]) for q in questions):
         raise ServiceError(422, "Indeks jawaban tidak valid")
     score = round(
-        sum(data.answers[q["id"]] == q["correct_index"] for q in questions)
+        sum(is_correct(q, data.answers[q["id"]]) for q in questions)
         * 100
         / len(questions)
     )
@@ -133,7 +187,7 @@ def grade(db, quiz, questions, pass_score, data, user):
         feedback=[
             {
                 "question_id": q["id"],
-                "correct": data.answers[q["id"]] == q["correct_index"],
+                "correct": is_correct(q, data.answers[q["id"]]),
                 "explanation": q["explanation"],
             }
             for q in questions
@@ -172,8 +226,8 @@ def check_answer(qid, rid, data, user, db):
     question = next((q for q in run.question_snapshot if q["id"] == data.question_id), None)
     if not question:
         raise ServiceError(404, "Soal tidak ada di sesi ini")
-    if data.answer >= len(question["options"]):
-        raise ServiceError(422, "Indeks jawaban tidak valid")
+    if not valid_answer(question, data.answer):
+        raise ServiceError(422, "Jawaban tidak valid untuk tipe soal ini")
     checked = dict(run.checked_answers or {})
     answer = checked.setdefault(str(question["id"]), data.answer)
     run.checked_answers = checked
@@ -181,8 +235,8 @@ def check_answer(qid, rid, data, user, db):
     return {
         "question_id": question["id"],
         "answer": answer,
-        "correct": answer == question["correct_index"],
-        "correct_index": question["correct_index"],
+        "correct": is_correct(question, answer),
+        "correct_index": correct_answer(question),
         "explanation": question["explanation"],
     }
 

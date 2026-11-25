@@ -78,3 +78,13 @@ def delete_material(aid: int, withdraw: bool = False, db=Depends(get_db)):
 @router.post("/lessons/{lid}/materials", status_code=201)
 def create_material(lid: int, data: MaterialCreate, withdraw: bool = False, db=Depends(get_db)):
     return service.create_material(lid, data, withdraw, db)
+
+
+@router.post("/modules/{mid}/publish")
+def publish_module(mid: int, user=Depends(admin), db=Depends(get_db)):
+    return service.publish_module(db, mid, user)
+
+
+@router.post("/modules/{mid}/unpublish")
+def unpublish_module(mid: int, db=Depends(get_db)):
+    return service.unpublish_module(db, mid)

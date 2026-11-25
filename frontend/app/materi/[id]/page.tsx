@@ -235,7 +235,7 @@ export default function MaterialPage() {
     setMessage("");
     try {
       await api(`/materials/${id}/complete`, { method: "POST" });
-      setMessage("Materi ditandai selesai.");
+      setMessage("Materi ditandai selesai. Kembali ke modul untuk lanjut ke langkah berikutnya.");
       source.reload();
     } catch (e) {
       setMessage((e as Error).message);
@@ -329,10 +329,14 @@ export default function MaterialPage() {
                 <div className="flex flex-wrap gap-3">
                   {m.module_id && (
                     <Link
-                      href={`/materi`}
-                      className="rounded-[14px] px-4 py-2.5 font-heading text-sm font-extrabold text-sky-dark hover:bg-sky-soft"
+                      href={`/belajar/${m.module_id}`}
+                      className={
+                        m.completed
+                          ? "rounded-[14px] bg-sky-dark px-6 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_3px_0_#1565c0] transition active:translate-y-[3px] active:shadow-none"
+                          : "rounded-[14px] px-4 py-2.5 font-heading text-sm font-extrabold text-sky-dark hover:bg-sky-soft"
+                      }
                     >
-                      Ke modul
+                      {m.completed ? "Lanjut ke modul →" : "Ke modul"}
                     </Link>
                   )}
                   <button

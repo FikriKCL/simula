@@ -50,7 +50,8 @@ export type Page<T> = {
   offset: number;
 };
 export type BankQuestion = {
-  question_type?: "SINGLE_CHOICE"|"IMAGE_CHOICE"|"TRUE_FALSE";
+  question_type?: "SINGLE_CHOICE"|"IMAGE_CHOICE"|"TRUE_FALSE"|"ORDERING"|"MATCHING";
+  left_items?: string[];
   image_url: string | null;
   option_images: (string|null)[];
   id: number;

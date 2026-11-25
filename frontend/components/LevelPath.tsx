@@ -70,7 +70,7 @@ export default function LevelPath({
               disabled={locked}
               aria-label={level.label}
               onClick={() =>
-                onOpen ? onOpen(level.id) : router.push(`/kuis/${level.id}`)
+                onOpen ? onOpen(level.id) : router.push(`/belajar/${level.id}`)
               }
               className={`relative grid size-[100px] place-items-center rounded-full transition-transform ${
                 locked ? lockedBtn : openBtn

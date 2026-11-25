@@ -61,11 +61,15 @@ export default function SoalEditView({
   const [uploading,setUploading]=useState(false);
   const [saveError,setSaveError]=useState("");
   const currentCode=topicFull.includes("ASB")?"ASB":topicFull.includes("(KR)")?"KR":"PP";
+  const topicLevels=(tree?.modules||[]).filter(m=>m.topic_id===tree?.topics.find(t=>t.code===currentCode)?.id).sort((a,b)=>a.level-b.level);
   const matchingModule=tree?.modules.find(m=>m.topic_id===tree.topics.find(t=>t.code===currentCode)?.id&&m.level===Number(level.replace(/[^0-9]/g,"")));
   const availableQuizzes=tree?.quizzes.filter(q=>q.module_id===matchingModule?.id)||[];
   const selectedQuiz=availableQuizzes.find(q=>q.id===quizId)||availableQuizzes[0];
   const targetQuizId=isNew?(quizId<0?quizId:selectedQuiz?.id||(["DRAFT","REJECTED"].includes(matchingModule?.status||"")?-1:undefined)):question.quizId;
 
+  const isOrdering=selectedType==="Urutkan";
+  const isMatching=selectedType==="Cocokkan";
+  const isSequence=isOrdering||isMatching;
   // Semua kesalahan dicek sekaligus; tampil setelah Simpan ditekan, lalu ikut diperbarui saat diketik
   const [attempt,setAttempt]=useState(0);
   function validate():FieldErrors{
@@ -76,11 +80,21 @@ export default function SoalEditView({
     const seen=new Set<string>();
     options.forEach((o,i)=>{
       const t=o.text.trim().toLowerCase();
-      if(!t)e[`soal-opt-${o.id}`]=`Opsi ${i+1} masih kosong.`;
-      else if(seen.has(t))e[`soal-opt-${o.id}`]=`Opsi ${i+1} sama dengan opsi lain.`;
+      const name=isOrdering?`Langkah ${i+1}`:isMatching?`Pasangan ${i+1}: sisi kanan`:`Opsi ${i+1}`;
+      if(!t)e[`soal-opt-${o.id}`]=`${name} masih kosong.`;
+      else if(seen.has(t))e[`soal-opt-${o.id}`]=`${name} sama dengan baris lain.`;
       seen.add(t);
     });
-    if(!options.some(o=>o.id===correctOptionId))e["soal-options"]="Pilih satu jawaban benar (klik bulatan di kiri opsi).";
+    if(isMatching){
+      const lefts=new Set<string>();
+      options.forEach((o,i)=>{
+        const t=(o.leftText||"").trim().toLowerCase();
+        if(!t)e[`soal-left-${o.id}`]=`Pasangan ${i+1}: sisi kiri masih kosong.`;
+        else if(lefts.has(t))e[`soal-left-${o.id}`]=`Pasangan ${i+1}: sisi kiri sama dengan pasangan lain.`;
+        lefts.add(t);
+      });
+    }
+    if(!isSequence&&!options.some(o=>o.id===correctOptionId))e["soal-options"]="Pilih satu jawaban benar (klik bulatan di kiri opsi).";
     if(explanation.trim().length<3)e["soal-explanation"]="Penjelasan minimal 3 karakter.";
     return e;
   }
@@ -215,13 +229,16 @@ export default function SoalEditView({
             <label className="block text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-slate-200 mb-1.5">
               Level
             </label>
-            <input
-              type="text"
-              readOnly={!isNew}
+            {/* Pilih dari level yang benar-benar ada di topik ini */}
+            <select
+              disabled={!isNew||saving}
               value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              className="w-full h-[48px] md:h-[44px] px-3.5 py-2 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none"
-            />
+              onChange={(e) => {setLevel(e.target.value);setQuizId(0);}}
+              className="w-full h-[48px] md:h-[44px] px-3.5 py-2 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer"
+            >
+              {!topicLevels.some(m=>`Level ${m.level}`===level)&&<option value={level}>{level}</option>}
+              {topicLevels.map(m=><option key={m.id} value={`Level ${m.level}`}>Level {m.level}{m.status==="PUBLISHED"?"":` · ${m.status==="DRAFT"?"draf":m.status.toLowerCase()}`}</option>)}
+            </select>
           </div>
         </div>
 
@@ -245,9 +262,13 @@ export default function SoalEditView({
                 <button
                   key={t}
                   type="button"
-                  disabled={saving||["Cocokkan","Urutkan"].includes(t)}
-                  title={["Cocokkan","Urutkan"].includes(t)?"Belum didukung penilaian backend":undefined}
-                  onClick={() => {setSelectedType(t);if(t === "Benar / salah"){setOptions([{id:"opt-true",text:"Benar"},{id:"opt-false",text:"Salah"}]);setCorrectOptionId("opt-true");}}}
+                  disabled={saving}
+                  onClick={() => {
+                    const wasTrueFalse=selectedType==="Benar / salah";
+                    setSelectedType(t);
+                    if(t === "Benar / salah"){setOptions([{id:"opt-true",text:"Benar"},{id:"opt-false",text:"Salah"}]);setCorrectOptionId("opt-true");}
+                    else if(wasTrueFalse){const fresh=[0,1,2].map(n=>({id:`opt-${Date.now()}-${n}`,text:""}));setOptions(fresh);setCorrectOptionId(fresh[0].id);}
+                  }}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-colors cursor-pointer ${
                     isSelected
                       ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
@@ -308,12 +329,65 @@ export default function SoalEditView({
         {/* Row 4: Opsi Jawaban */}
         <div>
           <div id="soal-options" tabIndex={-1} className="text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-slate-200 mb-2.5 outline-none">
-            Opsi jawaban{" "}
+            {isOrdering ? "Langkah-langkah" : isMatching ? "Pasangan" : "Opsi jawaban"}{" "}
             <span className="font-semibold text-[#64748B] text-xs">
-              (pilih satu jawaban benar)
+              {isOrdering
+                ? "(tulis dalam urutan BENAR dari atas; siswa akan melihatnya teracak)"
+                : isMatching
+                  ? "(tulis pasangan yang benar; sisi kanan akan diacak untuk siswa)"
+                  : "(pilih satu jawaban benar)"}
             </span>
           </div>
 
+          {isSequence && (
+            <ol className="space-y-2.5">
+              {options.map((opt, i) => (
+                <li key={opt.id}>
+                  <div className="flex items-center gap-2">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#EAF5FF] text-xs font-black text-[#1D8CF8]">{i + 1}</span>
+                    {isMatching && (
+                      <>
+                        <input
+                          {...fieldProps(`soal-left-${opt.id}`,errors)}
+                          type="text"
+                          maxLength={500}
+                          value={opt.leftText||""}
+                          onChange={(e)=>setOptions(prev=>prev.map(o=>o.id===opt.id?{...o,leftText:e.target.value}:o))}
+                          placeholder="Sisi kiri (mis. Luka bakar)"
+                          className={`min-w-0 flex-1 h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none${bad(`soal-left-${opt.id}`)}`}
+                        />
+                        <span aria-hidden className="shrink-0 font-black text-[#94A3B8]">↔</span>
+                      </>
+                    )}
+                    <input
+                      {...fieldProps(`soal-opt-${opt.id}`,errors)}
+                      type="text"
+                      maxLength={500}
+                      value={opt.text}
+                      onChange={(e)=>handleOptionTextChange(opt.id,e.target.value)}
+                      placeholder={isMatching ? "Sisi kanan (mis. Siram air mengalir)" : `Langkah ${i + 1}`}
+                      className={`min-w-0 flex-1 h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none${bad(`soal-opt-${opt.id}`)}`}
+                    />
+                    {isOrdering && (
+                      <>
+                        <button type="button" disabled={!i||saving} aria-label={`Naikkan langkah ${i+1}`} onClick={()=>setOptions(prev=>{const n=[...prev];[n[i-1],n[i]]=[n[i],n[i-1]];return n;})} className="shrink-0 w-8 h-11 rounded-[12px] border border-[#DCE3EC] dark:border-slate-700 text-[#334155] dark:text-slate-300 disabled:opacity-30 cursor-pointer">↑</button>
+                        <button type="button" disabled={i===options.length-1||saving} aria-label={`Turunkan langkah ${i+1}`} onClick={()=>setOptions(prev=>{const n=[...prev];[n[i+1],n[i]]=[n[i],n[i+1]];return n;})} className="shrink-0 w-8 h-11 rounded-[12px] border border-[#DCE3EC] dark:border-slate-700 text-[#334155] dark:text-slate-300 disabled:opacity-30 cursor-pointer">↓</button>
+                      </>
+                    )}
+                    {options.length>2&&(
+                      <button type="button" disabled={saving} onClick={()=>setOptions(prev=>prev.filter(o=>o.id!==opt.id))} aria-label={`Hapus baris ${i+1}`} title="Hapus" className="shrink-0 w-9 h-11 rounded-[12px] border border-[#DCE3EC] dark:border-slate-700 text-[#E5252A] hover:bg-[#FEECEB] inline-flex items-center justify-center cursor-pointer">
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <FieldError id={`soal-left-${opt.id}`} errors={errors} />
+                  <FieldError id={`soal-opt-${opt.id}`} errors={errors} />
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {!isSequence && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-x-5 md:gap-y-3">
             {options.map((opt) => {
               const isCorrect = opt.id === correctOptionId;
@@ -389,15 +463,16 @@ export default function SoalEditView({
               );
             })}
           </div>
+          )}
 
           <button
             type="button"
-            disabled={options.length>=6 || saving || uploading}
+            disabled={options.length>=6 || saving || uploading || selectedType==="Benar / salah"}
             onClick={handleAddOption}
             className="mt-3 inline-flex items-center gap-1 text-xs font-extrabold text-[#E5252A] hover:underline cursor-pointer"
           >
             <PlusIcon className="w-3.5 h-3.5" />
-            <span>Tambah opsi</span>
+            <span>{isOrdering ? "Tambah langkah" : isMatching ? "Tambah pasangan" : "Tambah opsi"}</span>
           </button>
           <FieldError id="soal-options" errors={errors} />
         </div>

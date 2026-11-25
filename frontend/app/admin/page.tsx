@@ -26,6 +26,7 @@ import PendaftaranView from "./components/PendaftaranView";
 import MateriView from "./components/MateriView";
 import SoalView from "./components/SoalView";
 import SoalEditView from "./components/SoalEditView";
+import LevelView from "./components/LevelView";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
@@ -109,8 +110,8 @@ export default function AdminPage() {
 
   const handleSaveQuestion=async(saved:QuizQuestion)=>{
     if(!saved.quizId)throw new Error("Pilih kuis tujuan.");
-    if(["Cocokkan","Urutkan"].includes(saved.type))throw new Error("Tipe soal ini belum didukung penilaian backend.");
-    const payload={question_type:saved.type==="Benar / salah"?"TRUE_FALSE":saved.type==="Pilihan bergambar"?"IMAGE_CHOICE":"SINGLE_CHOICE",prompt:saved.question,options:saved.options.map(o=>o.text),correct_index:saved.options.findIndex(o=>o.id===saved.correctOptionId),explanation:saved.explanation,image_url:saved.imageUrl||null,option_images:saved.options.map(o=>o.imageUrl||null)};
+    const sequence=saved.type==="Urutkan"||saved.type==="Cocokkan";
+    const payload={question_type:saved.type==="Benar / salah"?"TRUE_FALSE":saved.type==="Urutkan"?"ORDERING":saved.type==="Cocokkan"?"MATCHING":saved.type==="Pilihan bergambar"?"IMAGE_CHOICE":"SINGLE_CHOICE",left_items:saved.type==="Cocokkan"?saved.options.map(o=>(o.leftText||"").trim()):[],prompt:saved.question,options:saved.options.map(o=>o.text),correct_index:sequence?0:saved.options.findIndex(o=>o.id===saved.correctOptionId),explanation:saved.explanation,image_url:saved.imageUrl||null,option_images:sequence?[]:saved.options.map(o=>o.imageUrl||null)};
     if(isCreatingQuestion&&saved.quizId<0){
       const topicId=data?.topics.find(t=>t.code===saved.topic)?.id;
       const selected=data?.modules.find(m=>m.topic_id===topicId&&m.level===Number(saved.level.replace(/[^0-9]/g,"")));
@@ -147,6 +148,15 @@ export default function AdminPage() {
       key: "pendaftaran",
       label: "PENDAFTARAN",
       renderIcon: (active) => <PendaftaranNavIcon active={active} />,
+    },
+    {
+      key: "level",
+      label: "LEVEL",
+      renderIcon: (active) => (
+        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" aria-hidden="true">
+          <path d="M4 19h4v-5H4v5Zm6 0h4V9h-4v10Zm6 0h4V4h-4v15Z" fill={active ? "#E5252A" : "currentColor"} opacity={active ? 1 : 0.7} />
+        </svg>
+      ),
     },
     {
       key: "materi",
@@ -201,8 +211,8 @@ export default function AdminPage() {
             </div>
 
             {/* Right Controls: Flag + Theme Toggle + Admin Pill */}
-            <div className="flex items-center gap-2 md:gap-3">
-              <IndonesiaFlagIcon />
+            <div className="flex min-w-0 items-center gap-2 md:gap-3">
+              <span className="hidden sm:inline-flex"><IndonesiaFlagIcon /></span>
 
               {/* Theme Toggle Switch */}
               <button
@@ -233,11 +243,11 @@ export default function AdminPage() {
 
               <button type="button" onClick={handleLogout} className="rounded-[12px] border border-[#DCE3EC] dark:border-slate-700 px-3 py-2 text-xs font-extrabold text-[#E5252A] hover:bg-[#FEECEB] cursor-pointer">Keluar</button>
               {/* Admin Profile Pill */}
-              <div className="bg-white dark:bg-slate-900 border border-[#DCE3EC] dark:border-slate-800 rounded-full pl-1 pr-3 py-1 flex items-center gap-1.5">
+              <div title={account?.display_name || "Admin"} className="bg-white dark:bg-slate-900 border border-[#DCE3EC] dark:border-slate-800 rounded-full p-1 sm:pl-1 sm:pr-3 flex items-center gap-1.5">
                 <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-[#FEF3C7] text-[#1E293B] text-[10px] md:text-[11px] font-black flex items-center justify-center">
                   AD
                 </div>
-                <span className="text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-white">
+                <span className="hidden sm:inline max-w-[160px] truncate text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-white">
                   {account?.display_name || "Admin"}
                 </span>
               </div>
@@ -257,6 +267,15 @@ export default function AdminPage() {
               />
             )}
 
+            {activeTab === "level" && (
+              <LevelView
+                tree={data ?? undefined}
+                materials={materials}
+                questions={questions}
+                run={mutate}
+                onGoto={(tab) => handleSwitchTab(tab)}
+              />
+            )}
             {activeTab === "materi" && (
               <MateriView
                 tree={data || undefined}
@@ -298,7 +317,7 @@ export default function AdminPage() {
         </div>
 
         {/* MOBILE FIXED BOTTOM NAVIGATION BAR */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t border-[#E2E8F0] dark:border-slate-800 px-2 py-2 flex items-center justify-around z-40">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t border-[#E2E8F0] dark:border-slate-800 px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex items-center gap-1 z-40">
           {navItems.map((item) => {
             const isActive = activeTab === item.key;
             return (
@@ -306,15 +325,15 @@ export default function AdminPage() {
                 key={item.key}
                 type="button"
                 onClick={() => handleSwitchTab(item.key)}
-                className={`flex flex-col items-center justify-center gap-1 min-w-[78px] py-1.5 px-2.5 rounded-[16px] transition-all cursor-pointer ${
+                className={`flex flex-1 flex-col items-center justify-center gap-1 min-w-0 py-1.5 px-1 rounded-[16px] transition-all cursor-pointer ${
                   isActive
                     ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
                     : "text-[#64748B] dark:text-slate-400 border-[1.5px] border-transparent"
                 }`}
               >
                 {item.renderIcon(isActive)}
-                <span className="text-[9.5px] font-extrabold tracking-wide leading-none uppercase">
-                  {item.label}
+                <span className="max-w-full truncate text-[9px] font-extrabold tracking-wide leading-none uppercase">
+                  {({ dashboard: "Beranda", pendaftaran: "Akun" } as Record<string, string>)[item.key] ?? item.label}
                 </span>
               </button>
             );

@@ -110,6 +110,8 @@ model Question {
   question_type String @default("SINGLE_CHOICE")
   image_url String?
   option_images Json @default("[]")
+  left_items Json @default("[]")
+  left_images Json @default("[]")
   active Boolean @default(true)
   id Int @id @default(autoincrement())
   quiz_id Int 

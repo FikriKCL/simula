@@ -1,4 +1,4 @@
-export type AdminTab = "dashboard" | "pendaftaran" | "materi" | "soal";
+export type AdminTab = "dashboard" | "pendaftaran" | "level" | "materi" | "soal";
 
 export interface MemberProgress {
   id: string;
@@ -64,6 +64,8 @@ export interface QuestionOption {
   id: string;
   text: string;
   imageUrl?: string;
+  /** Soal cocokkan: teks sisi kiri yang berpasangan dengan `text` (sisi kanan). */
+  leftText?: string;
 }
 
 export interface QuizQuestion {

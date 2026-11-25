@@ -31,7 +31,12 @@ interface MateriViewProps {
   onDeleteMaterial: (id: string) => Promise<void>;
 }
 
-type MaterialTabFilter = "SEMUA" | "ARTICLE" | "PDF" | "VIDEO" | "KOMIK";
+type MaterialTabFilter = "SEMUA" | "DOKUMEN" | "VIDEO" | "KOMIK";
+
+// Artikel dan buku PDF sama-sama bacaan, jadi satu kategori "Dokumen" (sama seperti katalog siswa)
+const tabOf = (type: MaterialType): MaterialTabFilter =>
+  type === "VIDEO" ? "VIDEO" : type === "KOMIK" ? "KOMIK" : "DOKUMEN";
+const TYPE_LABEL: Record<MaterialType, string> = { ARTICLE: "Artikel", PDF: "Buku PDF", VIDEO: "Video", KOMIK: "Komik" };
 
 export default function MateriView({
   tree, onContentChange,
@@ -63,6 +68,16 @@ export default function MateriView({
   const errors=attempt?validateMaterial(title,type,draft):{};
   const bad=(id:string)=>errors[id]?` ${errorRing}`:"";
 
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = { SEMUA: 0 };
+    for (const m of materials) {
+      if (category !== "SEMUA" && m.topic !== category) continue;
+      counts.SEMUA += 1;
+      counts[tabOf(m.type)] = (counts[tabOf(m.type)] || 0) + 1;
+    }
+    return counts;
+  }, [materials, category]);
+
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { SEMUA: materials.length };
     for (const m of materials) counts[m.topic] = (counts[m.topic] || 0) + 1;
@@ -73,7 +88,7 @@ export default function MateriView({
     const q = search.trim().toLowerCase();
     return materials
       .filter((m) => category === "SEMUA" || m.topic === category)
-      .filter((m) => activeTab === "SEMUA" || m.type === activeTab)
+      .filter((m) => activeTab === "SEMUA" || tabOf(m.type) === activeTab)
       .filter((m) => !q || m.title.toLowerCase().includes(q))
       .sort((a, b) => compareByDate(sort, a, b));
   }, [materials, activeTab, category, search, sort]);
@@ -295,7 +310,7 @@ export default function MateriView({
           {(
             [
               { key: "SEMUA", label: "SEMUA" },
-              { key: "ARTICLE", label: "ARTIKEL" },
+              { key: "DOKUMEN", label: "DOKUMEN" },
               { key: "VIDEO", label: "VIDEO" },
               { key: "KOMIK", label: "KOMIK" },
             ] as const
@@ -311,6 +326,7 @@ export default function MateriView({
               }`}
             >
               {tab.label}
+              <span className="ml-1.5 rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-[10px]">{tabCounts[tab.key] || 0}</span>
             </button>
           ))}
         </div>
@@ -344,7 +360,7 @@ export default function MateriView({
 
                   <td className="py-3 px-4">
                     <span className="inline-block bg-[#E5252A] text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-                      {item.type}
+                      {TYPE_LABEL[item.type] || item.type}
                     </span>
                   </td>
 
@@ -398,7 +414,7 @@ export default function MateriView({
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="inline-block bg-[#E5252A] text-white text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full">
-                      {item.type}
+                      {TYPE_LABEL[item.type] || item.type}
                     </span>
                     <span className="text-xs font-semibold text-[#64748B]">
                       {item.topic} · {item.size}
@@ -432,7 +448,7 @@ export default function MateriView({
         {/* Empty State */}
         {filteredMaterials.length === 0 && (
           <div className="py-10 text-center text-sm font-bold text-slate-400">
-            {search.trim() ? "Tidak ada materi yang cocok dengan pencarian." : "Tidak ada materi pada kategori ini."}
+            {search.trim() ? "Tidak ada materi yang cocok dengan pencarian." : activeTab === "VIDEO" ? "Belum ada video. Tekan “Unggah materi” lalu pilih tipe VIDEO." : "Tidak ada materi pada kategori ini."}
           </div>
         )}
 

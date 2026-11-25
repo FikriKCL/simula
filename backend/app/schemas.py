@@ -143,7 +143,7 @@ class AttemptOut(BaseModel):
     quiz_id: int
     score: int
     passed: bool
-    answers: dict[str, int]
+    answers: dict[str, int | list[int]]
     created_at: datetime
 
 class FeedbackOut(BaseModel):
