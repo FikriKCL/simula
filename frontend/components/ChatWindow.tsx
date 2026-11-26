@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { CloseIcon, SendIcon } from "./Icons";
+import { AlertIcon, CloseIcon, SendIcon } from "./Icons";
 import { PikoAvatar } from "./PikoAvatar";
 import Markdown from "./chat/Markdown";
 import { ChatRequestError, buildHistory, streamChat } from "../lib/chat/stream";
@@ -267,9 +267,9 @@ export default function ChatWindow({
         <PikoAvatar size={38} />
         <div className="min-w-0 flex-1">
           <strong className="block font-heading text-[15px] font-black">Tanya Dokter Piko</strong>
-          <small className="flex items-center gap-[5px] text-[11px] font-bold opacity-95">
+          <small className="flex items-center gap-[5px] text-xs font-bold opacity-95">
             <span
-              className={`inline-block size-[7px] rounded-full ${offline ? "bg-white/60" : "bg-[#ffb300]"}`}
+              className={`inline-block size-[7px] rounded-full ${offline ? "bg-white/60" : "bg-gold-strong"}`}
             />
             {loading ? "Sedang mengetik…" : offline ? "Sedang offline, coba lagi nanti" : "Online, siap membantu"}
           </small>
@@ -321,7 +321,7 @@ export default function ChatWindow({
             >
               {m.isEmergency && (
                 <p role="alert" className="mb-1.5 rounded-lg bg-surface px-2 py-1.5 text-brand">
-                  🚑 <strong>Darurat?</strong> Minta bantuan orang dewasa dan hubungi{" "}
+                  <AlertIcon size={13} className="mr-1 inline -translate-y-px" /><strong>Darurat?</strong> Minta bantuan orang dewasa dan hubungi{" "}
                   <a href="tel:112" className="underline">112</a> /{" "}
                   <a href="tel:119" className="underline">119</a>.
                 </p>
@@ -342,7 +342,7 @@ export default function ChatWindow({
         {/* Saran pertanyaan lanjutan: daftar kecil di bawah jawaban, bukan tombol besar */}
         {!loading && chips.length > 0 && (
           <div className="pt-0.5" aria-label="Saran pertanyaan">
-            <p className={`mb-1 font-extrabold uppercase tracking-[0.5px] text-muted ${full ? "text-[10px]" : "text-[9px]"}`}>
+            <p className={`mb-1 font-extrabold uppercase tracking-[0.5px] text-muted ${full ? "text-xs" : "text-xs"}`}>
               Tanya lagi
             </p>
             <div className="flex flex-col items-start gap-1">
@@ -353,7 +353,7 @@ export default function ChatWindow({
                   title={s}
                   onClick={() => ask(s)}
                   className={`flex max-w-full items-start gap-1 rounded-lg bg-brand-soft/70 px-2 py-1 text-left font-semibold leading-[1.35] text-brand transition-colors hover:bg-brand-soft ${
-                    full ? "text-xs" : "text-[11px]"
+                    full ? "text-xs" : "text-xs"
                   }`}
                 >
                   <span aria-hidden className="shrink-0">↳</span>

@@ -147,12 +147,13 @@ function ProfileChip({ name, initials }: { name: string; initials: string }) {
     <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3">
       <div
         aria-hidden="true"
-        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gold-soft text-[11px] font-black text-ink"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gold-soft text-xs font-black text-ink"
       >
         {initials}
       </div>
+      {/* Panel sempit: tampilkan nama depan saja, nama lengkap di tooltip */}
       <span title={name} className="truncate text-xs font-extrabold text-ink">
-        {name}
+        {name.trim().split(/\s+/)[0]}
       </span>
     </div>
   );
@@ -168,14 +169,14 @@ function ThemeToggle({ dark, onChange }: { dark: boolean; onChange: (theme: "lig
       className="flex shrink-0 cursor-pointer items-center gap-0.5 rounded-full border border-line bg-line p-0.5"
     >
       <span
-        className={`flex size-6 items-center justify-center rounded-full transition-all ${
+        className={`flex size-6 items-center justify-center rounded-full transition ${
           dark ? "text-muted" : "bg-surface text-gold shadow-sm"
         }`}
       >
         <SunIcon />
       </span>
       <span
-        className={`flex size-6 items-center justify-center rounded-full transition-all ${
+        className={`flex size-6 items-center justify-center rounded-full transition ${
           dark ? "bg-surface text-sky shadow-sm" : "text-muted"
         }`}
       >
@@ -544,7 +545,7 @@ export default function RightPanel() {
                 aria-valuemax={Math.round(maxHeight)}
                 aria-valuenow={effectiveHeight === null ? undefined : Math.round(effectiveHeight)}
                 tabIndex={0}
-                title="Geser untuk mengubah tinggi · klik dua kali untuk ukuran awal"
+                title="Geser untuk mengubah tinggi, klik dua kali untuk ukuran awal"
                 onPointerDown={startResize}
                 onKeyDown={resizeWithKeyboard}
                 onDoubleClick={() => applyHeight(null)}
@@ -606,7 +607,7 @@ export default function RightPanel() {
                 {!chatShown && unread && (
                   <span
                     aria-label="Ada jawaban baru"
-                    className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-sky-dark text-[11px] font-extrabold text-white"
+                    className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-sky-dark text-xs font-extrabold text-white"
                   >
                     1
                   </span>

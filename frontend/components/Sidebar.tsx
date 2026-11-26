@@ -37,7 +37,7 @@ export default function Sidebar({ active }: { active: NavKey }) {
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={`flex min-w-0 items-center gap-4 rounded-[14px] border-2 px-4 py-3.5 font-heading text-sm font-extrabold uppercase tracking-[0.8px] transition-colors [&_svg]:shrink-0 [&_svg]:text-ink
-              min-[721px]:max-[1100px]:flex-col min-[721px]:max-[1100px]:gap-1.5 min-[721px]:max-[1100px]:px-1.5 min-[721px]:max-[1100px]:py-3 min-[721px]:max-[1100px]:text-center min-[721px]:max-[1100px]:text-[11px] min-[721px]:max-[1100px]:tracking-[0.4px]
+              min-[721px]:max-[1100px]:flex-col min-[721px]:max-[1100px]:gap-1.5 min-[721px]:max-[1100px]:px-1.5 min-[721px]:max-[1100px]:py-3 min-[721px]:max-[1100px]:text-center min-[721px]:max-[1100px]:text-xs min-[721px]:max-[1100px]:tracking-[0.4px]
               max-[720px]:flex-1 max-[720px]:justify-center max-[720px]:px-2 max-[720px]:py-2 max-[720px]:[&_svg]:size-8 ${
               isActive
                 ? "border-brand bg-brand-soft text-brand"

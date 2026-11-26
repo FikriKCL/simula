@@ -78,6 +78,131 @@
   --cloud-pink: #ffe0e3;
   --cloud-yellow: #ffefc7;
   --shadow: 0 6px 24px rgba(30, 60, 100, 0.12);
+  --focus-ring: #1565c0;
+}
+
+/* Warna admin & aksen tetap (nilai sama di mode terang/gelap; dulu ditulis langsung sebagai hex di kelas) */
+:root {
+  --navy: #1e293b;
+  --red-strong: #e5252a;
+  --edge: #dce3ec;
+  --red-tint: #feeceb;
+  --slate-muted: #64748b;
+  --slate-faint: #94a3b8;
+  --edge-soft: #eef2f6;
+  --slate-ink: #334155;
+  --admin-sky: #43a8f6;
+  --edge-2: #e2e8f0;
+  --navy-2: #1c2b3d;
+  --admin-blue: #1d8cf8;
+  --admin-sky-edge: #2589d8;
+  --red-deep: #991b1b;
+  --slate-mid: #475569;
+  --amber-tint: #fef3c7;
+  --pink-mark: #f4a6ab;
+  --star: #ffc933;
+  --warn-tint: #fef9c3;
+  --sky-tint: #eaf5ff;
+  --amber-ink: #92400e;
+  --red-tint-2: #fee2e2;
+  --violet-tint: #ede9fe;
+  --sky-tint-2: #ebf5ff;
+  --sky-tint-3: #e0f2fe;
+  --warn-ink: #a16207;
+  --gold-ink: #9a6b00;
+  --violet-ink: #5b21b6;
+  --ok: #299e57;
+  --ok-deep: #228649;
+  --ok-deeper: #1b743e;
+  --sky-ink: #075985;
+  --gold-tint: #fff1c9;
+  --gold-strong: #ffb300;
+  --pink-tint: #fde3e3;
+  --warn-edge: #fde047;
+  --rose-tint: #fce7f3;
+  --red-edge: #fca5a5;
+  --paper-admin: #f7f9fc;
+  --amber: #f59e0b;
+  --sky-wash: #f3f9ff;
+  --ok-tint: #e7f8ee;
+  --gray-tint: #e5e8ec;
+  --blue-tint: #e3f0fd;
+  --sky-hover: #dceeff;
+  --blue-tint-2: #dbeafe;
+  --red-hover: #c81e23;
+  --rose-ink: #9d174d;
+  --ok-edge: #86efac;
+  --placeholder: #7b8798;
+  --gold-night: #4a3d17;
+  --pink-night: #3a2a33;
+  --selection: #38a3f5;
+  --gray-night: #2a3547;
+  --blue-ink: #1e40af;
+  --blue-night: #1c3550;
+  --ok-ink: #15803d;
+  --red-shadow: #b71c1c;
+  --blue-shadow: #1565c0;
+  --gold-shadow: #c68a00;
+}
+
+@theme inline {
+  --color-navy: var(--navy);
+  --color-red-strong: var(--red-strong);
+  --color-edge: var(--edge);
+  --color-red-tint: var(--red-tint);
+  --color-slate-muted: var(--slate-muted);
+  --color-slate-faint: var(--slate-faint);
+  --color-edge-soft: var(--edge-soft);
+  --color-slate-ink: var(--slate-ink);
+  --color-admin-sky: var(--admin-sky);
+  --color-edge-2: var(--edge-2);
+  --color-navy-2: var(--navy-2);
+  --color-admin-blue: var(--admin-blue);
+  --color-admin-sky-edge: var(--admin-sky-edge);
+  --color-red-deep: var(--red-deep);
+  --color-slate-mid: var(--slate-mid);
+  --color-amber-tint: var(--amber-tint);
+  --color-pink-mark: var(--pink-mark);
+  --color-star: var(--star);
+  --color-warn-tint: var(--warn-tint);
+  --color-sky-tint: var(--sky-tint);
+  --color-amber-ink: var(--amber-ink);
+  --color-red-tint-2: var(--red-tint-2);
+  --color-violet-tint: var(--violet-tint);
+  --color-sky-tint-2: var(--sky-tint-2);
+  --color-sky-tint-3: var(--sky-tint-3);
+  --color-warn-ink: var(--warn-ink);
+  --color-gold-ink: var(--gold-ink);
+  --color-violet-ink: var(--violet-ink);
+  --color-ok: var(--ok);
+  --color-ok-deep: var(--ok-deep);
+  --color-ok-deeper: var(--ok-deeper);
+  --color-sky-ink: var(--sky-ink);
+  --color-gold-tint: var(--gold-tint);
+  --color-gold-strong: var(--gold-strong);
+  --color-pink-tint: var(--pink-tint);
+  --color-warn-edge: var(--warn-edge);
+  --color-rose-tint: var(--rose-tint);
+  --color-red-edge: var(--red-edge);
+  --color-paper-admin: var(--paper-admin);
+  --color-amber: var(--amber);
+  --color-sky-wash: var(--sky-wash);
+  --color-ok-tint: var(--ok-tint);
+  --color-gray-tint: var(--gray-tint);
+  --color-blue-tint: var(--blue-tint);
+  --color-sky-hover: var(--sky-hover);
+  --color-blue-tint-2: var(--blue-tint-2);
+  --color-red-hover: var(--red-hover);
+  --color-rose-ink: var(--rose-ink);
+  --color-ok-edge: var(--ok-edge);
+  --color-placeholder: var(--placeholder);
+  --color-gold-night: var(--gold-night);
+  --color-pink-night: var(--pink-night);
+  --color-selection: var(--selection);
+  --color-gray-night: var(--gray-night);
+  --color-blue-ink: var(--blue-ink);
+  --color-blue-night: var(--blue-night);
+  --color-ok-ink: var(--ok-ink);
 }
 
 [data-theme="dark"] {
@@ -88,7 +213,7 @@
   --border: #2a3a50;
   --red: #ff6b66;
   --red-soft: #3a2224;
-  --blue: #2b7fc4;
+  --blue: #23689f;
   --blue-dark: #1b5f9a;
   --blue-edge: #17476f;
   --blue-soft: #1c3550;
@@ -100,6 +225,7 @@
   --cloud-pink: #3a2a33;
   --cloud-yellow: #3d3520;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --focus-ring: #8cc8ff;
 }
 
 @layer base {
@@ -247,5 +373,36 @@
   .piko-animated *,
   .piko-bubble-text {
     animation: none !important;
+  }
+}
+
+
+/* ---------- Aksesibilitas (berlaku di semua halaman, siswa & admin) ---------- */
+/* Di luar @layer sengaja: aturan tanpa layer menang atas utilitas `outline-none`,
+   jadi pengguna keyboard selalu melihat elemen yang sedang fokus. Muncul seketika. */
+:where(a, button, input, select, textarea, summary, [tabindex], [role="button"], [role="tab"]):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--blue-soft);
+  color: var(--text);
+}
+
+/* Pengguna yang mematikan animasi: semua transisi & animasi hampir instan */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

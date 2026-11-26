@@ -204,6 +204,7 @@ class MaterialCard(BaseModel):
     title: str
     kind: Literal["ARTICLE", "PDF", "VIDEO", "COMIC"]
     thumbnail_url: str | None
+    cover_url: str | None = None
     page_count: int | None
     duration_seconds: int | None
     locked: bool

@@ -172,9 +172,9 @@ export default function AdminPage() {
 
   return (
     <div className={darkMode ? "dark" : ""}>
-      <div className="min-h-screen bg-[#F7F9FC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 flex flex-col md:flex-row">
+      <div className="min-h-screen bg-paper-admin dark:bg-slate-950 text-navy dark:text-slate-100 flex flex-col md:flex-row">
         {/* DESKTOP LEFT SIDEBAR */}
-        <aside className="hidden md:flex md:w-[225px] md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-slate-900 border-r border-[#E2E8F0] dark:border-slate-800 px-3.5 py-6 z-30">
+        <aside className="hidden md:flex md:w-[225px] md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-slate-900 border-r border-edge-2 dark:border-slate-800 px-3.5 py-6 z-30">
           <div className="px-2.5 mb-7">
             <button type="button" aria-label="Kembali ke dashboard admin" onClick={() => handleSwitchTab("dashboard")} className="cursor-pointer"><SimulaLogo /></button>
           </div>
@@ -187,10 +187,10 @@ export default function AdminPage() {
                   key={item.key}
                   type="button"
                   onClick={() => handleSwitchTab(item.key)}
-                  className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-[16px] text-[12px] font-extrabold tracking-wider transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-[16px] text-[12px] font-extrabold tracking-wider transition cursor-pointer ${
                     isActive
-                      ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
-                      : "text-[#64748B] dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-[1.5px] border-transparent"
+                      ? "bg-red-tint border-[1.5px] border-red-strong text-red-strong"
+                      : "text-slate-muted dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-[1.5px] border-transparent"
                   }`}
                 >
                   {item.renderIcon(isActive)}
@@ -219,35 +219,35 @@ export default function AdminPage() {
                 type="button"
                 onClick={() => setDarkMode(!darkMode)}
                 aria-label="Ubah tema tampilan"
-                className="bg-[#EEF2F6] dark:bg-slate-800 border border-[#DCE3EC] dark:border-slate-700 rounded-full p-0.5 flex items-center gap-0.5 cursor-pointer"
+                className="bg-edge-soft dark:bg-slate-800 border border-edge dark:border-slate-700 rounded-full p-0.5 flex items-center gap-0.5 cursor-pointer"
               >
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center transition ${
                     !darkMode
-                      ? "bg-white text-[#F59E0B] shadow-2xs"
+                      ? "bg-white text-amber shadow-2xs"
                       : "text-slate-400"
                   }`}
                 >
                   <SunIcon />
                 </span>
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center transition ${
                     darkMode
                       ? "bg-slate-900 text-sky-400 shadow-2xs"
-                      : "text-[#64748B]"
+                      : "text-slate-muted"
                   }`}
                 >
                   <MoonIcon />
                 </span>
               </button>
 
-              <button type="button" onClick={handleLogout} className="rounded-[12px] border border-[#DCE3EC] dark:border-slate-700 px-3 py-2 text-xs font-extrabold text-[#E5252A] hover:bg-[#FEECEB] cursor-pointer">Keluar</button>
+              <button type="button" onClick={handleLogout} className="rounded-[12px] border border-edge dark:border-slate-700 px-3 py-2 text-xs font-extrabold text-red-strong hover:bg-red-tint cursor-pointer">Keluar</button>
               {/* Admin Profile Pill */}
-              <div title={account?.display_name || "Admin"} className="bg-white dark:bg-slate-900 border border-[#DCE3EC] dark:border-slate-800 rounded-full p-1 sm:pl-1 sm:pr-3 flex items-center gap-1.5">
-                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-[#FEF3C7] text-[#1E293B] text-[10px] md:text-[11px] font-black flex items-center justify-center">
+              <div title={account?.display_name || "Admin"} className="bg-white dark:bg-slate-900 border border-edge dark:border-slate-800 rounded-full p-1 sm:pl-1 sm:pr-3 flex items-center gap-1.5">
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-amber-tint text-navy text-xs md:text-xs font-black flex items-center justify-center">
                   AD
                 </div>
-                <span className="hidden sm:inline max-w-[160px] truncate text-xs md:text-[13px] font-extrabold text-[#1E293B] dark:text-white">
+                <span className="hidden sm:inline max-w-[160px] truncate text-xs md:text-[13px] font-extrabold text-navy dark:text-white">
                   {account?.display_name || "Admin"}
                 </span>
               </div>
@@ -258,7 +258,19 @@ export default function AdminPage() {
           <main aria-busy={busy} className="flex-1 w-full max-w-[1180px] mx-auto px-4 md:px-7 pt-1">
             <ApiState loading={loading} error={error} retry={reload}/>
             {busy && <p role="status">Menyimpan perubahan…</p>}
-            {activeTab === "dashboard" && <DashboardView members={members} />}
+            {activeTab === "dashboard" && (
+              <DashboardView
+                members={members}
+                onGoto={(tab) => handleSwitchTab(tab)}
+                overview={data ? [
+                  { label: "Siswa", value: members.length },
+                  { label: "Pendaftaran menunggu", value: registrations.filter((r) => r.status === "menunggu").length, tab: "pendaftaran" },
+                  { label: "Level terbit", value: data.modules.filter((m) => m.status === "PUBLISHED").length, tab: "level" },
+                  { label: "Materi", value: materials.length, tab: "materi" },
+                  { label: "Soal aktif", value: questions.length, tab: "soal" },
+                ] : []}
+              />
+            )}
 
             {activeTab === "pendaftaran" && (
               <PendaftaranView
@@ -317,7 +329,7 @@ export default function AdminPage() {
         </div>
 
         {/* MOBILE FIXED BOTTOM NAVIGATION BAR */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t border-[#E2E8F0] dark:border-slate-800 px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex items-center gap-1 z-40">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t border-edge-2 dark:border-slate-800 px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex items-center gap-1 z-40">
           {navItems.map((item) => {
             const isActive = activeTab === item.key;
             return (
@@ -325,14 +337,14 @@ export default function AdminPage() {
                 key={item.key}
                 type="button"
                 onClick={() => handleSwitchTab(item.key)}
-                className={`flex flex-1 flex-col items-center justify-center gap-1 min-w-0 py-1.5 px-1 rounded-[16px] transition-all cursor-pointer ${
+                className={`flex flex-1 flex-col items-center justify-center gap-1 min-w-0 py-1.5 px-1 rounded-[16px] transition cursor-pointer ${
                   isActive
-                    ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
-                    : "text-[#64748B] dark:text-slate-400 border-[1.5px] border-transparent"
+                    ? "bg-red-tint border-[1.5px] border-red-strong text-red-strong"
+                    : "text-slate-muted dark:text-slate-400 border-[1.5px] border-transparent"
                 }`}
               >
                 {item.renderIcon(isActive)}
-                <span className="max-w-full truncate text-[9px] font-extrabold tracking-wide leading-none uppercase">
+                <span className="max-w-full truncate text-xs font-extrabold tracking-wide leading-none uppercase">
                   {({ dashboard: "Beranda", pendaftaran: "Akun" } as Record<string, string>)[item.key] ?? item.label}
                 </span>
               </button>
@@ -342,7 +354,7 @@ export default function AdminPage() {
 
         {/* Toast Feedback */}
         {toastMessage && (
-          <div className="fixed bottom-20 md:bottom-6 right-4 md:right-8 z-50 bg-[#1E293B] text-white text-xs font-bold px-4 py-3 rounded-xl shadow-lg">
+          <div className="fixed bottom-20 md:bottom-6 right-4 md:right-8 z-50 bg-navy text-white text-xs font-bold px-4 py-3 rounded-xl shadow-lg">
             {toastMessage}
           </div>
         )}

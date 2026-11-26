@@ -13,7 +13,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${nunito.className} antialiased selection:bg-[#38A3F5]/20`}>
+    <div className={`${nunito.className} antialiased selection:bg-selection/20`}>
       {children}
     </div>
   );

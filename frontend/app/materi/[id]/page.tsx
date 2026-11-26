@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, type Material } from "@/lib/api";
 import ApiState, { useApiData } from "@/components/ApiState";
+import { KIND_LABEL } from "@/lib/kinds";
 import Markdown from "@/components/chat/Markdown";
 import Sidebar from "@/components/Sidebar";
 import RightPanel from "@/components/RightPanel";
@@ -51,17 +52,12 @@ function embed(material: Material) {
   return null;
 }
 
-const kindLabel: Record<Material["kind"], string> = {
-  ARTICLE: "ARTIKEL",
-  PDF: "BUKU MATERI",
-  VIDEO: "VIDEO",
-  COMIC: "KOMIK",
-};
+const kindLabel: Record<Material["kind"], string> = KIND_LABEL;
 
 const card =
   "rounded-[20px] border-2 border-line bg-surface shadow-pop";
 const navBtn =
-  "grid size-11 shrink-0 place-items-center rounded-full border-[3px] border-[#1c2b3d] bg-white font-heading text-lg font-black text-[#1c2b3d] shadow-[0_3px_0_#1c2b3d] transition active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 disabled:active:translate-y-0 disabled:active:shadow-[0_3px_0_#1c2b3d]";
+  "grid size-11 shrink-0 place-items-center rounded-full border-[3px] border-navy-2 bg-white font-heading text-lg font-black text-navy-2 shadow-[0_3px_0_var(--navy-2)] transition active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 disabled:active:translate-y-0 disabled:active:shadow-[0_3px_0_var(--navy-2)]";
 
 /** Pembaca halaman demi halaman untuk buku materi & komik. */
 function PageReader({ material }: { material: Material }) {
@@ -182,8 +178,8 @@ function PageReader({ material }: { material: Material }) {
             <div className="flex-1">
               <div className="h-3 overflow-hidden rounded-full bg-lock">
                 <div
-                  className="h-full rounded-full bg-gold transition-[width]"
-                  style={{ width: `${((index + 1) / pages.length) * 100}%` }}
+                  className="h-full origin-left rounded-full bg-gold transition-transform"
+                  style={{ transform: `scaleX(${(index + 1) / pages.length})` }}
                 />
               </div>
               <label className="mt-2 flex items-center justify-center gap-2 text-[13px] font-bold text-muted">
@@ -254,7 +250,7 @@ export default function MaterialPage() {
         <div className={column}>
           <div className={`${banner} gap-4 px-[26px] py-[18px]`}>
             <div className="min-w-0">
-              <span className="rounded-full bg-brand px-[11px] py-[3px] text-[11px] font-black tracking-[0.5px] text-white">
+              <span className="rounded-full bg-brand px-[11px] py-[3px] text-xs font-black uppercase tracking-[0.5px] text-white">
                 {m ? kindLabel[m.kind] : "MATERI"}
               </span>
               <h1 className="mt-2 font-heading text-[22px] font-extrabold leading-tight">
@@ -332,7 +328,7 @@ export default function MaterialPage() {
                       href={`/belajar/${m.module_id}`}
                       className={
                         m.completed
-                          ? "rounded-[14px] bg-sky-dark px-6 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_3px_0_#1565c0] transition active:translate-y-[3px] active:shadow-none"
+                          ? "rounded-[14px] bg-sky-dark px-6 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_3px_0_var(--blue-shadow)] transition active:translate-y-[3px] active:shadow-none"
                           : "rounded-[14px] px-4 py-2.5 font-heading text-sm font-extrabold text-sky-dark hover:bg-sky-soft"
                       }
                     >
@@ -342,7 +338,7 @@ export default function MaterialPage() {
                   <button
                     disabled={busy || m.completed}
                     onClick={complete}
-                    className="rounded-[14px] bg-brand px-6 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_3px_0_#b71c1c] transition active:translate-y-[3px] active:shadow-none disabled:opacity-60"
+                    className="rounded-[14px] bg-brand px-6 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_3px_0_var(--red-shadow)] transition active:translate-y-[3px] active:shadow-none disabled:opacity-60"
                   >
                     {m.completed
                       ? "Sudah selesai"

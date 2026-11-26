@@ -109,7 +109,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 }
 
 const primaryBtn =
-  "inline-block cursor-pointer rounded-[14px] bg-brand px-6 py-3 font-heading text-sm font-extrabold text-white no-underline shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none";
+  "inline-block cursor-pointer rounded-[14px] bg-brand px-6 py-3 font-heading text-sm font-extrabold text-white no-underline shadow-[0_4px_0_var(--red-shadow)] transition active:translate-y-1 active:shadow-none";
 
 function GateShell({ children }: { children: ReactNode }) {
   return (

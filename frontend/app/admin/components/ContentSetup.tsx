@@ -165,7 +165,7 @@ export default function ContentSetup({
       </div>
       <p className="mt-3 text-sm text-slate-500">
         {selectedModule
-          ? `Modul dipilih: ${selectedModule.title} · ${selectedModule.status}. `
+          ? `Modul dipilih: ${selectedModule.title} (${selectedModule.status}). `
           : "Pilih atau buat modul. "}
         Materi hanya dapat diubah pada DRAFT/REJECTED. Publikasi memerlukan
         peninjau dengan akun berbeda dari pembuat.

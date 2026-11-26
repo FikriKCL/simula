@@ -1,7 +1,10 @@
 "use client";
+/* Sampul datang dari API konten; <img> biasa menghindari konfigurasi host gambar Next. */
+/* eslint-disable @next/next/no-img-element */
 
 import { useMemo, useState, type ReactNode } from "react";
 import { type MaterialCard } from "@/lib/api";
+import { DOC_TAB_LABEL, KIND_LABEL } from "@/lib/kinds";
 import ApiState, { useApiData } from "@/components/ApiState";
 import { CardSkeleton, Skeleton, Spinner } from "@/components/Loading";
 import Sidebar from "@/components/Sidebar";
@@ -33,6 +36,7 @@ type Item = {
   meta: string;
   tone: Tone;
   art: ReactNode;
+  cover?: string | null;
   href?: string; // Internal reader route; locked materials have no link.
 };
 
@@ -60,6 +64,7 @@ function toItem(material: MaterialCard, index: number): Item {
     kind,
     title: material.title,
     tone: toneCycle[index % toneCycle.length],
+    cover: material.cover_url,
     art:
       artByKey[material.thumbnail_key || ""] ||
       (kind === "komik" ? (
@@ -70,7 +75,7 @@ function toItem(material: MaterialCard, index: number): Item {
         <KitArt />
       )),
     meta: material.locked
-      ? "Terkunci · selesaikan level sebelumnya"
+      ? "Terkunci. Selesaikan level sebelumnya"
       : material.completed
         ? "Selesai"
         : material.meta ? material.meta
@@ -85,23 +90,23 @@ function toItem(material: MaterialCard, index: number): Item {
 
 const tabs: { key: Tab; label: string; icon: ReactNode }[] = [
   { key: "semua", label: "Semua", icon: <GridIcon size={26} /> },
-  { key: "dokumen", label: "Dokumen/PDF", icon: <PdfIcon size={26} /> },
+  { key: "dokumen", label: DOC_TAB_LABEL, icon: <PdfIcon size={26} /> },
   { key: "video", label: "Video", icon: <VideoIcon size={26} /> },
   { key: "komik", label: "Komik", icon: <ComicIcon size={26} /> },
 ];
 
 const badge: Record<Kind, string> = {
-  artikel: "ARTIKEL",
-  pdf: "PDF",
-  video: "VIDEO",
-  komik: "KOMIK",
+  artikel: KIND_LABEL.ARTICLE,
+  pdf: KIND_LABEL.PDF,
+  video: KIND_LABEL.VIDEO,
+  komik: KIND_LABEL.COMIC,
 };
 
 const tone: Record<Tone, string> = {
-  blue: "bg-[#e3f0fd] dark:bg-[#1c3550]",
-  pink: "bg-[#fde3e3] dark:bg-[#3a2a33]",
-  yellow: "bg-[#fff1c9] dark:bg-[#4a3d17]",
-  gray: "bg-[#e5e8ec] dark:bg-[#2a3547]",
+  blue: "bg-blue-tint dark:bg-blue-night",
+  pink: "bg-pink-tint dark:bg-pink-night",
+  yellow: "bg-gold-tint dark:bg-gold-night",
+  gray: "bg-gray-tint dark:bg-gray-night",
 };
 
 const actStyle: Record<Kind, string> = {
@@ -180,7 +185,7 @@ export default function MateriPage() {
             onSubmit={(e) => e.preventDefault()}
             className={`${banner} gap-3 px-[18px] py-3.5 max-[560px]:gap-2 max-[560px]:px-3 max-[560px]:py-3`}
           >
-            <label className="flex h-[50px] min-w-0 flex-1 items-center gap-3 rounded-full border-[3px] border-[#1c2b3d] bg-white px-[18px] text-[#1c2b3d] max-[560px]:h-11 max-[560px]:gap-2 max-[560px]:border-2 max-[560px]:px-3.5">
+            <label className="flex h-[50px] min-w-0 flex-1 items-center gap-3 rounded-full border-[3px] border-navy-2 bg-white px-[18px] text-navy-2 max-[560px]:h-11 max-[560px]:gap-2 max-[560px]:border-2 max-[560px]:px-3.5">
               <span className="shrink-0">
                 <SearchIcon size={22} />
               </span>
@@ -192,7 +197,7 @@ export default function MateriPage() {
                 }}
                 placeholder="Cari materi P3K..."
                 aria-label="Cari materi"
-                className="min-w-0 flex-1 bg-transparent text-base font-semibold text-[#1c2b3d] outline-none placeholder:text-[#7b8798] min-[561px]:text-[15px]"
+                className="min-w-0 flex-1 bg-transparent text-base font-semibold text-navy-2 outline-none placeholder:text-placeholder min-[561px]:text-[15px]"
               />
             </label>
             <button
@@ -301,16 +306,26 @@ export default function MateriPage() {
                   <div
                     className={`relative grid h-[122px] place-items-center max-[560px]:h-[96px] ${tone[it.tone]}`}
                   >
-                    <span className="absolute left-2.5 top-2.5 rounded-full bg-brand px-[10px] py-[3px] text-[11px] font-black tracking-[0.5px] text-white max-[560px]:px-2 max-[560px]:text-[10px]">
+                    <span className="absolute left-2.5 top-2.5 z-[1] rounded-full bg-brand uppercase px-[10px] py-[3px] text-xs font-black tracking-[0.5px] text-white max-[560px]:px-2 max-[560px]:text-xs">
                       {badge[it.kind]}
                     </span>
-                    <div className="max-[560px]:scale-[0.8]">{it.art}</div>
+                    {it.cover ? (
+                      // Sampul asli (halaman pertama komik/buku); ilustrasi hanya bila tidak ada gambar
+                      <img
+                        src={it.cover}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 size-full object-cover object-top"
+                      />
+                    ) : (
+                      <div className="max-[560px]:scale-[0.8]">{it.art}</div>
+                    )}
                     {it.kind === "video" && (
                       <a
                         href={it.href}
                         aria-disabled={!it.href}
                         aria-label={`Putar ${it.title}`}
-                        className="absolute bottom-2.5 right-2.5 grid size-[34px] place-items-center rounded-full bg-white text-brand shadow-[0_2px_6px_rgba(0,0,0,0.14)] max-[560px]:size-8"
+                        className="absolute bottom-2.5 right-2.5 z-[1] grid size-[34px] place-items-center rounded-full bg-white text-brand shadow-[0_2px_6px_rgba(0,0,0,0.14)] max-[560px]:size-8"
                       >
                         <PlayIcon size={14} />
                       </a>

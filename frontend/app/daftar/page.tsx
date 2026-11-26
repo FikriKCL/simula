@@ -94,7 +94,7 @@ function HeroPanel() {
 
       {/* Maskot + balon kata */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <p className="mb-3 max-w-[260px] rounded-2xl border-2 border-line bg-white px-4 py-2.5 text-center text-sm font-bold leading-snug text-[#1c2b3d]">
+        <p className="mb-3 max-w-[260px] rounded-2xl border-2 border-line bg-white px-4 py-2.5 text-center text-sm font-bold leading-snug text-navy-2">
           Halo! Yuk, daftar dan belajar bersama dengan simula.
         </p>
         <PikoMascot className="mx-auto h-auto w-[300px]" animated mood="idle" />
@@ -191,7 +191,7 @@ export default function RegisterPage() {
               </p>
               <Link
                 href="/login"
-                className="mt-4 inline-block rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c]"
+                className="mt-4 inline-block rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_var(--red-shadow)]"
               >
                 Ke halaman masuk
               </Link>
@@ -298,7 +298,7 @@ export default function RegisterPage() {
 
               <button
                 disabled={busy}
-                className="mt-2 cursor-pointer rounded-[14px] bg-brand px-5 py-3 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 cursor-pointer rounded-[14px] bg-brand px-5 py-3 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_var(--red-shadow)] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy ? "Memproses…" : "Daftar"}
               </button>

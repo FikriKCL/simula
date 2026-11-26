@@ -23,13 +23,13 @@ const clouds = [
 ];
 
 const sparkles: { char: string; cls: string }[] = [
-  { char: "✚", cls: "top-[380px] left-[100px] text-[#f4a6ab]" },
-  { char: "✦", cls: "top-[560px] right-[110px] text-[#ffc933]" },
-  { char: "✚", cls: "top-[815px] right-[120px] text-[#f4a6ab]" },
-  { char: "✦", cls: "top-[985px] left-[140px] text-[#ffc933]" },
-  { char: "✚", cls: "top-[1250px] left-[100px] text-[#f4a6ab]" },
-  { char: "✦", cls: "top-[1410px] right-[110px] text-[#ffc933]" },
-  { char: "✚", cls: "top-[1680px] right-[90px] text-[#f4a6ab]" },
+  { char: "✚", cls: "top-[380px] left-[100px] text-pink-mark" },
+  { char: "✦", cls: "top-[560px] right-[110px] text-star" },
+  { char: "✚", cls: "top-[815px] right-[120px] text-pink-mark" },
+  { char: "✦", cls: "top-[985px] left-[140px] text-star" },
+  { char: "✚", cls: "top-[1250px] left-[100px] text-pink-mark" },
+  { char: "✦", cls: "top-[1410px] right-[110px] text-star" },
+  { char: "✚", cls: "top-[1680px] right-[90px] text-pink-mark" },
 ];
 
 export default function Page() {

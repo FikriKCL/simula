@@ -1,10 +1,13 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 import { useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, type ModuleDetail, type MaterialCard } from "@/lib/api";
 import { useApiData } from "@/components/ApiState";
 import Sidebar from "@/components/Sidebar";
+import RightPanel from "@/components/RightPanel";
+import { KIND_LABEL } from "@/lib/kinds";
 import Markdown from "@/components/chat/Markdown";
 import { CheckIcon, LockIcon } from "@/components/Icons";
 import { ComicIcon, PdfIcon, VideoIcon } from "@/components/MateriIcons";
@@ -14,16 +17,16 @@ type Quiz = ModuleDetail["quizzes"][number];
 
 /* Ikon + warna per jenis materi. */
 const kindStyle: Record<string, { label: string; icon: ReactNode; cls: string }> = {
-  ARTICLE: { label: "Artikel", icon: <PdfIcon size={20} />, cls: "bg-sky-soft text-sky-dark" },
-  PDF: { label: "PDF", icon: <PdfIcon size={20} />, cls: "bg-brand-soft text-brand" },
-  VIDEO: { label: "Video", icon: <VideoIcon size={20} />, cls: "bg-gold-soft text-[#9a6b00]" },
-  COMIC: { label: "Komik", icon: <ComicIcon size={20} />, cls: "bg-cloud-pink text-brand" },
+  ARTICLE: { label: KIND_LABEL.ARTICLE, icon: <PdfIcon size={20} />, cls: "bg-sky-soft text-sky-dark" },
+  PDF: { label: KIND_LABEL.PDF, icon: <PdfIcon size={20} />, cls: "bg-brand-soft text-brand" },
+  VIDEO: { label: KIND_LABEL.VIDEO, icon: <VideoIcon size={20} />, cls: "bg-gold-soft text-gold-ink" },
+  COMIC: { label: KIND_LABEL.COMIC, icon: <ComicIcon size={20} />, cls: "bg-cloud-pink text-brand" },
 };
 
 const btnBase =
   "inline-flex cursor-pointer items-center justify-center rounded-[14px] px-6 py-3 font-heading text-sm font-extrabold uppercase tracking-[0.4px] transition active:translate-y-[4px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60";
-const btnRed = `${btnBase} bg-brand text-white shadow-[0_4px_0_#b71c1c]`;
-const btnBlue = `${btnBase} bg-sky-dark text-white shadow-[0_4px_0_#1565c0]`;
+const btnRed = `${btnBase} bg-brand text-white shadow-[0_4px_0_var(--red-shadow)]`;
+const btnBlue = `${btnBase} bg-sky-dark text-white shadow-[0_4px_0_var(--blue-shadow)]`;
 const card =
   "rounded-[20px] border-2 border-line bg-surface p-6 shadow-pop max-[560px]:p-4";
 
@@ -40,11 +43,11 @@ function Step({
   children: ReactNode;
 }) {
   const dot = {
-    red: "bg-brand text-white shadow-[0_3px_0_#b71c1c]",
-    blue: "bg-sky-dark text-white shadow-[0_3px_0_#1565c0]",
-    gold: "bg-gold text-white shadow-[0_3px_0_#c68a00]",
+    red: "bg-brand text-white shadow-[0_3px_0_var(--red-shadow)]",
+    blue: "bg-sky-dark text-white shadow-[0_3px_0_var(--blue-shadow)]",
+    gold: "bg-gold text-white shadow-[0_3px_0_var(--gold-shadow)]",
     lock: "bg-lock text-muted shadow-[0_3px_0_var(--lock-edge)]",
-    done: "bg-sky-dark text-white shadow-[0_3px_0_#1565c0]",
+    done: "bg-sky-dark text-white shadow-[0_3px_0_var(--blue-shadow)]",
   }[tone];
   return (
     <li className="relative flex gap-4 pb-6 max-[560px]:gap-3">
@@ -80,8 +83,8 @@ function QuizCard({
     >
       <div className="min-w-0">
         <span
-          className={`inline-block rounded-full px-3 py-1 font-heading text-[11px] font-extrabold uppercase tracking-[0.6px] ${
-            post ? "bg-gold-soft text-[#9a6b00]" : "bg-sky-soft text-sky-dark"
+          className={`inline-block rounded-full px-3 py-1 font-heading text-xs font-extrabold uppercase tracking-[0.6px] ${
+            post ? "bg-gold-soft text-gold-ink" : "bg-sky-soft text-sky-dark"
           }`}
         >
           {post ? "Tes akhir" : "Tes awal"}
@@ -166,7 +169,7 @@ export default function ModulePage() {
   const nextLevel = here >= 0 ? topicLevels[here + 1] : undefined;
 
   return (
-    <div className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)] max-[1100px]:grid-cols-[200px_minmax(0,1fr)] max-[720px]:grid-cols-1">
+    <div className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)_320px] max-[1100px]:grid-cols-[200px_minmax(0,1fr)] max-[720px]:grid-cols-1">
       <Sidebar active="pembelajaran" />
 
       <main className="pb-[120px] pt-6">
@@ -239,7 +242,7 @@ export default function ModulePage() {
                       <p className="font-heading text-2xl font-extrabold text-sky-dark">
                         {s.n}
                       </p>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.6px] text-muted max-[560px]:text-[10px] max-[560px]:tracking-normal">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.6px] text-muted max-[560px]:text-xs max-[560px]:tracking-normal">
                         {s.label}
                       </p>
                     </div>
@@ -253,8 +256,8 @@ export default function ModulePage() {
                 </div>
                 <div className="mt-2 h-4 overflow-hidden rounded-full bg-line">
                   <div
-                    className="h-full min-w-4 rounded-full bg-sky-dark transition-[width] duration-500"
-                    style={{ width: `${Math.max(pct, 2)}%` }}
+                    className="h-full origin-left rounded-full bg-sky-dark transition-transform duration-500"
+                    style={{ transform: `scaleX(${Math.max(pct, 2) / 100})` }}
                   />
                 </div>
               </section>
@@ -262,7 +265,7 @@ export default function ModulePage() {
               {levelDone && (
                 <section className="mt-5 flex items-center justify-between gap-4 rounded-[20px] border-2 border-gold bg-gold-soft px-6 py-4 max-[560px]:flex-col max-[560px]:items-stretch">
                   <div>
-                    <p className="font-heading text-lg font-extrabold">Level ini sudah selesai 🎉</p>
+                    <p className="font-heading text-lg font-extrabold">Level ini sudah selesai</p>
                     <p className="text-sm font-semibold text-muted">
                       {nextLevel ? `Level berikutnya terbuka: ${nextLevel.title}` : "Semua level di topik ini sudah kamu selesaikan."}
                     </p>
@@ -305,7 +308,7 @@ export default function ModulePage() {
                       tone={done ? "done" : "red"}
                     >
                       <article className={card}>
-                        <p className="font-heading text-[11px] font-extrabold uppercase tracking-[0.6px] text-brand">
+                        <p className="font-heading text-xs font-extrabold uppercase tracking-[0.6px] text-brand">
                           Pelajaran {i + 1}
                         </p>
                         <h3 className="mt-1 font-heading text-lg font-extrabold">
@@ -325,11 +328,20 @@ export default function ModulePage() {
                                     href={`/materi/${m.id}`}
                                     className="group flex items-center gap-3 rounded-[14px] border-2 border-line bg-surface px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-sky hover:shadow-pop"
                                   >
-                                    <span
-                                      className={`grid size-10 shrink-0 place-items-center rounded-xl ${k.cls}`}
-                                    >
-                                      {k.icon}
-                                    </span>
+                                    {m.cover_url ? (
+                                      <img
+                                        src={m.cover_url}
+                                        alt=""
+                                        loading="lazy"
+                                        className="size-12 shrink-0 rounded-xl border-2 border-line object-cover object-top"
+                                      />
+                                    ) : (
+                                      <span
+                                        className={`grid size-12 shrink-0 place-items-center rounded-xl ${k.cls}`}
+                                      >
+                                        {k.icon}
+                                      </span>
+                                    )}
                                     <span className="min-w-0 flex-1">
                                       <span className="line-clamp-2 font-bold leading-snug">
                                         {m.title}
@@ -429,6 +441,8 @@ export default function ModulePage() {
           )}
         </div>
       </main>
+
+      <RightPanel />
     </div>
   );
 }

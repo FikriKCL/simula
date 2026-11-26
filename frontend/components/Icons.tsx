@@ -109,7 +109,7 @@ export function SimulaLogo({
 
       {/* Teks simula */}
       <span
-        className={`font-black tracking-tight text-[#E5252A] leading-none ${
+        className={`font-black tracking-tight text-red-strong leading-none ${
           compact ? "text-[24px]" : "text-[27px]"
         }`}
       >
@@ -122,10 +122,10 @@ export function SimulaLogo({
 export function IndonesiaFlagIcon() {
   return (
     <div
-      className="w-[24px] h-[16px] rounded-[4px] overflow-hidden border border-[#E2E8F0] shrink-0 flex flex-col"
+      className="w-[24px] h-[16px] rounded-[4px] overflow-hidden border border-edge-2 shrink-0 flex flex-col"
       title="Bahasa Indonesia"
     >
-      <div className="h-1/2 w-full bg-[#E5252A]" />
+      <div className="h-1/2 w-full bg-red-strong" />
       <div className="h-1/2 w-full bg-white" />
     </div>
   );
@@ -133,7 +133,7 @@ export function IndonesiaFlagIcon() {
 
 export function SunIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       viewBox="0 0 24 24"
       fill="currentColor"
       className={className}
@@ -152,7 +152,7 @@ export function SunIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
 
 export function MoonIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       viewBox="0 0 24 24"
       fill="currentColor"
       className={className}
@@ -165,7 +165,7 @@ export function MoonIcon({ className = "w-3.5 h-3.5" }: { className?: string }) 
 
 export function DashboardNavIcon({ active }: { active?: boolean }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       width="30"
       height="30"
       viewBox="0 0 32 32"
@@ -304,7 +304,7 @@ export function DashboardNavIcon({ active }: { active?: boolean }) {
 
 export function PendaftaranNavIcon({ active }: { active?: boolean }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       width="30"
       height="30"
       viewBox="0 0 32 32"
@@ -463,7 +463,7 @@ export function PendaftaranNavIcon({ active }: { active?: boolean }) {
 
 export function MateriNavIcon({ active }: { active?: boolean }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       width="30"
       height="30"
       viewBox="0 0 32 32"
@@ -541,7 +541,7 @@ export function MateriNavIcon({ active }: { active?: boolean }) {
 
 export function SoalNavIcon({ active }: { active?: boolean }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       width="30"
       height="30"
       viewBox="0 0 32 32"
@@ -650,7 +650,7 @@ export function SearchIcon({
   className?: string;
 }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -671,7 +671,7 @@ export function ChevronDownIcon({
   className?: string;
 }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -687,7 +687,7 @@ export function ChevronDownIcon({
 
 export function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -703,7 +703,7 @@ export function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 export function TrashIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -723,7 +723,7 @@ export function TrashIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 export function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg
+    <svg aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -745,8 +745,8 @@ export function MaterialTypeBadgeIcon({
 }) {
   if (type === "PDF" || type === "ARTICLE") {
     return (
-      <div className="w-10 h-10 rounded-[12px] bg-[#EBF5FF] flex items-center justify-center shrink-0 text-[#1E293B]">
-        <svg
+      <div className="w-10 h-10 rounded-[12px] bg-sky-tint-2 flex items-center justify-center shrink-0 text-navy">
+        <svg aria-hidden="true"
           width="20"
           height="20"
           viewBox="0 0 24 24"
@@ -765,8 +765,8 @@ export function MaterialTypeBadgeIcon({
   }
   if (type === "VIDEO") {
     return (
-      <div className="w-10 h-10 rounded-[12px] bg-[#FEECEB] flex items-center justify-center shrink-0 text-[#1E293B]">
-        <svg
+      <div className="w-10 h-10 rounded-[12px] bg-red-tint flex items-center justify-center shrink-0 text-navy">
+        <svg aria-hidden="true"
           width="20"
           height="20"
           viewBox="0 0 24 24"
@@ -783,8 +783,8 @@ export function MaterialTypeBadgeIcon({
     );
   }
   return (
-    <div className="w-10 h-10 rounded-[12px] bg-[#FEF9C3] flex items-center justify-center shrink-0 text-[#1E293B]">
-      <svg
+    <div className="w-10 h-10 rounded-[12px] bg-warn-tint flex items-center justify-center shrink-0 text-navy">
+      <svg aria-hidden="true"
         width="20"
         height="20"
         viewBox="0 0 24 24"
@@ -799,5 +799,15 @@ export function MaterialTypeBadgeIcon({
         <line x1="8.5" y1="12.5" x2="12.5" y2="12.5" />
       </svg>
     </div>
+  );
+}
+
+/** Segitiga peringatan (pengganti emoji ⚠). */
+export function AlertIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <path d="M12 3 2 20h20L12 3Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
+      <path d="M12 10v4.5M12 17.2v.3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
   );
 }

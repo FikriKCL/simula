@@ -92,6 +92,7 @@ export type MaterialCard = {
   title: string;
   kind: Kind;
   thumbnail_key: string | null;
+  cover_url?: string | null;
   locked: boolean;
   completed: boolean;
   page_count: number | null;

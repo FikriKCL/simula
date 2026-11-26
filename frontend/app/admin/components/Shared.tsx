@@ -6,7 +6,7 @@ export const input =
   "mt-1 w-full rounded-xl border border-slate-400 bg-white p-2.5 text-sm text-slate-900 dark:bg-slate-800 dark:text-white";
 export const button =
   "rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-800 dark:text-white";
-export const primary = button + " !bg-[#E5252A] !text-white";
+export const primary = button + " !bg-red-strong !text-white";
 export function Hero({
   title,
   children,
@@ -15,7 +15,7 @@ export function Hero({
   children: ReactNode;
 }) {
   return (
-    <div className="mb-5 rounded-[20px] border-b-4 border-[#2589D8] bg-[#43A8F6] p-6 text-[#1E293B]">
+    <div className="mb-5 rounded-[20px] border-b-4 border-admin-sky-edge bg-admin-sky p-6 text-navy">
       <h1 className="text-2xl font-black">{title}</h1>
       <div className="mt-1 text-sm font-semibold">{children}</div>
     </div>
@@ -84,7 +84,7 @@ export function Message({
 
 /* ---- Toolbar daftar admin: cari + urutkan ---- */
 export const toolbarSelect =
-  "w-full md:w-[165px] h-11 px-3.5 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-bold text-[#1E293B] dark:text-white appearance-none cursor-pointer focus:outline-none";
+  "w-full md:w-[165px] h-11 px-3.5 rounded-[14px] border-[1.5px] border-navy dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-bold text-navy dark:text-white appearance-none cursor-pointer focus:outline-none";
 
 export type DateSort = "newest" | "oldest";
 

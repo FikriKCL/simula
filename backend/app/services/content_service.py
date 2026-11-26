@@ -80,6 +80,18 @@ def material_detail(aid, user, db):
     )
 
 
+def cover_url(mat):
+    """Gambar sampul kartu katalog: thumbnail admin, halaman pertama komik/buku, atau sampul YouTube."""
+    if mat.thumbnail_url:
+        return mat.thumbnail_url
+    pages = mat.pages or []
+    if pages and isinstance(pages[0], dict) and pages[0].get("image_url"):
+        return pages[0]["image_url"]
+    if mat.video_provider == "youtube" and mat.video_id:
+        return f"https://i.ytimg.com/vi/{mat.video_id}/hqdefault.jpg"
+    return None
+
+
 def library(q, kind, topic_id, limit, offset, user, db, module_id=None, sort="default"):
     # Catalogue intentionally exposes titles/thumbnails, including locked levels, but no body or source URL.
     query = (
@@ -137,6 +149,7 @@ def library(q, kind, topic_id, limit, offset, user, db, module_id=None, sort="de
                 "kind": mat.kind,
                 "thumbnail_url": mat.thumbnail_url,
                 "thumbnail_key": mat.thumbnail_key,
+                "cover_url": cover_url(mat),
                 "meta": mat.meta,
                 "page_count": mat.page_count,
                 "duration_seconds": mat.duration_seconds,

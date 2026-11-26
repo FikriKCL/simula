@@ -2,7 +2,7 @@ import type {Account,Member,Material,BankQuestion,ContentTree} from "./backend-t
 import type {MemberProgress,AccountRegistration,LearningMaterial,QuizQuestion,TopicCode} from "./types";
 export type Workspace = ContentTree & {members:Member[];registrations:Account[];materials:Material[];questions:BankQuestion[]};
 const fullTopics:Record<TopicCode,string>={PP:"Pertolongan Pertama (PP)",ASB:"Ayo Siaga Bencana (ASB)",KR:"Kesehatan Remaja (KR)"};
-function avatar(name:string){return {initials:name.trim().split(/\s+/).slice(0,2).map(s=>s[0]).join("").toUpperCase(),avatarBg:"bg-[#EAF5FF]",avatarText:"text-[#1D8CF8]"};}
+function avatar(name:string){return {initials:name.trim().split(/\s+/).slice(0,2).map(s=>s[0]).join("").toUpperCase(),avatarBg:"bg-sky-tint",avatarText:"text-admin-blue"};}
 export function mapWorkspace(data:Workspace){
  const members:MemberProgress[]=data.members.map(u=>({id:String(u.id),...avatar(u.display_name),name:u.display_name,pp:u.progress.PP||0,asb:u.progress.ASB||0,prs:u.progress.KR||0,total:u.total_progress,lastActive:u.last_learning_at?new Date(u.last_learning_at).toLocaleString("id-ID"):"Belum belajar",lastActiveAt:u.last_learning_at?Date.parse(u.last_learning_at):0,createdAt:Date.parse(u.created_at)}));
  const registrations:AccountRegistration[]=data.registrations.map(u=>({id:String(u.id),...avatar(u.display_name),name:u.display_name,email:u.email||"—",registeredAt:new Date(u.created_at).toLocaleDateString("id-ID"),createdAt:Date.parse(u.created_at),status:u.registration_status==="PENDING"?"menunggu":u.registration_status==="REJECTED"?"ditolak":"diterima"}));

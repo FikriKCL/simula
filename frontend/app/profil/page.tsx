@@ -1,12 +1,13 @@
 "use client";
 import { useState, type FormEvent } from "react";
+import { KIND_LABEL } from "@/lib/kinds";
 import { api, downloadCertificate, type Profile } from "@/lib/api";
 import ApiState, { useApiData } from "@/components/ApiState";
 import { ProfilSkeleton } from "@/components/Loading";
 import Sidebar from "@/components/Sidebar";
 import RightPanel from "@/components/RightPanel";
 import { PikoMascot } from "@/components/PikoMascot";
-import { Cross } from "@/components/Icons";
+import { Cross, LockIcon } from "@/components/Icons";
 import { ComicIcon, PdfIcon, VideoIcon } from "@/components/MateriIcons";
 import {
   BadgeIcon,
@@ -49,7 +50,7 @@ export default function ProfilPage() {
         year: "numeric",
       })
       : "",
-    rank: `${data?.user.xp || 0} XP · ${data?.earned_badges || 0} lencana`,
+    rank: `${data?.user.xp || 0} XP, ${data?.earned_badges || 0} lencana`,
   };
   const stats = [
     {
@@ -94,7 +95,7 @@ export default function ProfilPage() {
           ? "Komik"
           : p.kind === "VIDEO"
             ? "Video"
-            : "Dokumen",
+            : KIND_LABEL.PDF,
     done: p.completed,
     total: p.total,
     icon:
@@ -137,7 +138,7 @@ export default function ProfilPage() {
       <main className="relative overflow-hidden pb-30 pt-6">
         <div className="mx-auto flex w-[min(800px,calc(100%-48px))] flex-col gap-4">
           {/* Banner */}
-          <div className="flex items-center justify-between rounded-[20px] bg-sky px-[26px] py-[18px] text-[#1c2b3d] shadow-[0_5px_0_var(--blue-edge)] dark:text-white">
+          <div className="flex items-center justify-between rounded-[20px] bg-sky px-[26px] py-[18px] text-navy-2 shadow-[0_5px_0_var(--blue-edge)] dark:text-white">
             <div>
               <h1 className="font-heading text-[22px] font-extrabold">
                 Profil Saya
@@ -152,7 +153,7 @@ export default function ProfilPage() {
                 setName(data?.user.display_name || "");
                 setEditing(true);
               }}
-              className="cursor-pointer rounded-[14px] border-[3px] border-[#1c2b3d] bg-white px-6 py-2.5 font-heading text-sm font-extrabold text-[#1c2b3d] shadow-[0_3px_0_#1c2b3d] transition active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+              className="cursor-pointer rounded-[14px] border-[3px] border-navy-2 bg-white px-6 py-2.5 font-heading text-sm font-extrabold text-navy-2 shadow-[0_3px_0_var(--navy-2)] transition active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
             >
               Ubah Profil
             </button>
@@ -190,7 +191,7 @@ export default function ProfilPage() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="flex-1 cursor-pointer rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex-1 cursor-pointer rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_var(--red-shadow)] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {saving ? "Menyimpan…" : "Simpan"}
                     </button>
@@ -279,7 +280,7 @@ export default function ProfilPage() {
                           {c.module_title}
                         </p>
                         <p className="text-xs font-bold text-muted">
-                          Nilai {c.score} · {c.code}
+                          Nilai {c.score}, kode {c.code}
                         </p>
                       </div>
                       <button
@@ -313,14 +314,21 @@ export default function ProfilPage() {
                           }`}
                       >
                         <div
-                          className={`mb-1 grid size-[58px] place-items-center rounded-full ${b.earned
+                          className={`relative mb-1 grid size-[58px] place-items-center rounded-full ${b.earned
                               ? "bg-gold-soft shadow-[0_4px_0_var(--gold)]"
                               : "bg-lock shadow-[0_4px_0_var(--lock-edge)] [&_svg]:opacity-55 [&_svg]:grayscale"
                             }`}
                         >
                           <BadgeIcon kind={b.kind} size={32} />
+                          {/* Terkunci jelas terlihat: gembok, bukan hanya warna pudar */}
+                          {!b.earned && (
+                            <span className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full border-2 border-surface bg-muted text-white">
+                              <LockIcon size={11} />
+                            </span>
+                          )}
                         </div>
                         <span>{b.label}</span>
+                        <span className="sr-only">{b.earned ? "(sudah didapat)" : "(belum didapat)"}</span>
                       </div>
                     ))}
                   </div>
@@ -351,9 +359,9 @@ export default function ProfilPage() {
                           aria-valuenow={p.done}
                         >
                           <div
-                            className="h-full rounded-full bg-sky-dark transition-[width] duration-500"
+                            className="h-full origin-left rounded-full bg-sky-dark transition-transform duration-500"
                             style={{
-                              width: `${(p.total ? p.done / p.total : 0) * 100}%`,
+                              transform: `scaleX(${p.total ? p.done / p.total : 0})`,
                             }}
                           />
                         </div>

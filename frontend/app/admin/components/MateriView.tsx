@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { LearningMaterial, MaterialType, TopicCode, ContentTree } from "../types";
+import { KIND_LABEL } from "@/lib/kinds";
 import ModuleDialog from "./ModuleDialog";
 import MaterialContentFields, { validateMaterial } from "./MaterialContentFields";
 import { FieldError, FormErrorSummary, SaveError, errorRing, fieldProps } from "./FormErrors";
@@ -36,7 +37,7 @@ type MaterialTabFilter = "SEMUA" | "DOKUMEN" | "VIDEO" | "KOMIK";
 // Artikel dan buku PDF sama-sama bacaan, jadi satu kategori "Dokumen" (sama seperti katalog siswa)
 const tabOf = (type: MaterialType): MaterialTabFilter =>
   type === "VIDEO" ? "VIDEO" : type === "KOMIK" ? "KOMIK" : "DOKUMEN";
-const TYPE_LABEL: Record<MaterialType, string> = { ARTICLE: "Artikel", PDF: "Buku PDF", VIDEO: "Video", KOMIK: "Komik" };
+const TYPE_LABEL: Record<MaterialType, string> = { ARTICLE: KIND_LABEL.ARTICLE, PDF: KIND_LABEL.PDF, VIDEO: KIND_LABEL.VIDEO, KOMIK: KIND_LABEL.COMIC };
 
 export default function MateriView({
   tree, onContentChange,
@@ -136,25 +137,25 @@ export default function MateriView({
 
   if (isEditorOpen) return (
     <div className="space-y-4">
-      <div className="bg-[#43A8F6] border-b-[4px] border-[#2589D8] rounded-[20px] px-5 py-4 md:px-7 md:py-5 flex items-center justify-between gap-3">
+      <div className="bg-admin-sky border-b-[4px] border-admin-sky-edge rounded-[20px] px-5 py-4 md:px-7 md:py-5 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-[22px] md:text-[26px] font-black text-[#1E293B] tracking-tight leading-tight">{editingItem ? "Ubah Materi" : "Tambah Materi"}</h1>
-          <p className="text-xs md:text-[13px] font-bold text-[#1E293B]/90 mt-0.5">Materi › {topic} › {type}</p>
+          <h1 className="text-[22px] md:text-[26px] font-black text-navy tracking-tight leading-tight">{editingItem ? "Ubah Materi" : "Tambah Materi"}</h1>
+          <p className="text-xs md:text-[13px] font-bold text-navy/90 mt-0.5">Materi › {topic} › {type}</p>
         </div>
-        <button type="button" disabled={saving||uploading} onClick={()=>setIsEditorOpen(false)} className="shrink-0 bg-white hover:bg-slate-50 text-[#1E293B] font-extrabold text-xs md:text-[13px] px-4 py-2 md:px-4 md:py-2.5 rounded-[14px] border-[1.5px] border-[#1E293B] border-b-[3px] transition-transform active:translate-y-0.5 cursor-pointer">Kembali ke daftar</button>
+        <button type="button" disabled={saving||uploading} onClick={()=>setIsEditorOpen(false)} className="shrink-0 bg-white hover:bg-slate-50 text-navy font-extrabold text-xs md:text-[13px] px-4 py-2 md:px-4 md:py-2.5 rounded-[14px] border-[1.5px] border-navy border-b-[3px] transition-transform active:translate-y-0.5 cursor-pointer">Kembali ke daftar</button>
       </div>
           <form
             onSubmit={handleSave}
             noValidate
-            className="bg-white dark:bg-slate-900 rounded-[20px] border-[1.5px] border-[#DCE3EC] border-b-[3px] dark:border-slate-800 p-4 md:p-6 space-y-5"
+            className="bg-white dark:bg-slate-900 rounded-[20px] border-[1.5px] border-edge border-b-[3px] dark:border-slate-800 p-4 md:p-6 space-y-5"
           >
-            <h2 className="text-lg font-black text-[#1E293B] dark:text-white">
+            <h2 className="text-lg font-black text-navy dark:text-white">
               {editingItem ? "Ubah Materi" : "Unggah Materi Baru"}
             </h2>
             <FormErrorSummary errors={errors} attempt={attempt} />
 
             <div>
-              <label htmlFor="mat-title" className="block text-xs font-extrabold text-[#1E293B] dark:text-slate-200 mb-1">
+              <label htmlFor="mat-title" className="block text-xs font-extrabold text-navy dark:text-slate-200 mb-1">
                 Judul Materi
               </label>
               <input
@@ -164,20 +165,20 @@ export default function MateriView({
                 maxLength={200}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Contoh: Pertolongan Luka Bakar"
-                className={"w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-semibold"+bad("mat-title")}
+                className={"w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-navy text-sm font-semibold"+bad("mat-title")}
               />
               <FieldError id="mat-title" errors={errors} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-extrabold text-[#1E293B] dark:text-slate-200 mb-1">
+                <label className="block text-xs font-extrabold text-navy dark:text-slate-200 mb-1">
                   Tipe
                 </label>
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as MaterialType)}
-                  className="w-full h-10 px-3 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-bold"
+                  className="w-full h-10 px-3 rounded-[12px] border-[1.5px] border-navy text-sm font-bold"
                 >
                   <option value="ARTICLE">ARTIKEL</option>
                   {editingItem?.type === "PDF" && <option value="PDF">PDF lama</option>}
@@ -186,24 +187,24 @@ export default function MateriView({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-extrabold text-[#1E293B] dark:text-slate-200 mb-1">
+                <label className="block text-xs font-extrabold text-navy dark:text-slate-200 mb-1">
                   Kategori Materi
                 </label>
                 <select
                   value={topic}
                   disabled={!!editingItem}
                   onChange={(e) => {setTopic(e.target.value as TopicCode);setDraft(v=>({...v,lessonId:undefined}));}}
-                  className="w-full h-10 px-3 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-bold"
+                  className="w-full h-10 px-3 rounded-[12px] border-[1.5px] border-navy text-sm font-bold"
                 >
-                  <option value="PP">PP · Pertolongan Pertama</option>
-                  <option value="ASB">ASB · Ayo Siaga Bencana</option>
-                  <option value="KR">KR · Kesehatan Remaja</option>
+                  <option value="PP">Pertolongan Pertama (PP)</option>
+                  <option value="ASB">Ayo Siaga Bencana (ASB)</option>
+                  <option value="KR">Kesehatan Remaja (KR)</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-extrabold text-[#1E293B] dark:text-slate-200 mb-1">
+              <label className="block text-xs font-extrabold text-navy dark:text-slate-200 mb-1">
                 Ukuran / Durasi
               </label>
               <input
@@ -211,7 +212,7 @@ export default function MateriView({
                 value={size}
                 onChange={(e) => setSize(e.target.value)}
                 placeholder="Contoh: 8 halaman atau 4 menit"
-                className="w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-semibold"
+                className="w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-navy text-sm font-semibold"
               />
             </div>
 
@@ -222,14 +223,14 @@ export default function MateriView({
                 type="button"
                 disabled={saving||uploading}
                 onClick={() => setIsEditorOpen(false)}
-                className="px-4 py-2 rounded-[12px] border border-[#DCE3EC] text-xs font-extrabold text-[#64748B] cursor-pointer"
+                className="px-4 py-2 rounded-[12px] border border-edge text-xs font-extrabold text-slate-muted cursor-pointer"
               >
                 Batal
               </button>
               <button
                 disabled={saving||uploading}
                 type="submit"
-                className="px-4 py-2 rounded-[12px] bg-[#E5252A] text-white text-xs font-extrabold border-b-[3px] border-[#991B1B] cursor-pointer"
+                className="px-4 py-2 rounded-[12px] bg-red-strong text-white text-xs font-extrabold border-b-[3px] border-red-deep cursor-pointer"
               >
                 Simpan Materi
               </button>
@@ -242,12 +243,12 @@ export default function MateriView({
   return (
     <div className="space-y-4">
       {/* Blue Hero Banner with Tactile Bottom Border */}
-      <div className="bg-[#43A8F6] border-b-[4px] border-[#2589D8] rounded-[20px] px-5 py-4 md:px-7 md:py-5 flex items-center justify-between gap-3">
+      <div className="bg-admin-sky border-b-[4px] border-admin-sky-edge rounded-[20px] px-5 py-4 md:px-7 md:py-5 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-[22px] md:text-[26px] font-black text-[#1E293B] tracking-tight leading-tight">
+          <h1 className="text-[22px] md:text-[26px] font-black text-navy tracking-tight leading-tight">
             Kelola Materi
           </h1>
-          <p className="text-xs md:text-[13px] font-bold text-[#1E293B]/90 mt-0.5">
+          <p className="text-xs md:text-[13px] font-bold text-navy/90 mt-0.5">
             Komik, artikel, dan video pembelajaran
           </p>
         </div>
@@ -255,7 +256,7 @@ export default function MateriView({
         <button
           type="button"
           onClick={openCreateEditor}
-          className="shrink-0 bg-white hover:bg-slate-50 text-[#1E293B] font-extrabold text-xs md:text-[13px] px-3.5 py-2 md:px-4 md:py-2.5 rounded-[14px] border-[1.5px] border-[#1E293B] border-b-[3px] inline-flex items-center gap-1.5 transition-transform active:translate-y-0.5 cursor-pointer"
+          className="shrink-0 bg-white hover:bg-slate-50 text-navy font-extrabold text-xs md:text-[13px] px-3.5 py-2 md:px-4 md:py-2.5 rounded-[14px] border-[1.5px] border-navy border-b-[3px] inline-flex items-center gap-1.5 transition-transform active:translate-y-0.5 cursor-pointer"
         >
           <PlusIcon className="w-4 h-4" />
           <span className="md:hidden">Unggah</span>
@@ -264,7 +265,7 @@ export default function MateriView({
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-[20px] border-[1.5px] border-[#DCE3EC] border-b-[3px] dark:border-slate-800 p-4 md:p-6">
+      <div className="bg-white dark:bg-slate-900 rounded-[20px] border-[1.5px] border-edge border-b-[3px] dark:border-slate-800 p-4 md:p-6">
         {/* Kategori (topik) */}
         <div role="tablist" aria-label="Kategori materi" className="flex flex-wrap gap-2 mb-4">
           {CATEGORIES.map((c) => (
@@ -277,12 +278,12 @@ export default function MateriView({
               onClick={() => {setCategory(c.key);setCurrentPage(1);}}
               className={`inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-3.5 py-1.5 text-xs font-extrabold transition-colors cursor-pointer ${
                 category === c.key
-                  ? "border-[#E5252A] bg-[#FEECEB] text-[#E5252A]"
-                  : "border-[#DCE3EC] dark:border-slate-700 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  ? "border-red-strong bg-red-tint text-red-strong"
+                  : "border-edge dark:border-slate-700 text-slate-mid dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               }`}
             >
-              {c.key === "SEMUA" ? c.full : `${c.label} · ${c.full}`}
-              <span className="rounded-full bg-white/80 dark:bg-slate-900/60 px-1.5 text-[10px]">{categoryCounts[c.key] || 0}</span>
+              {c.key === "SEMUA" ? c.full : `${c.full} (${c.label})`}
+              <span className="rounded-full bg-white/80 dark:bg-slate-900/60 px-1.5 text-xs">{categoryCounts[c.key] || 0}</span>
             </button>
           ))}
         </div>
@@ -291,7 +292,7 @@ export default function MateriView({
         <div className="flex flex-col md:flex-row gap-2.5 md:gap-3 mb-4">
           <div className="relative flex-1">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-              <SearchIcon className="w-4 h-4 text-[#64748B]" />
+              <SearchIcon className="w-4 h-4 text-slate-muted" />
             </span>
             <input
               type="search"
@@ -299,14 +300,14 @@ export default function MateriView({
               onChange={(e) => {setSearch(e.target.value);setCurrentPage(1);}}
               placeholder="Cari judul materi..."
               aria-label="Cari judul materi"
-              className="w-full h-11 pl-10 pr-4 rounded-[14px] border-[1.5px] border-[#1E293B] dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-[#1E293B] dark:text-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#43A8F6]/30"
+              className="w-full h-11 pl-10 pr-4 rounded-[14px] border-[1.5px] border-navy dark:border-slate-600 bg-white dark:bg-slate-800 text-[13px] font-semibold text-navy dark:text-white placeholder:text-slate-faint focus:outline-none focus:ring-2 focus:ring-admin-sky/30"
             />
           </div>
           <DateSortSelect value={sort} onChange={(v)=>{setSort(v);setCurrentPage(1);}} />
         </div>
 
         {/* Category Filter Tabs */}
-        <div className="flex items-center gap-1.5 md:gap-2 border-b border-[#E2E8F0] dark:border-slate-800 mb-5 overflow-x-auto">
+        <div className="flex items-center gap-1.5 md:gap-2 border-b border-edge-2 dark:border-slate-800 mb-5 overflow-x-auto">
           {(
             [
               { key: "SEMUA", label: "SEMUA" },
@@ -321,12 +322,12 @@ export default function MateriView({
               onClick={() => {setActiveTab(tab.key);setCurrentPage(1);}}
               className={`-mb-[1px] px-3.5 md:px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider rounded-t-[12px] transition-colors whitespace-nowrap cursor-pointer ${
                 activeTab === tab.key
-                  ? "bg-[#FEECEB] text-[#E5252A] border-b-[3px] border-[#E5252A]"
-                  : "text-[#64748B] hover:text-[#1E293B] dark:text-slate-400 border-b-[3px] border-transparent"
+                  ? "bg-red-tint text-red-strong border-b-[3px] border-red-strong"
+                  : "text-slate-muted hover:text-navy dark:text-slate-400 border-b-[3px] border-transparent"
               }`}
             >
               {tab.label}
-              <span className="ml-1.5 rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-[10px]">{tabCounts[tab.key] || 0}</span>
+              <span className="ml-1.5 rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-xs">{tabCounts[tab.key] || 0}</span>
             </button>
           ))}
         </div>
@@ -335,7 +336,7 @@ export default function MateriView({
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#EEF2F6] dark:border-slate-800 text-[11px] font-extrabold uppercase tracking-wider text-[#94A3B8]">
+              <tr className="border-b border-edge-soft dark:border-slate-800 text-xs font-extrabold uppercase tracking-wider text-slate-faint">
                 <th className="pb-3 pr-4">JUDUL</th>
                 <th className="pb-3 px-4">TIPE</th>
                 <th className="pb-3 px-4">KATEGORI</th>
@@ -343,7 +344,7 @@ export default function MateriView({
                 <th className="pb-3 pl-4 text-right">AKSI</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EEF2F6] dark:divide-slate-800 text-[13px]">
+            <tbody className="divide-y divide-edge-soft dark:divide-slate-800 text-[13px]">
               {pageItems.map((item) => (
                 <tr
                   key={item.id}
@@ -352,24 +353,24 @@ export default function MateriView({
                   <td className="py-3 pr-4">
                     <div className="flex items-center gap-3.5">
                       <MaterialTypeBadgeIcon type={item.type} />
-                      <span className="font-extrabold text-[#1E293B] dark:text-slate-100">
+                      <span className="font-extrabold text-navy dark:text-slate-100">
                         {item.title}
                       </span>
                     </div>
                   </td>
 
                   <td className="py-3 px-4">
-                    <span className="inline-block bg-[#E5252A] text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                    <span className="inline-block bg-red-strong text-white text-xs font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
                       {TYPE_LABEL[item.type] || item.type}
                     </span>
                   </td>
 
-                  <td className="py-3 px-4 font-bold text-[#334155] dark:text-slate-300" title={categoryName(item.topic)}>
+                  <td className="py-3 px-4 font-bold text-slate-ink dark:text-slate-300" title={categoryName(item.topic)}>
                     {item.topic}
-                    <span className="block text-[11px] font-semibold text-[#94A3B8]">{categoryName(item.topic)}</span>
+                    <span className="block text-xs font-semibold text-slate-faint">{categoryName(item.topic)}</span>
                   </td>
 
-                  <td className="py-3 px-4 font-semibold text-[#334155] dark:text-slate-300">
+                  <td className="py-3 px-4 font-semibold text-slate-ink dark:text-slate-300">
                     {item.size}
                   </td>
 
@@ -379,7 +380,7 @@ export default function MateriView({
                         type="button"
                         onClick={() => openEditEditor(item)}
                         title="Ubah materi"
-                        className="w-8 h-8 rounded-[10px] border border-[#DCE3EC] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-[#334155] dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+                        className="w-8 h-8 rounded-[10px] border border-edge dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-ink dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
                       >
                         <PencilIcon className="w-3.5 h-3.5" />
                       </button>
@@ -387,7 +388,7 @@ export default function MateriView({
                         type="button"
                         onClick={() => onDeleteMaterial(item.id)}
                         title="Hapus materi"
-                        className="w-8 h-8 rounded-[10px] border border-[#DCE3EC] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-[#FEECEB] text-[#E5252A] flex items-center justify-center transition-colors cursor-pointer"
+                        className="w-8 h-8 rounded-[10px] border border-edge dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-red-tint text-red-strong flex items-center justify-center transition-colors cursor-pointer"
                       >
                         <TrashIcon className="w-3.5 h-3.5" />
                       </button>
@@ -400,7 +401,7 @@ export default function MateriView({
         </div>
 
         {/* MOBILE LIST VIEW */}
-        <div className="md:hidden divide-y divide-[#EEF2F6] dark:divide-slate-800">
+        <div className="md:hidden divide-y divide-edge-soft dark:divide-slate-800">
           {pageItems.map((item) => (
             <div
               key={item.id}
@@ -409,15 +410,15 @@ export default function MateriView({
               <div className="flex items-center gap-3 min-w-0">
                 <MaterialTypeBadgeIcon type={item.type} />
                 <div className="min-w-0">
-                  <div className="font-extrabold text-[14px] text-[#1E293B] dark:text-white truncate">
+                  <div className="font-extrabold text-[14px] text-navy dark:text-white truncate">
                     {item.title}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
-                    <span className="inline-block bg-[#E5252A] text-white text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                    <span className="inline-block bg-red-strong text-white text-xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full">
                       {TYPE_LABEL[item.type] || item.type}
                     </span>
-                    <span className="text-xs font-semibold text-[#64748B]">
-                      {item.topic} · {item.size}
+                    <span className="text-xs font-semibold text-slate-muted">
+                      {item.topic}, {item.size}
                     </span>
                   </div>
                 </div>
@@ -428,7 +429,7 @@ export default function MateriView({
                   type="button"
                   onClick={() => openEditEditor(item)}
                   aria-label="Ubah materi"
-                  className="w-8 h-8 rounded-[10px] border border-[#DCE3EC] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#334155] flex items-center justify-center"
+                  className="w-8 h-8 rounded-[10px] border border-edge dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-ink flex items-center justify-center"
                 >
                   <PencilIcon className="w-3.5 h-3.5" />
                 </button>
@@ -436,7 +437,7 @@ export default function MateriView({
                   type="button"
                   onClick={() => onDeleteMaterial(item.id)}
                   aria-label="Hapus materi"
-                  className="w-8 h-8 rounded-[10px] border border-[#DCE3EC] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#E5252A] flex items-center justify-center"
+                  className="w-8 h-8 rounded-[10px] border border-edge dark:border-slate-700 bg-white dark:bg-slate-800 text-red-strong flex items-center justify-center"
                 >
                   <TrashIcon className="w-3.5 h-3.5" />
                 </button>
@@ -453,8 +454,8 @@ export default function MateriView({
         )}
 
         {/* Pagination Footer */}
-        <div className="mt-5 pt-4 border-t border-[#EEF2F6] dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs font-bold text-[#64748B]">
+        <div className="mt-5 pt-4 border-t border-edge-soft dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3">
+          <p className="text-xs font-bold text-slate-muted">
             Menampilkan {filteredMaterials.length ? (page-1)*10+1 : 0}–{Math.min(page*10,filteredMaterials.length)} dari {filteredMaterials.length} materi
           </p>
 
@@ -466,8 +467,8 @@ export default function MateriView({
                 onClick={() => setCurrentPage(page)}
                 className={`w-8 h-8 rounded-[10px] text-xs font-extrabold transition-colors cursor-pointer ${
                   Math.min(currentPage,pageCount) === page
-                    ? "bg-[#FEECEB] border-[1.5px] border-[#E5252A] text-[#E5252A]"
-                    : "bg-white dark:bg-slate-800 border border-[#DCE3EC] dark:border-slate-700 text-[#475569] dark:text-slate-300 hover:bg-slate-50"
+                    ? "bg-red-tint border-[1.5px] border-red-strong text-red-strong"
+                    : "bg-white dark:bg-slate-800 border border-edge dark:border-slate-700 text-slate-mid dark:text-slate-300 hover:bg-slate-50"
                 }`}
               >
                 {page}

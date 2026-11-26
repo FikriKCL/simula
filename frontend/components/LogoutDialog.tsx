@@ -62,7 +62,7 @@ export default function LogoutDialog({ open, onCancel, onConfirm }: Props) {
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 cursor-pointer rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_#b71c1c] transition active:translate-y-1 active:shadow-none"
+            className="flex-1 cursor-pointer rounded-[14px] bg-brand px-5 py-2.5 font-heading text-sm font-extrabold text-white shadow-[0_4px_0_var(--red-shadow)] transition active:translate-y-1 active:shadow-none"
           >
             Ya, Keluar
           </button>

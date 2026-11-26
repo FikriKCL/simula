@@ -106,8 +106,8 @@ function correctLabel(q: Question, check: Check): string | null {
 /* Tombol 3D seperti desain Figma (PERIKSA / LANJUT / LOMPATI). */
 const btnBase =
   "min-w-[136px] cursor-pointer rounded-[14px] px-8 py-3.5 font-heading text-[15px] font-extrabold uppercase tracking-[0.4px] transition active:translate-y-[4px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0";
-const btnRed = `${btnBase} bg-brand text-white shadow-[0_4px_0_#b71c1c]`;
-const btnBlue = `${btnBase} bg-sky-dark text-white shadow-[0_4px_0_#1565c0]`;
+const btnRed = `${btnBase} bg-brand text-white shadow-[0_4px_0_var(--red-shadow)]`;
+const btnBlue = `${btnBase} bg-sky-dark text-white shadow-[0_4px_0_var(--blue-shadow)]`;
 const btnGhost = `${btnBase} border-2 border-line bg-surface text-muted shadow-[0_4px_0_var(--border)]`;
 
 function optionClass(state: OptState) {
@@ -125,7 +125,7 @@ function optionClass(state: OptState) {
 
 function KeyBadge({ n }: { n: number }) {
   return (
-    <span className="grid size-6 shrink-0 place-items-center rounded-md border-2 border-line bg-surface text-[11px] font-black text-muted">
+    <span className="grid size-6 shrink-0 place-items-center rounded-md border-2 border-line bg-surface text-xs font-black text-muted">
       {n}
     </span>
   );
@@ -133,7 +133,7 @@ function KeyBadge({ n }: { n: number }) {
 
 function PairBadge({ n }: { n: number }) {
   return (
-    <span className="absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-sky-dark text-[11px] font-black text-white">
+    <span className="absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-sky-dark text-xs font-black text-white">
       {n}
     </span>
   );
@@ -165,8 +165,8 @@ function TopBar({
         className="h-4 flex-1 overflow-hidden rounded-full bg-line"
       >
         <div
-          className="h-full min-w-4 rounded-full bg-sky-dark transition-[width] duration-500"
-          style={{ width: `${Math.max(progress * 100, 2)}%` }}
+          className="h-full origin-left rounded-full bg-sky-dark transition-transform duration-500"
+          style={{ transform: `scaleX(${progress})` }}
         />
       </div>
       {label && (
@@ -663,13 +663,13 @@ export default function QuizPage() {
             {result.passed ? "Hebat, kamu lulus!" : "Belum lulus, ayo coba lagi!"}
           </h1>
           <p className="mt-2 font-bold text-muted">
-            {correct} dari {result.feedback.length} jawaban benar · Nilai lulus{" "}
+            {correct} dari {result.feedback.length} jawaban benar. Nilai lulus{" "}
             {run?.pass_score}
           </p>
           {(result.xp_awarded > 0 || result.certificate_id) && (
             <p className="mt-3 inline-block rounded-full bg-sky-soft px-4 py-1.5 font-heading text-sm font-extrabold text-sky-dark">
               {result.xp_awarded > 0 && `+${result.xp_awarded} XP`}
-              {result.xp_awarded > 0 && result.certificate_id && " · "}
+              {result.xp_awarded > 0 && result.certificate_id && ", "}
               {result.certificate_id && "Sertifikat tersedia di profil"}
             </p>
           )}
@@ -706,14 +706,17 @@ export default function QuizPage() {
     return (
       <div className="min-h-screen bg-page">
         <TopBar exitHref={exitHref} progress={0} />
-        <main className="mx-auto mt-14 w-[min(540px,calc(100%-32px))]">
+        <main className="mx-auto mt-[min(12vh,96px)] w-[min(560px,calc(100%-32px))]">
           <ApiState
             loading={detail.loading}
             error={detail.error}
             retry={detail.reload}
           />
           {quiz && (
-            <div className="rounded-[20px] border-2 border-line bg-surface p-8 text-center shadow-pop">
+            <div className="rounded-[20px] border-2 border-line bg-surface p-8 text-center shadow-pop max-[560px]:p-6">
+              <div className="mx-auto mb-4 w-fit">
+                <PikoAvatar size={84} />
+              </div>
               <div className="flex justify-center">
                 <Chip text={kindLabel[quiz.kind] || "KUIS"} />
               </div>
@@ -721,7 +724,7 @@ export default function QuizPage() {
                 {quiz.title}
               </h1>
               <p className="mt-2 font-bold text-muted">
-                {quiz.questions.length} soal · Nilai lulus {quiz.pass_score}
+                {quiz.questions.length} soal, nilai lulus {quiz.pass_score}
               </p>
               <ul className="mx-auto mt-5 max-w-sm space-y-1.5 text-left text-sm text-muted">
                 <li>• Jawab soal, lalu tekan <b>Periksa</b>.</li>

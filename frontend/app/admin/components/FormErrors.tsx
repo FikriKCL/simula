@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 /** Field id → pesan kesalahan. Kunci juga dipakai sebagai id elemen input. */
 export type FieldErrors = Record<string, string>;
 
-export const errorRing = "!border-[#E5252A] ring-2 ring-[#E5252A]/20";
+export const errorRing = "!border-red-strong ring-2 ring-red-strong/20";
 
 export function isHttpUrl(value: string) {
   try {
@@ -21,7 +21,7 @@ export function FieldError({ id, errors }: { id: string; errors: FieldErrors }) 
   const message = errors[id];
   if (!message) return null;
   return (
-    <p id={`${id}-error`} className="mt-1 text-xs font-bold text-[#E5252A]">
+    <p id={`${id}-error`} className="mt-1 text-xs font-bold text-red-strong">
       {message}
     </p>
   );
@@ -55,7 +55,7 @@ export function FormErrorSummary({ errors, attempt }: { errors: FieldErrors; att
       ref={ref}
       tabIndex={-1}
       role="alert"
-      className="rounded-[14px] border-[1.5px] border-[#E5252A] bg-[#FEECEB] px-4 py-3 text-[#991B1B] outline-none dark:bg-red-950/40 dark:text-red-200"
+      className="rounded-[14px] border-[1.5px] border-red-strong bg-red-tint px-4 py-3 text-red-deep outline-none dark:bg-red-950/40 dark:text-red-200"
     >
       <p className="text-sm font-black">
         Periksa {entries.length} isian berikut sebelum menyimpan:
@@ -87,7 +87,7 @@ export function SaveError({ message }: { message: string }) {
   return (
     <p
       role="alert"
-      className="rounded-[12px] border border-[#E5252A]/40 bg-[#FEECEB] px-3 py-2 text-xs font-bold text-[#991B1B] dark:bg-red-950/40 dark:text-red-200"
+      className="rounded-[12px] border border-red-strong/40 bg-red-tint px-3 py-2 text-xs font-bold text-red-deep dark:bg-red-950/40 dark:text-red-200"
     >
       Gagal menyimpan: {message}
     </p>

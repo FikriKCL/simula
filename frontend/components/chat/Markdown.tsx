@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AlertIcon } from "../Icons";
 
 // The model sometimes answers with LaTeX ($100\text{ mm Hg}$); show it as plain text
 const MATH_SYMBOLS: [RegExp, string][] = [
@@ -287,7 +288,7 @@ export default function Markdown({
           key={key}
           className="flex gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
         >
-          <span aria-hidden="true">⚠️</span>
+          <AlertIcon size={16} className="mt-0.5 shrink-0" />
           <p className="min-w-0">{renderInline(para.join(" "))}</p>
         </div>
       );

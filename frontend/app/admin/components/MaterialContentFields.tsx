@@ -4,10 +4,10 @@ import { api, API_URL } from "@/lib/api";
 import type { LearningMaterial, ContentTree, TopicCode, MaterialType } from "../types";
 import { FieldError, errorRing, fieldProps, isHttpUrl, type FieldErrors } from "./FormErrors";
 
-const control = "w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-[#1E293B] text-sm font-semibold";
-const label = "block text-xs font-extrabold text-[#1E293B] dark:text-slate-200 mb-1";
+const control = "w-full h-10 px-3.5 rounded-[12px] border-[1.5px] border-navy text-sm font-semibold";
+const label = "block text-xs font-extrabold text-navy dark:text-slate-200 mb-1";
 const smallBtn =
-  "rounded-[10px] border border-[#DCE3EC] px-2.5 py-1 font-bold text-[#334155] hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
+  "rounded-[10px] border border-edge px-2.5 py-1 font-bold text-slate-ink hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
 
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_URL = /(^|\/\/|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i;
@@ -119,12 +119,12 @@ export default function MaterialContentFields({
           <option value="">Pilih modul / pelajaran</option>
           {lessons.map((l) => (
             <option key={l.id} value={l.id}>
-              {tree?.modules.find((m) => m.id === l.module_id)?.title} — {l.title}
+              {tree?.modules.find((m) => m.id === l.module_id)?.title}: {l.title}
             </option>
           ))}
         </select>
         {!lessons.length && !editing && (
-          <p className="mt-1 text-xs font-semibold text-[#64748B]">
+          <p className="mt-1 text-xs font-semibold text-slate-muted">
             Belum ada pelajaran di kategori ini. Buat lewat “Kelola modul dan pelajaran”.
           </p>
         )}
@@ -246,7 +246,7 @@ export default function MaterialContentFields({
       {type === "KOMIK" && (
         <div>
           {pages.map((page, i) => (
-            <fieldset key={i} className="mb-3 space-y-2 rounded-[12px] border border-[#DCE3EC] p-3 dark:border-slate-700">
+            <fieldset key={i} className="mb-3 space-y-2 rounded-[12px] border border-edge p-3 dark:border-slate-700">
               <legend className={label}>Halaman {i + 1}</legend>
               <input
                 {...fieldProps(`mat-page-${i}-image`, errors)}
@@ -299,7 +299,7 @@ export default function MaterialContentFields({
                 </button>
                 <button
                   type="button"
-                  className={smallBtn + " text-[#E5252A]"}
+                  className={smallBtn + " text-red-strong"}
                   disabled={uploading}
                   onClick={() => onChange({ ...value, pages: pages.filter((_, n) => n !== i) })}
                 >
@@ -322,12 +322,12 @@ export default function MaterialContentFields({
       )}
 
       {uploading && (
-        <p role="status" className="text-xs font-bold text-[#1D8CF8]">
+        <p role="status" className="text-xs font-bold text-admin-blue">
           Mengunggah gambar… Tunggu sebelum menyimpan.
         </p>
       )}
       {error && (
-        <p role="alert" className="text-xs font-bold text-[#E5252A]">
+        <p role="alert" className="text-xs font-bold text-red-strong">
           Unggah gagal: {error}
         </p>
       )}

@@ -20,7 +20,7 @@ const display = Baloo_2({
 });
 
 export const metadata: Metadata = {
-  title: { default: "SIMULA - Pembelajaran PMR", template: "%s · SIMULA" },
+  title: { default: "SIMULA - Pembelajaran PMR", template: "%s | SIMULA" },
   description: "Belajar pertolongan pertama dengan cara yang menyenangkan",
 };
 
