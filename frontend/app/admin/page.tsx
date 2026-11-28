@@ -288,7 +288,7 @@ export default function AdminPage() {
                 onGoto={(tab) => handleSwitchTab(tab)}
               />
             )}
-            {activeTab === "materi" && (
+           {activeTab === "materi" && (
               <MateriView
                 tree={data || undefined}
                 onContentChange={reload}
@@ -296,6 +296,7 @@ export default function AdminPage() {
                 onAddMaterial={handleAddMaterial}
                 onUpdateMaterial={handleUpdateMaterial}
                 onDeleteMaterial={handleDeleteMaterial}
+                onNotify={showToast}
               />
             )}
 
@@ -323,6 +324,7 @@ export default function AdminPage() {
                 }}
                 onSave={handleSaveQuestion}
                 onDelete={handleDeleteQuestion}
+                onNotify={showToast}
               />
             )}
           </main>
